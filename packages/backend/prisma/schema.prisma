@@ -1,0 +1,401 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────
+// Enums
+// ──────────────────────────────────────
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  CASEWORKER
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+// ──────────────────────────────────────
+// Users & Auth
+// ──────────────────────────────────────
+
+model User {
+  id           Int       @id @default(autoincrement())
+  localId      String?   @unique @map("local_id")
+  login        String    @unique
+  email        String?
+  firstName    String?   @map("first_name")
+  lastName     String?   @map("last_name")
+  passwordHash String    @map("password_hash")
+  role         Role      @default(CASEWORKER)
+  lang         String    @default("en") @db.VarChar(5)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  @@map("users")
+}
+
+// ──────────────────────────────────────
+// Core Entities
+// ──────────────────────────────────────
+
+model Family {
+  id                  Int       @id @default(autoincrement())
+  localId             String?   @unique @map("local_id")
+  familyName          String?   @map("family_name") @db.VarChar(512)
+  childrenEditable    Int       @default(0) @map("children_editable")
+  inCrisis            Boolean   @default(false) @map("in_crisis")
+  notes               String?   @db.Text
+  communityId         Int?      @map("community_id")
+  siteId              Int?      @map("site_id")
+  birthingAssistantId Int?      @map("birthing_assistant_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
+
+  community         Community?         @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  site              Site?              @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  birthingAssistant BirthingAssistant? @relation(fields: [birthingAssistantId], references: [id], onDelete: SetNull)
+  parents           Parent[]
+  children          Child[]
+  familyVisits      FamilyVisit[]
+
+  @@map("families")
+}
+
+model Parent {
+  id           Int       @id @default(autoincrement())
+  localId      String?   @unique @map("local_id")
+  familyId     Int       @map("family_id")
+  name         String?   @db.VarChar(256)
+  role         String?   @db.VarChar(64) // "mother", "caregiver", etc.
+  birthDate    DateTime? @map("birth_date")
+  dateEntered  DateTime? @map("date_entered")
+  photoId      Int?      @map("photo_id")
+  reasonEnroll String?   @map("reason_enroll") @db.VarChar(4096)
+  dueDate      DateTime? @map("due_date")
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  photo  File?  @relation(fields: [photoId], references: [id], onDelete: SetNull)
+
+  @@map("parents")
+}
+
+model Child {
+  id                Int       @id @default(autoincrement())
+  localId           String?   @unique @map("local_id")
+  familyId          Int       @map("family_id")
+  name              String    @db.VarChar(256)
+  birthDate         DateTime  @map("birth_date")
+  sex               Sex
+  dateEntered       DateTime? @map("date_entered")
+  photoId           Int?      @map("photo_id")
+  weight            Int       @default(0) // grams
+  nutritionalState  String?   @map("nutritional_state") @db.VarChar(512)
+  reasonEnrollment  String?   @map("reason_enrollment") @db.VarChar(4096)
+  observations      String?   @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  photo       File?        @relation(fields: [photoId], references: [id], onDelete: SetNull)
+  childVisits ChildVisit[]
+
+  @@map("children")
+}
+
+// ──────────────────────────────────────
+// Visits & Health Tracking
+// ──────────────────────────────────────
+
+// Merges the legacy "records" and "child_visits" tables into one model.
+// All child health data — measurements, nutrition tracking, dynamic
+// questions — lives here. Optional fields accommodate both visit types.
+model ChildVisit {
+  id               Int       @id @default(autoincrement())
+  localId          String?   @unique @map("local_id")
+  familyId         Int       @map("family_id")
+  childId          Int       @map("child_id")
+  visitDate        DateTime  @map("visit_date")
+  weight           Int       @default(0) // grams
+  armCircumference Int       @default(0) @map("arm_circumference") // millimeters
+  height           Int       @default(0) // millimeters
+  incap            Boolean   @default(false) // gave special drink
+  leche            Boolean   @default(false) // drinking milk
+  bagsGiven        String?   @map("bags_given")
+  recvAnyMedicine  String?   @map("recv_any_medicine")
+  leftFromProg     String?   @map("left_from_prog")
+  passedAway       String?   @map("passed_away")
+  questions        Json      @default("[]") // Array of { questionId, question, answer }
+  notes            String?   @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  child  Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@map("child_visits")
+}
+
+model FamilyVisit {
+  id                Int       @id @default(autoincrement())
+  localId           String?   @unique @map("local_id")
+  familyId          Int       @map("family_id")
+  visitDate         DateTime  @map("visit_date")
+  trainingsReceived Json      @default("[]") @map("trainings_received") // Array of { id, title }
+  resourcesReceived Json      @default("[]") @map("resources_received") // Array of { id, title }
+  questions         Json      @default("[]") // Array of { questionId, question, answer }
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@map("family_visits")
+}
+
+// ──────────────────────────────────────
+// Birthing Assistants
+// ──────────────────────────────────────
+
+model BirthingAssistant {
+  id                Int       @id @default(autoincrement())
+  localId           String?   @unique @map("local_id")
+  name              String    @db.VarChar(128)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  servedCommunities BirthingAssistantCommunity[]
+  trainingsReceived BirthingAssistantTraining[]
+  families          Family[]
+
+  @@map("birthing_assistants")
+}
+
+// Junction table: which communities a BA serves
+model BirthingAssistantCommunity {
+  birthingAssistantId Int @map("birthing_assistant_id")
+  communityId         Int @map("community_id")
+
+  birthingAssistant BirthingAssistant @relation(fields: [birthingAssistantId], references: [id], onDelete: Cascade)
+  community         Community         @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@id([birthingAssistantId, communityId])
+  @@map("birthing_assistant_communities")
+}
+
+// Junction table: what training a BA has received
+model BirthingAssistantTraining {
+  birthingAssistantId Int @map("birthing_assistant_id")
+  trainingId          Int @map("training_id")
+
+  birthingAssistant BirthingAssistant @relation(fields: [birthingAssistantId], references: [id], onDelete: Cascade)
+  training          Training          @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
+  @@id([birthingAssistantId, trainingId])
+  @@map("birthing_assistant_trainings")
+}
+
+// ──────────────────────────────────────
+// Files (Photos)
+// ──────────────────────────────────────
+
+// No soft delete. Files are content-addressed and immutable.
+model File {
+  id        Int      @id @default(autoincrement())
+  hash      String   @unique @db.VarChar(256) // SHA-256
+  extension String   @db.VarChar(128)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  parentPhotos Parent[]
+  childPhotos  Child[]
+
+  @@map("files")
+}
+
+// ──────────────────────────────────────
+// Lookup Tables (Admin-Managed)
+// ──────────────────────────────────────
+
+model Community {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(1024)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  families              Family[]
+  birthingAssistantLinks BirthingAssistantCommunity[]
+
+  @@map("communities")
+}
+
+model Site {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(1024)
+  lat       Float?
+  lng       Float?
+  boundary  Json?     // GeoJSON polygon ring: [[lng, lat], ...]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  families Family[]
+
+  @@map("sites")
+}
+
+model Resource {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(1024)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("resources")
+}
+
+model Training {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(1024)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  birthingAssistantLinks BirthingAssistantTraining[]
+
+  @@map("training")
+}
+
+model ChildVisitQuestion {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(1024)
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  setItems ChildVisitQuestionSetItem[]
+
+  @@map("child_visit_questions")
+}
+
+model ParentVisitQuestion {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(1024)
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  setItems ParentVisitQuestionSetItem[]
+
+  @@map("parent_visit_questions")
+}
+
+model FamilyVisitQuestion {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(1024)
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  setItems FamilyVisitQuestionSetItem[]
+
+  @@map("family_visit_questions")
+}
+
+// ──────────────────────────────────────
+// Question Sets
+// ──────────────────────────────────────
+
+model ChildVisitQuestionSet {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(256)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  items ChildVisitQuestionSetItem[]
+
+  @@map("child_visit_question_sets")
+}
+
+model ChildVisitQuestionSetItem {
+  id         Int @id @default(autoincrement())
+  setId      Int @map("set_id")
+  questionId Int @map("question_id")
+  sortOrder  Int @default(0) @map("sort_order")
+
+  set      ChildVisitQuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  question ChildVisitQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, questionId])
+  @@map("child_visit_question_set_items")
+}
+
+model ParentVisitQuestionSet {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(256)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  items ParentVisitQuestionSetItem[]
+
+  @@map("parent_visit_question_sets")
+}
+
+model ParentVisitQuestionSetItem {
+  id         Int @id @default(autoincrement())
+  setId      Int @map("set_id")
+  questionId Int @map("question_id")
+  sortOrder  Int @default(0) @map("sort_order")
+
+  set      ParentVisitQuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  question ParentVisitQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, questionId])
+  @@map("parent_visit_question_set_items")
+}
+
+model FamilyVisitQuestionSet {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(256)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  items FamilyVisitQuestionSetItem[]
+
+  @@map("family_visit_question_sets")
+}
+
+model FamilyVisitQuestionSetItem {
+  id         Int @id @default(autoincrement())
+  setId      Int @map("set_id")
+  questionId Int @map("question_id")
+  sortOrder  Int @default(0) @map("sort_order")
+
+  set      FamilyVisitQuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  question FamilyVisitQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, questionId])
+  @@map("family_visit_question_set_items")
+}

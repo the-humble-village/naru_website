@@ -1,0 +1,19 @@
+[Unit]
+Description=Naru Website Backend
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/var/www/backend
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+# Wait 10 seconds before restarting if it fails
+RestartSec=10
+# Environment variables
+# It's better to use an .env file in the WorkingDirectory
+Environment=NODE_ENV=production
+# Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target

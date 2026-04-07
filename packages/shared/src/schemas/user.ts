@@ -1,0 +1,83 @@
+import { z } from 'zod';
+
+// Role enum for validation
+export const RoleSchema = z.enum(['ADMIN', 'SUPERVISOR', 'CASEWORKER']);
+
+// User creation schema (for registration and admin create)
+export const UserCreateSchema = z.object({
+  login: z.string().min(1).max(255),
+  email: z.string().email().optional().nullable(),
+  firstName: z.string().max(255).optional().nullable(),
+  lastName: z.string().max(255).optional().nullable(),
+  password: z.string().min(6), // Plain password for creation
+  role: RoleSchema.default('CASEWORKER'),
+  lang: z.string().max(5).default('en'),
+  localId: z.string().uuid().optional(), // For offline-created records
+});
+
+// User update schema (partial fields for updates)
+export const UserUpdateSchema = z.object({
+  login: z.string().min(1).max(255).optional(),
+  email: z.string().email().optional().nullable(),
+  firstName: z.string().max(255).optional().nullable(),
+  lastName: z.string().max(255).optional().nullable(),
+  role: RoleSchema.optional(),
+  lang: z.string().max(5).optional(),
+}).partial();
+
+// User read schema (what's returned from API - never includes passwordHash)
+export const UserReadSchema = z.object({
+  id: z.number().int().positive(),
+  localId: z.string().nullable(),
+  login: z.string(),
+  email: z.string().nullable(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
+  role: RoleSchema,
+  lang: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  // Note: deletedAt and passwordHash are never exposed
+});
+
+// Login request schema
+export const LoginSchema = z.object({
+  login: z.string().min(1),
+  password: z.string().min(1),
+});
+
+// Registration request schema
+export const RegisterSchema = UserCreateSchema.pick({
+  login: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  password: true,
+  lang: true,
+});
+
+// JWT token payload schema
+export const TokenPayloadSchema = z.object({
+  userId: z.number().int().positive(),
+  role: RoleSchema,
+  lang: z.string(),
+  iat: z.number().optional(),
+  exp: z.number().optional(),
+});
+
+// Auth API response schema (for login/register/refresh)
+export const AuthResponseSchema = z.object({
+  user: UserReadSchema,
+  accessToken: z.string(),
+  refreshToken: z.string(),
+});
+
+// Inferred types for TypeScript
+export type Role = z.infer<typeof RoleSchema>;
+export type UserCreate = z.infer<typeof UserCreateSchema>;
+export type UserUpdate = z.infer<typeof UserUpdateSchema>;
+export type UserRead = z.infer<typeof UserReadSchema>;
+export type Login = z.infer<typeof LoginSchema>;
+export type Register = z.infer<typeof RegisterSchema>;
+export type TokenPayload = z.infer<typeof TokenPayloadSchema>;
+export type AuthResponse = z.infer<typeof AuthResponseSchema>;

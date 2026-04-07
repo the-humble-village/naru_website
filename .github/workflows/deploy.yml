@@ -1,0 +1,93 @@
+name: Deploy Naru Website
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build monorepo
+        run: pnpm build
+
+      - name: Create standalone backend
+        run: pnpm --filter @naru/backend deploy ./backend-deploy
+
+      - name: Deploy Web to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
+          port: 22
+          source: "packages/web/dist/**"
+          target: "/var/www/web/dist"
+          strip_components: 3
+
+      - name: Deploy Backend to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
+          port: 22
+          source: "backend-deploy/**"
+          target: "/var/www/backend"
+          strip_components: 1
+
+      - name: Deploy Nginx Config to EC2 (Temporary)
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
+          port: 22
+          source: "nginx/naru.conf"
+          target: "/tmp"
+
+      - name: Post-deployment on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
+          script: |
+            # Ensure permissions
+            sudo chown -R ec2-user:ec2-user /var/www/web/dist
+            sudo chown -R ec2-user:ec2-user /var/www/backend
+
+            # Update Nginx config
+            sudo mv /tmp/nginx/naru.conf /etc/nginx/conf.d/naru.conf
+            sudo chown root:root /etc/nginx/conf.d/naru.conf
+
+            # Run backend migrations
+            cd /var/www/backend
+            # Note: DATABASE_URL should be in the .env file on the server
+            npx prisma migrate deploy
+
+            # Restart services
+            sudo systemctl restart nginx
+            # If you use PM2 to manage the backend:
+            # pm2 restart naru-backend || pm2 start dist/index.js --name naru-backend
+            # Or if you use systemd:
+            # sudo systemctl restart naru-backend
+

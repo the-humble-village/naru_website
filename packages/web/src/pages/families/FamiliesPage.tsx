@@ -1,0 +1,25 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useFamilyTable } from './useFamilyTable';
+import { FamiliesTable } from './FamiliesTable';
+
+export const FamiliesPage: React.FC = () => {
+  const table = useFamilyTable();
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Families</h1>
+        <Link
+          to="/families/new"
+          className="bg-hv-terracotta text-white px-4 py-2 rounded-md hover:bg-hv-terracotta-hover transition-colors"
+        >
+          Add Family
+        </Link>
+      </div>
+      <FamiliesTable table={table} actionLabel="View Details" />
+    </div>
+  );
+};
+
+export default FamiliesPage;

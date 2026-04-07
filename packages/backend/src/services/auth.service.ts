@@ -8,7 +8,7 @@ import {
   type UserRead,
   type TokenPayload
 } from '@naru/shared';
-import prisma from '../db';
+import { prisma } from '../db';
 import { appConfig } from '../config';
 
 const BCRYPT_ROUNDS = 12;
@@ -171,6 +171,9 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
     };
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
+      if (error instanceof jwt.JsonWebTokenError) {
+        console.error(`Refresh JWT Error: ${error.message}`);
+      }
       throw new HTTPException(401, { message: 'Invalid refresh token' });
     }
     throw error;

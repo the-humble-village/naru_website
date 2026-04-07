@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-rds": "^3.758.0",
+    "@aws-sdk/rds-signer": "^3.1026.0",
     "@hono/node-server": "^1.19.11",
     "@hono/zod-validator": "^0.5.0",
     "@naru/shared": "workspace:*",

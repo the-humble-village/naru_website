@@ -1,9 +1,9 @@
 import { PrismaClient } from '@prisma/client';
-import { RDS } from '@aws-sdk/client-rds';
+import { Signer } from '@aws-sdk/rds-signer';
 import { applySoftDeleteMiddleware } from './middleware/soft-delete';
 
 // Global Prisma client singleton instance
-let prisma: PrismaClient;
+export let prisma: PrismaClient;
 
 declare global {
   // Allow global `var` declarations
@@ -16,12 +16,13 @@ declare global {
  * Equivalent to boto3's generate_db_auth_token
  */
 async function getRDSToken() {
-  const rds = new RDS({ region: process.env.AWS_REGION || 'us-east-1' });
-  return rds.signer.getAuthToken({
+  const signer = new Signer({
+    region: process.env.AWS_REGION || 'us-east-1',
     hostname: 'naru-website-cluster.cluster-cspumw4c8drx.us-east-1.rds.amazonaws.com',
     port: 5432,
     username: 'postgres',
   });
+  return signer.getAuthToken();
 }
 
 // Create client with explicit datasource for tests
@@ -34,7 +35,7 @@ const createPrismaClient = (databaseUrl?: string) => {
     };
   } else if (process.env.NODE_ENV === 'test') {
     options.datasources = {
-      db: { url: process.env.DATABASE_URL || 'postgresql://calebr@127.0.0.1:5432/naru_test' }
+      db: { url: process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test' }
     };
   }
 
@@ -68,8 +69,5 @@ async function initializePrisma() {
 // Export a promise-based getter since token generation is async
 export const getPrisma = initializePrisma;
 
-// For backward compatibility with existing synchronous imports, 
-// we'll keep the default export but it might be uninitialized 
-// if not awaited elsewhere. 
-// NOTE: It is recommended to use getPrisma() in your entrypoint (index.ts).
+// Also provide a default export for backward compatibility
 export default prisma;

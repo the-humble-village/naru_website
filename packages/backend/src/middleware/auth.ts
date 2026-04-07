@@ -3,7 +3,7 @@ import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import { TokenPayloadSchema, type TokenPayload, type UserRead } from '@naru/shared';
 import { appConfig } from '../config';
-import prisma from '../db';
+import { prisma } from '../db';
 
 /**
  * Auth middleware that verifies JWT from Authorization header
@@ -63,6 +63,7 @@ export async function auth(c: Context, next: Next): Promise<void> {
     await next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
+      console.error(`JWT Error: ${error.message}`);
       throw new HTTPException(401, { message: 'Invalid token' });
     }
     if (error instanceof jwt.TokenExpiredError) {

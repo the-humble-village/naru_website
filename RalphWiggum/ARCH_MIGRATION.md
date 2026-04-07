@@ -175,8 +175,8 @@ humble-village/
 This is the complete database schema. Prisma generates TypeScript types and a query client from this file. All tables use soft deletes except `File` (content-addressed, never deleted).
 
 **DATABASE_URL references:**
-- Dev: `postgresql://calebr@127.0.0.1:5432/naru`
-- Test: `postgresql://calebr@127.0.0.1:5432/naru_test`
+- Dev: `postgresql://postgres@localhost:5432/naru`
+- Test: `postgresql://postgres@localhost:5432/naru_test`
 
 ```prisma
 generator client {
@@ -930,7 +930,7 @@ colors: {
 ### Backend
 
 - **Framework**: Vitest + supertest (or Hono's built-in test client).
-- **Test database**: Separate PostgreSQL database (`postgresql://calebr@127.0.0.1:5432/naru_test`), reset between test suites via Prisma `migrate reset`.
+- **Test database**: Separate PostgreSQL database (`postgresql://postgres@localhost:5432/naru_test`), reset between test suites via Prisma `migrate reset`.
 - **Coverage requirements per route**: happy path, 401 (no auth), 403 (wrong role), 404 (not found), validation error (bad input).
 - **Sync endpoint tests must cover**:
   - Valid batch of creates returns correct serverId mappings.

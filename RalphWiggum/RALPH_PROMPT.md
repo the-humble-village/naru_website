@@ -59,8 +59,8 @@ Each invocation gives you a specific feature to implement. The feature JSON is p
 ### Package references:
 - The shared package is `@naru/shared` (workspace dependency).
 - Import from `@naru/shared` in both backend and web packages.
-- The backend .env uses `DATABASE_URL=postgresql://calebr@127.0.0.1:5432/naru`.
-- The test .env uses `DATABASE_URL=postgresql://calebr@127.0.0.1:5432/naru_test`.
+- The backend .env uses `DATABASE_URL=postgresql://postgres@localhost:5432/naru`.
+- The test .env uses `DATABASE_URL=postgresql://postgres@localhost:5432/naru_test`.
 
 ### Testing:
 - Backend tests use Vitest + Hono's test client.

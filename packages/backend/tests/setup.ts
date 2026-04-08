@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken'
 // Override environment for tests BEFORE anything else reads process.env.
 // Do NOT import dotenv — the .env file points at the production database.
 process.env.NODE_ENV = 'test'
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test'
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only'
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-for-testing-only'
 

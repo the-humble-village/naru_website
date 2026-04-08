@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
+import { execSync } from 'child_process';
+
 // Script to set up the test database
 const DEFAULT_DB_URL = 'postgresql://postgres@localhost:5432/naru_test';
 process.env.DATABASE_URL = process.env.DATABASE_URL || DEFAULT_DB_URL;
-
-const { execSync } = require('child_process');
 
 try {
   console.log('🔄 Setting up test database...');

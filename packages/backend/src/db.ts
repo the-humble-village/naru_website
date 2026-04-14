@@ -4,7 +4,7 @@ import { applySoftDeleteMiddleware } from './middleware/soft-delete';
 import { appConfig } from './config';
 
 // Global Prisma client singleton instance
-export let prisma: PrismaClient;
+export let prisma: PrismaClient = null!;
 
 declare global {
   // Allow global `var` declarations
@@ -93,4 +93,4 @@ async function initializePrisma() {
 export const getPrisma = initializePrisma;
 
 // Also provide a default export for backward compatibility
-export default prisma;
+export { prisma as default };

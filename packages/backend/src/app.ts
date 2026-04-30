@@ -1,4 +1,5 @@
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { swaggerUI } from '@hono/swagger-ui';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
@@ -22,8 +23,8 @@ import usersRoutes from './routes/users';
 import questionSetsRoutes from './routes/question-sets';
 import sitesRoutes from './routes/sites';
 
-// Initialize Hono app
-const app = new Hono();
+// Initialize Hono app with OpenAPI support
+const app = new OpenAPIHono();
 
 // CORS middleware
 app.use('*', cors({
@@ -38,7 +39,7 @@ app.onError((err, c) => {
   console.error(`Error: ${err.message}`);
   console.error(err.stack);
 
-  // Handle Zod validation errors (from @hono/zod-validator)
+  // Handle Zod validation errors (from @hono/zod-validator or @hono/zod-openapi)
   if (err instanceof ZodError) {
     return c.json({
       error: 'Validation failed',
@@ -83,9 +84,22 @@ app.route('/api/families/:familyId/parents', parentsRoutes);
 app.route('/api/families/:fid/children/:cid/visits', childVisitsRoutes);
 app.route('/api/families/:familyId/visits', familyVisitsRoutes);
 
-// Health check endpoint
+// Health check endpoint (simple version, non-OpenAPI)
 app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// OpenAPI Documentation JSON
+app.doc('/api/doc', {
+  openapi: '3.0.0',
+  info: {
+    version: '1.0.0',
+    title: 'Naru Backend API',
+    description: 'API documentation for the Naru Website backend',
+  },
+});
+
+// Swagger UI
+app.get('/api/ui', swaggerUI({ url: '/api/doc' }));
 
 export default app;

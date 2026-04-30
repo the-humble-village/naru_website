@@ -54,6 +54,11 @@ jobs:
           cd packages/backend
           npx prisma migrate deploy
 
+      - name: Generate Prisma Client
+        run: |
+            cd packages/backend
+            npx prisma generate
+
       - name: Run all tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test

@@ -1,19 +1,41 @@
-name: Deploy Naru Website
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build-and-deploy:
+  pipeline:
+    name: Test, Build & Deploy
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: naru_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -24,13 +46,34 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Run Prisma migrations on test database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test
+        run: |
+          cd packages/backend
+          npx prisma migrate deploy
+
+      - name: Run all tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test
+          JWT_SECRET: test-jwt-secret-for-testing-only
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
+        run: pnpm test
+
       - name: Build monorepo
+        # pnpm test already triggers build due to turbo.json, 
+        # but we run it explicitly to ensure all artifacts (including web) are ready.
         run: pnpm build
 
       - name: Create standalone backend
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: pnpm --filter @naru/backend deploy ./backend-deploy
 
       - name: Deploy Web to EC2
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -42,6 +85,7 @@ jobs:
           strip_components: 3
 
       - name: Deploy Backend to EC2
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -53,6 +97,7 @@ jobs:
           strip_components: 1
 
       - name: Deploy Nginx Config to EC2 (Temporary)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -63,6 +108,7 @@ jobs:
           target: "/tmp"
 
       - name: Post-deployment on EC2
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -84,8 +130,4 @@ jobs:
 
             # Restart services
             sudo systemctl restart nginx
-            # If you use PM2 to manage the backend:
             # pm2 restart naru-backend || pm2 start dist/index.js --name naru-backend
-            # Or if you use systemd:
-            # sudo systemctl restart naru-backend
-

@@ -246,7 +246,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
   // Transform the data to match the expected schema format
   const dashboardData: DashboardResponse = {
     recentVisits: {
-      childVisits: recentChildVisits.map(visit => ({
+      childVisits: recentChildVisits.map((visit: any) => ({
         id: visit.id,
         localId: visit.localId,
         familyId: visit.familyId,
@@ -271,7 +271,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
           familyId: visit.child!.familyId,
         },
       })),
-      familyVisits: recentFamilyVisits.map(visit => ({
+      familyVisits: recentFamilyVisits.map((visit: any) => ({
         id: visit.id,
         localId: visit.localId,
         familyId: visit.familyId,
@@ -288,7 +288,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
         },
       })),
     },
-    recentlyUpdatedChildren: recentlyUpdatedChildren.map(child => ({
+    recentlyUpdatedChildren: recentlyUpdatedChildren.map((child: any) => ({
       id: child.id,
       localId: child.localId,
       familyId: child.familyId,
@@ -315,7 +315,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
         armCircumference: child.childVisits[0]!.armCircumference,
       } : null,
     })),
-    familiesInCrisis: familiesInCrisis.map(family => ({
+    familiesInCrisis: familiesInCrisis.map((family: any) => ({
       id: family.id,
       localId: family.localId,
       familyName: family.familyName,

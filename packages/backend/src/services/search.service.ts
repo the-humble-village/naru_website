@@ -89,7 +89,7 @@ export async function searchByName(query: string, user: UserRead): Promise<Searc
   // Transform results into unified format
   const results = [
     // Family results
-    ...families.map(family => ({
+    ...families.map((family: any) => ({
       id: family.id,
       type: 'family' as const,
       name: family.familyName,
@@ -97,7 +97,7 @@ export async function searchByName(query: string, user: UserRead): Promise<Searc
       familyName: family.familyName,
     })),
     // Parent results
-    ...parents.map(parent => ({
+    ...parents.map((parent: any) => ({
       id: parent.id,
       type: 'parent' as const,
       name: parent.name,
@@ -105,7 +105,7 @@ export async function searchByName(query: string, user: UserRead): Promise<Searc
       familyName: parent.family.familyName,
     })),
     // Child results
-    ...children.map(child => ({
+    ...children.map((child: any) => ({
       id: child.id,
       type: 'child' as const,
       name: child.name,
@@ -116,8 +116,8 @@ export async function searchByName(query: string, user: UserRead): Promise<Searc
 
   // Sort results by type (families first, then parents, then children)
   results.sort((a, b) => {
-    const typeOrder = { family: 1, parent: 2, child: 3 };
-    const typeComparison = typeOrder[a.type] - typeOrder[b.type];
+    const typeOrder: Record<string, number> = { family: 1, parent: 2, child: 3 };
+    const typeComparison = typeOrder[a.type]! - typeOrder[b.type]!;
     if (typeComparison !== 0) return typeComparison;
 
     // Within same type, sort by name (case-insensitive)

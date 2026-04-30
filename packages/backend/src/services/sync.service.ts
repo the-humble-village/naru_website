@@ -45,7 +45,7 @@ export async function processSyncRequest(
 
   try {
     // Process all changes in a single transaction
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Sort changes by dependency order
       const sortedChanges = [...syncRequest.changes].sort((a, b) => {
         const aIndex = ENTITY_DEPENDENCY_ORDER.indexOf(a.entity as any);

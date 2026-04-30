@@ -39,17 +39,17 @@ export async function listBirthingAssistants(): Promise<BirthingAssistantRead[]>
     },
   });
 
-  return birthingAssistants.map(ba => ({
+  return birthingAssistants.map((ba: any) => ({
     id: ba.id,
     localId: ba.localId,
     name: ba.name,
     createdAt: ba.createdAt.toISOString(),
     updatedAt: ba.updatedAt.toISOString(),
-    servedCommunities: ba.servedCommunities.map(sc => ({
+    servedCommunities: ba.servedCommunities.map((sc: any) => ({
       id: sc.community.id,
       title: sc.community.title,
     })),
-    trainingsReceived: ba.trainingsReceived.map(tr => ({
+    trainingsReceived: ba.trainingsReceived.map((tr: any) => ({
       id: tr.training.id,
       title: tr.training.title,
     })),
@@ -142,11 +142,11 @@ export async function createBirthingAssistant(data: BirthingAssistantCreate): Pr
     name: birthingAssistant.name,
     createdAt: birthingAssistant.createdAt.toISOString(),
     updatedAt: birthingAssistant.updatedAt.toISOString(),
-    servedCommunities: birthingAssistant.servedCommunities.map(sc => ({
+    servedCommunities: birthingAssistant.servedCommunities.map((sc: any) => ({
       id: sc.community.id,
       title: sc.community.title,
     })),
-    trainingsReceived: birthingAssistant.trainingsReceived.map(tr => ({
+    trainingsReceived: birthingAssistant.trainingsReceived.map((tr: any) => ({
       id: tr.training.id,
       title: tr.training.title,
     })),
@@ -193,11 +193,11 @@ export async function getBirthingAssistantById(id: number): Promise<BirthingAssi
     name: birthingAssistant.name,
     createdAt: birthingAssistant.createdAt.toISOString(),
     updatedAt: birthingAssistant.updatedAt.toISOString(),
-    servedCommunities: birthingAssistant.servedCommunities.map(sc => ({
+    servedCommunities: birthingAssistant.servedCommunities.map((sc: any) => ({
       id: sc.community.id,
       title: sc.community.title,
     })),
-    trainingsReceived: birthingAssistant.trainingsReceived.map(tr => ({
+    trainingsReceived: birthingAssistant.trainingsReceived.map((tr: any) => ({
       id: tr.training.id,
       title: tr.training.title,
     })),
@@ -309,11 +309,11 @@ export async function updateBirthingAssistant(id: number, data: BirthingAssistan
     name: birthingAssistant.name,
     createdAt: birthingAssistant.createdAt.toISOString(),
     updatedAt: birthingAssistant.updatedAt.toISOString(),
-    servedCommunities: birthingAssistant.servedCommunities.map(sc => ({
+    servedCommunities: birthingAssistant.servedCommunities.map((sc: any) => ({
       id: sc.community.id,
       title: sc.community.title,
     })),
-    trainingsReceived: birthingAssistant.trainingsReceived.map(tr => ({
+    trainingsReceived: birthingAssistant.trainingsReceived.map((tr: any) => ({
       id: tr.training.id,
       title: tr.training.title,
     })),

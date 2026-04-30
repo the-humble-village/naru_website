@@ -5,7 +5,7 @@ import prisma from '../db';
  * Runs inside a Prisma transaction so everything is atomic.
  */
 export async function generateTestData() {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: any) => {
     // Delete all existing data in FK-safe order
     await tx.childVisit.deleteMany();
     await tx.familyVisit.deleteMany();

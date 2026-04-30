@@ -46,7 +46,7 @@ export async function listUsers(options: {
   ]);
 
   // Transform dates to ISO strings
-  const usersRead: UserRead[] = users.map(user => ({
+  const usersRead: UserRead[] = users.map((user: any) => ({
     ...user,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

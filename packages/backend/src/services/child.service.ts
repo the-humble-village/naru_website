@@ -52,7 +52,7 @@ export async function listChildren(familyId: number, user: UserRead): Promise<Ch
   });
 
   // Transform dates to ISO strings
-  const childrenRead: ChildRead[] = children.map(child => ({
+  const childrenRead: ChildRead[] = children.map((child: any) => ({
     ...child,
     birthDate: child.birthDate.toISOString(),
     dateEntered: child.dateEntered?.toISOString() || null,

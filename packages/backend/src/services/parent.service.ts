@@ -50,7 +50,7 @@ export async function listParents(familyId: number, user: UserRead): Promise<Par
   });
 
   // Transform dates to ISO strings
-  const parentsRead: ParentRead[] = parents.map(parent => ({
+  const parentsRead: ParentRead[] = parents.map((parent: any) => ({
     ...parent,
     birthDate: parent.birthDate?.toISOString() ?? null,
     dateEntered: parent.dateEntered?.toISOString() ?? null,

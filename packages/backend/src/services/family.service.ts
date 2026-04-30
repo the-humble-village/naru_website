@@ -79,7 +79,7 @@ export async function listFamilies(options: {
   ]);
 
   // Transform dates to ISO strings
-  const familiesRead: FamilyRead[] = families.map(family => ({
+  const familiesRead: FamilyRead[] = families.map((family: any) => ({
     ...family,
     createdAt: family.createdAt.toISOString(),
     updatedAt: family.updatedAt.toISOString(),

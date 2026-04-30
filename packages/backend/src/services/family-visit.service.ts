@@ -57,7 +57,7 @@ export async function listFamilyVisits(
   });
 
   // Transform dates to ISO strings and cast JSON fields
-  const familyVisitsRead: FamilyVisitRead[] = familyVisits.map(visit => ({
+  const familyVisitsRead: FamilyVisitRead[] = familyVisits.map((visit: any) => ({
     ...visit,
     trainingsReceived: visit.trainingsReceived as any, // Cast JsonValue to TrainingReceived[]
     resourcesReceived: visit.resourcesReceived as any, // Cast JsonValue to ResourceReceived[]

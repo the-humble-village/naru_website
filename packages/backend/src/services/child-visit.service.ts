@@ -80,7 +80,7 @@ export async function listChildVisits(
   });
 
   // Transform dates to ISO strings and cast questions
-  const childVisitsRead: ChildVisitRead[] = childVisits.map(visit => ({
+  const childVisitsRead: ChildVisitRead[] = childVisits.map((visit: any) => ({
     ...visit,
     questions: visit.questions as any, // Cast JsonValue to ChildVisitQuestion[]
     visitDate: visit.visitDate.toISOString(),

@@ -1,85 +1,82 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 /**
- * Prisma middleware that automatically filters out soft-deleted records
- * by adding `deletedAt: null` condition to findMany, findFirst, and findUnique queries.
- *
- * Models that support soft delete are those with a `deletedAt` field.
- * The File model does not have soft delete (content-addressed, never deleted).
+ * Prisma extension that automatically filters out soft-deleted records
+ * for models that have a `deletedAt` field.
  */
-export function applySoftDeleteMiddleware(prisma: PrismaClient): void {
-  // @ts-ignore - Prisma middleware types may not be fully available
-  if (typeof prisma.$use === 'function') {
-    // @ts-ignore - Using any types for middleware params until proper types are available
-    prisma.$use(async (params: any, next: any) => {
-      // Models that support soft delete (have deletedAt field)
-      const softDeleteModels = new Set([
-        'User',
-        'Family',
-        'Parent',
-        'Child',
-        'ChildVisit',
-        'FamilyVisit',
-        'BirthingAssistant',
-        'Community',
-        'Site',
-        'Resource',
-        'Training',
-        'ChildVisitQuestion',
-        'ParentVisitQuestion',
-        'FamilyVisitQuestion',
-      ]);
+export const softDeleteExtension = Prisma.defineExtension({
+  name: 'soft-delete',
+  query: {
+    $allModels: {
+      async $allOperations({ model, operation, args, query }) {
+        const softDeleteModels = new Set([
+          'User',
+          'Family',
+          'Parent',
+          'Child',
+          'ChildVisit',
+          'FamilyVisit',
+          'BirthingAssistant',
+          'Community',
+          'Site',
+          'Resource',
+          'Training',
+          'ChildVisitQuestion',
+          'ParentVisitQuestion',
+          'FamilyVisitQuestion',
+        ]);
 
-      // Only apply to models that support soft delete
-      if (!softDeleteModels.has(params.model || '')) {
-        return next(params);
-      }
-
-      // Apply soft delete filter for read operations
-      if (['findMany', 'findFirst', 'findUnique'].includes(params.action)) {
-        if (!params.args) {
-          params.args = {};
-        }
-        if (!params.args.where) {
-          params.args.where = {};
+        if (!softDeleteModels.has(model)) {
+          return query(args);
         }
 
-        // Only add the filter if deletedAt is not explicitly specified
-        if (params.args.where.deletedAt === undefined) {
-          params.args.where.deletedAt = null;
-        }
-      }
+        // Apply soft delete filter for read operations
+        if (['findMany', 'findFirst', 'findUnique', 'count'].includes(operation)) {
+          const contextArgs = args as any;
+          if (!contextArgs.where) {
+            contextArgs.where = {};
+          }
 
-      // For update and delete operations, also add the soft delete filter to prevent
-      // operations on already deleted records (unless explicitly overridden)
-      if (['update', 'updateMany', 'delete', 'deleteMany'].includes(params.action)) {
-        if (!params.args) {
-          params.args = {};
-        }
-        if (!params.args.where) {
-          params.args.where = {};
+          // Only add the filter if deletedAt is not explicitly specified
+          if (contextArgs.where.deletedAt === undefined) {
+            contextArgs.where.deletedAt = null;
+          }
         }
 
-        // Only add the filter if deletedAt is not explicitly specified
-        if (params.args.where.deletedAt === undefined) {
-          params.args.where.deletedAt = null;
+        // For update operations, also add the soft delete filter to prevent
+        // operations on already deleted records
+        if (['update', 'updateMany'].includes(operation)) {
+          const contextArgs = args as any;
+          if (!contextArgs.where) {
+            contextArgs.where = {};
+          }
+
+          if (contextArgs.where.deletedAt === undefined) {
+            contextArgs.where.deletedAt = null;
+          }
         }
-      }
 
-      // For delete operations, convert to soft delete by setting deletedAt
-      if (params.action === 'delete' || params.action === 'deleteMany') {
-        params.action = params.action === 'delete' ? 'update' : 'updateMany';
-        params.args = {
-          ...params.args,
-          data: {
-            deletedAt: new Date(),
-          },
-        };
-      }
+        // For delete operations, convert to soft delete by setting deletedAt
+        if (operation === 'delete') {
+          return (query as any).update({
+            ...args,
+            data: {
+              deletedAt: new Date(),
+            },
+          });
+        }
 
-      return next(params);
-    });
-  } else {
-    console.warn('Prisma middleware not available - soft delete filtering will be handled in service layer');
-  }
-}
+        if (operation === 'deleteMany') {
+          return (query as any).updateMany({
+            ...args,
+            data: {
+              deletedAt: new Date(),
+            },
+          });
+        }
+
+        return query(args);
+      },
+    },
+  },
+});

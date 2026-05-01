@@ -1,42 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { Signer } from '@aws-sdk/rds-signer';
-import { applySoftDeleteMiddleware } from './middleware/soft-delete';
+import { softDeleteExtension } from './middleware/soft-delete';
 import { appConfig } from './config';
 
-// Global Prisma client singleton instance
-export let prisma: PrismaClient = globalThis.__prisma || createPrismaClient();
-
-// Ensure globalThis.__prisma is set for non-production environments
-if (process.env.NODE_ENV !== 'production' && !globalThis.__prisma) {
-  globalThis.__prisma = prisma;
-}
-
-declare global {
-  // Allow global `var` declarations
-  // eslint-disable-next-line no-var
-  var __prisma: PrismaClient | undefined;
-}
-
-/**
- * Generates an RDS IAM Auth Token
- * Equivalent to boto3's generate_db_auth_token
- */
-async function getRDSToken() {
-  const hostname = process.env.RDS_HOSTNAME || 'naru-website-cluster.cluster-cspumw4c8drx.us-east-1.rds.amazonaws.com';
-  const port = parseInt(process.env.RDS_PORT || '5432');
-  const username = process.env.RDS_USERNAME || 'postgres';
-
-  const signer = new Signer({
-    region: process.env.AWS_REGION || 'us-east-1',
-    hostname,
-    port,
-    username,
-  });
-  return signer.getAuthToken();
-}
-
-// Create client with explicit datasource for tests
-function createPrismaClient(databaseUrl?: string) {
+// Create base client with explicit datasource for tests
+function createBasePrismaClient(databaseUrl?: string) {
   const options: any = {};
 
   if (databaseUrl) {
@@ -49,9 +17,27 @@ function createPrismaClient(databaseUrl?: string) {
     };
   }
 
-  const client = new PrismaClient(options);
-  applySoftDeleteMiddleware(client);
-  return client;
+  return new PrismaClient(options);
+}
+
+// Global Prisma client singleton instance
+// We use 'any' here because the extended client type is complex, but it still behaves like PrismaClient
+export let prisma: any = globalThis.__prisma || createBasePrismaClient().$extends(softDeleteExtension);
+
+// Ensure globalThis.__prisma is set for non-production environments
+if (process.env.NODE_ENV !== 'production' && !globalThis.__prisma) {
+  globalThis.__prisma = prisma;
+}
+
+declare global {
+  // Allow global `var` declarations
+  // eslint-disable-next-line no-var
+  var __prisma: any | undefined;
+}
+
+// Create client with extension
+function createPrismaClient(databaseUrl?: string) {
+  return createBasePrismaClient(databaseUrl).$extends(softDeleteExtension);
 }
 
 async function initializePrisma() {

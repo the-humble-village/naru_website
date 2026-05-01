@@ -44,8 +44,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  // Cleanup and disconnect
-  await testDb.$disconnect()
+  // Cleanup
 })
 
 beforeEach(async () => {

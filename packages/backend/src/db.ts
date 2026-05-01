@@ -35,6 +35,24 @@ declare global {
   var __prisma: any | undefined;
 }
 
+/**
+ * Generates an RDS IAM Auth Token
+ * Equivalent to boto3's generate_db_auth_token
+ */
+async function getRDSToken() {
+  const hostname = process.env.RDS_HOSTNAME || 'naru-website-cluster.cluster-cspumw4c8drx.us-east-1.rds.amazonaws.com';
+  const port = parseInt(process.env.RDS_PORT || '5432');
+  const username = process.env.RDS_USERNAME || 'postgres';
+
+  const signer = new Signer({
+    region: process.env.AWS_REGION || 'us-east-1',
+    hostname,
+    port,
+    username,
+  });
+  return signer.getAuthToken();
+}
+
 // Create client with extension
 function createPrismaClient(databaseUrl?: string) {
   return createBasePrismaClient(databaseUrl).$extends(softDeleteExtension);

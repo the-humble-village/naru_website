@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken'
 // Override environment for tests BEFORE anything else reads process.env.
 // Do NOT import dotenv — the .env file points at the production database.
 process.env.NODE_ENV = 'test'
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@127.0.0.1:5432/naru_test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only'
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-for-testing-only'
 
@@ -21,7 +21,18 @@ export const testDb = new PrismaClient({
 // Setup hooks
 beforeAll(async () => {
   // Connect to test database
-  await testDb.$connect()
+  try {
+    await testDb.$connect()
+  } catch (error: any) {
+    console.error('❌ Failed to connect to the test database.')
+    console.error('DATABASE_URL:', process.env.DATABASE_URL?.replace(/:([^@]+)@/, ':****@')) // Mask password
+    console.error('Error:', error.message)
+    console.error('\nPossible solutions:')
+    console.error('1. Make sure PostgreSQL is running.')
+    console.error('2. Check if the database "naru_test" exists (run: createdb naru_test).')
+    console.error('3. Verify your DATABASE_URL in .env.test or environment variables.')
+    throw error
+  }
 
   // Check if tables exist and provide helpful error message
   try {
@@ -30,7 +41,7 @@ beforeAll(async () => {
     if (error.code === 'P2021' || error.message.includes('does not exist')) {
       console.error('❌ Test database tables do not exist.')
       console.error('Please set up the test database by running:')
-      console.error('DATABASE_URL="postgresql://postgres@localhost:5432/naru_test" npx prisma migrate deploy')
+      console.error('DATABASE_URL="postgresql://postgres@127.0.0.1:5432/naru_test" npx prisma migrate deploy')
       throw new Error('Test database tables do not exist. Run migrations first.')
     }
     throw error

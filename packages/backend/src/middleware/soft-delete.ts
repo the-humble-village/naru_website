@@ -30,48 +30,36 @@ export const softDeleteExtension = Prisma.defineExtension({
           return query(args);
         }
 
-        // Apply soft delete filter for read operations
+        const context = Prisma.getExtensionContext(this);
+
+        // Filter out soft-deleted records for read operations
         if (['findMany', 'findFirst', 'findUnique', 'count'].includes(operation)) {
-          const contextArgs = args as any;
-          if (!contextArgs.where) {
-            contextArgs.where = {};
-          }
-
-          // Only add the filter if deletedAt is not explicitly specified
-          if (contextArgs.where.deletedAt === undefined) {
-            contextArgs.where.deletedAt = null;
-          }
+          const contextArgs = (args || {}) as any;
+          contextArgs.where = { deletedAt: null, ...contextArgs.where };
+          return query(contextArgs);
         }
 
-        // For update operations, also add the soft delete filter to prevent
-        // operations on already deleted records
+        // Prevent operations on soft-deleted records for updates
         if (['update', 'updateMany'].includes(operation)) {
-          const contextArgs = args as any;
-          if (!contextArgs.where) {
-            contextArgs.where = {};
-          }
-
-          if (contextArgs.where.deletedAt === undefined) {
-            contextArgs.where.deletedAt = null;
-          }
+          const contextArgs = (args || {}) as any;
+          contextArgs.where = { deletedAt: null, ...contextArgs.where };
+          return query(contextArgs);
         }
 
-        // For delete operations, convert to soft delete by setting deletedAt
+        // Convert delete to soft delete (update)
         if (operation === 'delete') {
-          return (query as any).update({
-            ...args,
-            data: {
-              deletedAt: new Date(),
-            },
+          const contextArgs = (args || {}) as any;
+          return (context as any).update({
+            where: contextArgs.where,
+            data: { deletedAt: new Date() },
           });
         }
 
         if (operation === 'deleteMany') {
-          return (query as any).updateMany({
-            ...args,
-            data: {
-              deletedAt: new Date(),
-            },
+          const contextArgs = (args || {}) as any;
+          return (context as any).updateMany({
+            where: contextArgs.where,
+            data: { deletedAt: new Date() },
           });
         }
 

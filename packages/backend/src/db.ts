@@ -4,7 +4,12 @@ import { applySoftDeleteMiddleware } from './middleware/soft-delete';
 import { appConfig } from './config';
 
 // Global Prisma client singleton instance
-export let prisma: PrismaClient = null!;
+export let prisma: PrismaClient = globalThis.__prisma || createPrismaClient();
+
+// Ensure globalThis.__prisma is set for non-production environments
+if (process.env.NODE_ENV !== 'production' && !globalThis.__prisma) {
+  globalThis.__prisma = prisma;
+}
 
 declare global {
   // Allow global `var` declarations
@@ -31,7 +36,7 @@ async function getRDSToken() {
 }
 
 // Create client with explicit datasource for tests
-const createPrismaClient = (databaseUrl?: string) => {
+function createPrismaClient(databaseUrl?: string) {
   const options: any = {};
 
   if (databaseUrl) {
@@ -44,12 +49,15 @@ const createPrismaClient = (databaseUrl?: string) => {
     };
   }
 
-  return new PrismaClient(options);
-};
+  const client = new PrismaClient(options);
+  applySoftDeleteMiddleware(client);
+  return client;
+}
 
 async function initializePrisma() {
-  if (prisma) return prisma;
-
+  // If prisma is already initialized and not just a default one, we might still want to re-initialize 
+  // if we need RDS IAM tokens in production.
+  
   let url = process.env.DATABASE_URL;
 
   // Handle RDS IAM Authentication
@@ -66,27 +74,29 @@ async function initializePrisma() {
     const sslCert = process.env.RDS_SSL_CERT_PATH || '/etc/ssl/certs/ca-certificates.crt';
 
     url = `postgresql://${username}:${encodedToken}@${hostname}:${port}/${dbName}?sslmode=${sslMode}&sslrootcert=${sslCert}`;
-  }
-
-  // If no URL is set and not in production IAM mode, we should at least check appConfig
-  if (!url) {
-    try {
-      url = appConfig.DATABASE_URL;
-    } catch (e) {
-      // appConfig.DATABASE_URL throws if missing. If we're here, Prisma will
-      // try to read DATABASE_URL on its own, which will likely fail later.
+    
+    // In this case, we definitely want a new client with the fresh token
+    prisma = createPrismaClient(url);
+  } else if (!prisma || prisma === globalThis.__prisma) {
+    // If not production IAM, and we don't have a specific client yet (other than maybe the global one)
+    if (!url) {
+        try {
+          url = appConfig.DATABASE_URL;
+        } catch (e) {
+          // ignore
+        }
+    }
+    
+    if (url) {
+        prisma = createPrismaClient(url);
     }
   }
 
-  const client = createPrismaClient(url);
-  applySoftDeleteMiddleware(client);
-
-  if (process.env.NODE_ENV !== 'production') {
-    globalThis.__prisma = client;
+  if (process.env.NODE_ENV !== 'production' && !globalThis.__prisma) {
+    globalThis.__prisma = prisma;
   }
 
-  prisma = client;
-  return client;
+  return prisma;
 }
 
 // Export a promise-based getter since token generation is async

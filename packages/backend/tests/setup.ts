@@ -9,7 +9,7 @@ export { testDb }
 // Override environment for tests BEFORE anything else reads process.env.
 // Do NOT import dotenv — the .env file points at the production database.
 process.env.NODE_ENV = 'test'
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@127.0.0.1:5432/naru_test';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/naru_test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only'
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-for-testing-only'
 
@@ -49,28 +49,30 @@ afterAll(async () => {
 
 beforeEach(async () => {
   // Clean up database before each test
-  // We'll start with the child tables first, then work up to avoid foreign key issues
-  await testDb.childVisit.deleteMany()
-  await testDb.familyVisit.deleteMany()
-  await testDb.child.deleteMany()
-  await testDb.parent.deleteMany()
-  await testDb.family.deleteMany()
-  await testDb.birthingAssistantTraining.deleteMany()
-  await testDb.birthingAssistantCommunity.deleteMany()
-  await testDb.birthingAssistant.deleteMany()
-  await testDb.user.deleteMany()
-
-  // Clean up lookup tables
-  await testDb.childVisitQuestion.deleteMany()
-  await testDb.parentVisitQuestion.deleteMany()
-  await testDb.familyVisitQuestion.deleteMany()
-  await testDb.resource.deleteMany()
-  await testDb.training.deleteMany()
-  await testDb.site.deleteMany()
-  await testDb.community.deleteMany()
-
-  // Files are not soft-deleted, so we'll clean them too
-  await testDb.file.deleteMany()
+  // Use $executeRawUnsafe to bypass soft-delete extension and perform hard deletes
+  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_question_set_items"')
+  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_question_set_items"')
+  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_question_set_items"')
+  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_question_sets"')
+  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_question_sets"')
+  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_question_sets"')
+  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_questions"')
+  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_questions"')
+  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_questions"')
+  await testDb.$executeRawUnsafe('DELETE FROM "child_visits"')
+  await testDb.$executeRawUnsafe('DELETE FROM "family_visits"')
+  await testDb.$executeRawUnsafe('DELETE FROM "children"')
+  await testDb.$executeRawUnsafe('DELETE FROM "parents"')
+  await testDb.$executeRawUnsafe('DELETE FROM "families"')
+  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistant_trainings"')
+  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistant_communities"')
+  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistants"')
+  await testDb.$executeRawUnsafe('DELETE FROM "users"')
+  await testDb.$executeRawUnsafe('DELETE FROM "resources"')
+  await testDb.$executeRawUnsafe('DELETE FROM "training"')
+  await testDb.$executeRawUnsafe('DELETE FROM "sites"')
+  await testDb.$executeRawUnsafe('DELETE FROM "communities"')
+  await testDb.$executeRawUnsafe('DELETE FROM "files"')
 })
 
 // Helper functions for tests
@@ -214,26 +216,28 @@ export const createTestTraining = async (title: string) => {
 // Cleanup function
 export const cleanupDatabase = async () => {
   // Clean up database before each test
-  // We'll start with the child tables first, then work up to avoid foreign key issues
-  await testDb.childVisit.deleteMany()
-  await testDb.familyVisit.deleteMany()
-  await testDb.child.deleteMany()
-  await testDb.parent.deleteMany()
-  await testDb.family.deleteMany()
-  await testDb.birthingAssistantTraining.deleteMany()
-  await testDb.birthingAssistantCommunity.deleteMany()
-  await testDb.birthingAssistant.deleteMany()
-  await testDb.user.deleteMany()
-
-  // Clean up lookup tables
-  await testDb.childVisitQuestion.deleteMany()
-  await testDb.parentVisitQuestion.deleteMany()
-  await testDb.familyVisitQuestion.deleteMany()
-  await testDb.resource.deleteMany()
-  await testDb.training.deleteMany()
-  await testDb.site.deleteMany()
-  await testDb.community.deleteMany()
-
-  // Files are not soft-deleted, so we'll clean them too
-  await testDb.file.deleteMany()
+  // Use $executeRawUnsafe to bypass soft-delete extension and perform hard deletes
+  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_question_set_items"')
+  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_question_set_items"')
+  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_question_set_items"')
+  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_question_sets"')
+  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_question_sets"')
+  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_question_sets"')
+  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_questions"')
+  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_questions"')
+  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_questions"')
+  await testDb.$executeRawUnsafe('DELETE FROM "child_visits"')
+  await testDb.$executeRawUnsafe('DELETE FROM "family_visits"')
+  await testDb.$executeRawUnsafe('DELETE FROM "children"')
+  await testDb.$executeRawUnsafe('DELETE FROM "parents"')
+  await testDb.$executeRawUnsafe('DELETE FROM "families"')
+  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistant_trainings"')
+  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistant_communities"')
+  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistants"')
+  await testDb.$executeRawUnsafe('DELETE FROM "users"')
+  await testDb.$executeRawUnsafe('DELETE FROM "resources"')
+  await testDb.$executeRawUnsafe('DELETE FROM "training"')
+  await testDb.$executeRawUnsafe('DELETE FROM "sites"')
+  await testDb.$executeRawUnsafe('DELETE FROM "communities"')
+  await testDb.$executeRawUnsafe('DELETE FROM "files"')
 }

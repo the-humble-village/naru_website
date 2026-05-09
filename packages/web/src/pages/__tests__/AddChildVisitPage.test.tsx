@@ -7,6 +7,7 @@ import AddChildVisitPage from '../visits/AddChildVisitPage';
 import * as visitsApi from '../../api/visits';
 import * as childrenApi from '../../api/children';
 import * as adminApi from '../../api/admin';
+import * as questionSetsApi from '../../api/question-sets';
 
 // Mock the APIs
 vi.mock('../../api/visits', () => ({
@@ -24,6 +25,12 @@ vi.mock('../../api/children', () => ({
 vi.mock('../../api/admin', () => ({
   adminApi: {
     fetchChildVisitQuestions: vi.fn(),
+  },
+}));
+
+vi.mock('../../api/question-sets', () => ({
+  questionSetsApi: {
+    list: vi.fn(),
   },
 }));
 
@@ -84,6 +91,7 @@ describe('AddChildVisitPage', () => {
     // Setup default mock returns
     vi.mocked(childrenApi.childrenApi.fetchChild).mockResolvedValue(mockChild);
     vi.mocked(adminApi.adminApi.fetchChildVisitQuestions).mockResolvedValue(mockQuestions);
+    vi.mocked(questionSetsApi.questionSetsApi.list).mockResolvedValue([]);
   });
 
   describe('Initial Render', () => {

@@ -406,7 +406,8 @@ describe('Children Routes', () => {
       // Verify in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbChild?.name).toBe(updateData.name);
       expect(dbChild?.weight).toBe(updateData.weight);
     });
@@ -497,7 +498,8 @@ describe('Children Routes', () => {
       // Verify soft delete in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbChild?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -509,7 +511,8 @@ describe('Children Routes', () => {
       // Verify soft delete in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbChild?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -526,7 +529,8 @@ describe('Children Routes', () => {
       // Verify child was NOT deleted
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbChild?.deletedAt).toBeNull(); // Should NOT be deleted
     });
 

@@ -380,7 +380,8 @@ describe('Family Routes', () => {
       // Verify in database
       const dbFamily = await testDb.family.findUnique({
         where: { id: testFamily.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbFamily?.familyName).toBe(updateData.familyName);
       expect(dbFamily?.inCrisis).toBe(updateData.inCrisis);
     });
@@ -441,7 +442,8 @@ describe('Family Routes', () => {
       // Verify soft delete in database
       const dbFamily = await testDb.family.findUnique({
         where: { id: testFamily.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbFamily?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -453,7 +455,8 @@ describe('Family Routes', () => {
       // Verify soft delete in database
       const dbFamily = await testDb.family.findUnique({
         where: { id: testFamily.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbFamily?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -470,7 +473,8 @@ describe('Family Routes', () => {
       // Verify family was NOT deleted
       const dbFamily = await testDb.family.findUnique({
         where: { id: testFamily.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbFamily?.deletedAt).toBeNull(); // Should NOT be deleted
     });
 

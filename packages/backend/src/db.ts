@@ -13,7 +13,7 @@ function createBasePrismaClient(databaseUrl?: string) {
     };
   } else if (process.env.NODE_ENV === 'test') {
     options.datasources = {
-      db: { url: process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test' }
+      db: { url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/naru_test' }
     };
   }
 

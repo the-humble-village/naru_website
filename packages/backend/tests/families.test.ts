@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import familiesRoutes from '../src/routes/families';
-import { testDb, createTestUser } from './setup';
+import { testDb, createTestUser, createTestFamily, createTestCommunity } from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with family routes and error handler
@@ -17,7 +17,7 @@ app.onError((err, c) => {
   return c.json({ message: 'Internal Server Error' }, 500);
 });
 
-app.route('/families', familyRoutes);
+app.route('/families', familiesRoutes);
 
 // Helper to create JWT tokens
 const createTokens = (userId: number, role: string, lang: string = 'en') => {

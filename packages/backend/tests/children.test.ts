@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import childrenRoutes from '../src/routes/children';
-import { testDb, createTestUser } from './setup';
+import { testDb, createTestUser, createTestFamily, createTestChild } from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with children routes and error handler

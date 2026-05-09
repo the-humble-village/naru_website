@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import birthingAssistantRoutes from '../src/routes/birthing-assistants';
-import { testDb, createTestUser } from './setup';
+import { testDb, createTestUser, createTestCommunity, createTestTraining } from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with birthing assistants routes and error handler
@@ -17,7 +17,7 @@ app.onError((err, c) => {
   return c.json({ message: 'Internal Server Error' }, 500);
 });
 
-app.route('/birthing-assistants', birthingAssistantsRouter);
+app.route('/birthing-assistants', birthingAssistantRoutes);
 
 // Helper to create JWT tokens
 const createTokens = (userId: number, role: string, lang: string = 'en') => {

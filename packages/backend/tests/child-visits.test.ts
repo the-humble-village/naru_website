@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import childVisitRoutes from '../src/routes/child-visits';
-import { testDb, createTestUser } from './setup';
+import { testDb, createTestUser, createTestFamily, createTestChild, createTestChildVisit } from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with child visits routes and error handler
@@ -18,7 +18,7 @@ app.onError((err, c) => {
 });
 
 // Mount child visits routes under /families/:fid/children/:cid/visits
-app.route('/families/:fid/children/:cid/visits', childVisitsRoutes);
+app.route('/families/:fid/children/:cid/visits', childVisitRoutes);
 
 // Helper to create JWT tokens
 const createTokens = (userId: number, role: string, lang: string = 'en') => {

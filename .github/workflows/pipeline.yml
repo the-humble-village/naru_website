@@ -209,7 +209,7 @@ jobs:
             sudo chown -R ec2-user:ec2-user /var/www/backend
 
       - name: Create standalone backend
-        run: pnpm --filter @naru/backend deploy --legacy ./backend-deploy
+        run: pnpm --filter @naru/backend deploy ./backend-deploy
 
       - name: Deploy Web to EC2
         uses: appleboy/scp-action@master
@@ -275,15 +275,24 @@ jobs:
 
             # Run backend migrations
             cd /var/www/backend
-            # Note: DATABASE_URL should be in the .env file on the server
+            
+            echo "🔍 Verifying environment..."
+            if [ ! -f .env ]; then
+              echo "❌ ERROR: .env file missing in /var/www/backend"
+              echo "Please SSH into the server and create it with DATABASE_URL."
+              exit 1
+            fi
+
+            echo "🔍 Checking database connectivity..."
+            if ! npx prisma db pull --print > /dev/null 2>&1; then
+              echo "❌ ERROR: Cannot connect to database using DATABASE_URL in .env"
+              echo "Check if the database 'naru' exists and credentials are correct."
+              exit 1
+            fi
+
+            echo "🚀 Running migrations..."
             if ! npx prisma migrate deploy; then
-              echo "❌ Prisma migration failed. Checking PostgreSQL status..."
-              sudo systemctl status postgresql || echo "PostgreSQL service not found."
-              sudo journalctl -u postgresql -n 20 || echo "Could not read PostgreSQL logs."
-              
-              echo "Checking if something is listening on port 5432..."
-              sudo ss -tulpn | grep :5432 || echo "Nothing is listening on port 5432."
-              
+              echo "❌ ERROR: Prisma migration failed."
               exit 1
             fi
 

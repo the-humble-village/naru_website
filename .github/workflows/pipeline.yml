@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  TURBO_CACHE_DIR: .turbo
+
 jobs:
   lint:
     name: Lint & Format
@@ -33,7 +36,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm lint -- --cache-dir=".turbo"
+        run: pnpm lint
 
   test:
     name: Run Tests
@@ -101,7 +104,7 @@ jobs:
           JWT_SECRET: test-jwt-secret-for-testing-only
           JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
           NODE_ENV: test
-        run: pnpm test -- --cache-dir=".turbo"
+        run: pnpm test
 
   build:
     name: Build Project
@@ -145,7 +148,7 @@ jobs:
             npx prisma generate
 
       - name: Build monorepo
-        run: pnpm build -- --cache-dir=".turbo"
+        run: pnpm build
 
   deploy:
     name: Deploy to EC2
@@ -190,7 +193,7 @@ jobs:
             npx prisma generate
 
       - name: Build monorepo
-        run: pnpm build -- --cache-dir=".turbo"
+        run: pnpm build
 
       - name: Pre-deployment setup on EC2
         uses: appleboy/ssh-action@master

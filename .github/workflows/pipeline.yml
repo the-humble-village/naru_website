@@ -242,6 +242,16 @@ jobs:
           source: "nginx/naru.conf"
           target: "/tmp"
 
+      - name: Deploy Service Config to EC2 (Temporary)
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
+          port: 22
+          source: "deployment/naru-backend.service"
+          target: "/tmp"
+
       - name: Post-deployment on EC2
         uses: appleboy/ssh-action@master
         with:
@@ -253,10 +263,28 @@ jobs:
             sudo mv /tmp/nginx/naru.conf /etc/nginx/conf.d/naru.conf
             sudo chown root:root /etc/nginx/conf.d/naru.conf
 
+            # Install systemd service
+            sudo mv /tmp/deployment/naru-backend.service /etc/systemd/system/naru-backend.service
+            sudo chown root:root /etc/systemd/system/naru-backend.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable naru-backend
+
+            # Ensure PostgreSQL is running
+            sudo systemctl start postgresql || true
+
             # Run backend migrations
             cd /var/www/backend
             # Note: DATABASE_URL should be in the .env file on the server
-            npx prisma migrate deploy
+            if ! npx prisma migrate deploy; then
+              echo "❌ Prisma migration failed. Checking PostgreSQL status..."
+              sudo systemctl status postgresql || echo "PostgreSQL service not found."
+              sudo journalctl -u postgresql -n 20 || echo "Could not read PostgreSQL logs."
+              
+              echo "Checking if something is listening on port 5432..."
+              sudo ss -tulpn | grep :5432 || echo "Nothing is listening on port 5432."
+              
+              exit 1
+            fi
 
             # Restart services
             sudo systemctl restart nginx

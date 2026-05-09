@@ -49,31 +49,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
-  // Clean up database before each test
-  // Use $executeRawUnsafe to bypass soft-delete extension and perform hard deletes
-  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_question_set_items"')
-  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_question_set_items"')
-  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_question_set_items"')
-  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_question_sets"')
-  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_question_sets"')
-  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_question_sets"')
-  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_questions"')
-  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_questions"')
-  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_questions"')
-  await testDb.$executeRawUnsafe('DELETE FROM "child_visits"')
-  await testDb.$executeRawUnsafe('DELETE FROM "family_visits"')
-  await testDb.$executeRawUnsafe('DELETE FROM "children"')
-  await testDb.$executeRawUnsafe('DELETE FROM "parents"')
-  await testDb.$executeRawUnsafe('DELETE FROM "families"')
-  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistant_trainings"')
-  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistant_communities"')
-  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistants"')
-  await testDb.$executeRawUnsafe('DELETE FROM "users"')
-  await testDb.$executeRawUnsafe('DELETE FROM "resources"')
-  await testDb.$executeRawUnsafe('DELETE FROM "training"')
-  await testDb.$executeRawUnsafe('DELETE FROM "sites"')
-  await testDb.$executeRawUnsafe('DELETE FROM "communities"')
-  await testDb.$executeRawUnsafe('DELETE FROM "files"')
+  await cleanupDatabase()
 })
 
 // Helper functions for tests
@@ -217,28 +193,21 @@ export const createTestTraining = async (title: string) => {
 // Cleanup function
 export const cleanupDatabase = async () => {
   // Clean up database before each test
-  // Use $executeRawUnsafe to bypass soft-delete extension and perform hard deletes
-  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_question_set_items"')
-  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_question_set_items"')
-  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_question_set_items"')
-  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_question_sets"')
-  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_question_sets"')
-  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_question_sets"')
-  await testDb.$executeRawUnsafe('DELETE FROM "child_visit_questions"')
-  await testDb.$executeRawUnsafe('DELETE FROM "parent_visit_questions"')
-  await testDb.$executeRawUnsafe('DELETE FROM "family_visit_questions"')
-  await testDb.$executeRawUnsafe('DELETE FROM "child_visits"')
-  await testDb.$executeRawUnsafe('DELETE FROM "family_visits"')
-  await testDb.$executeRawUnsafe('DELETE FROM "children"')
-  await testDb.$executeRawUnsafe('DELETE FROM "parents"')
-  await testDb.$executeRawUnsafe('DELETE FROM "families"')
-  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistant_trainings"')
-  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistant_communities"')
-  await testDb.$executeRawUnsafe('DELETE FROM "birthing_assistants"')
-  await testDb.$executeRawUnsafe('DELETE FROM "users"')
-  await testDb.$executeRawUnsafe('DELETE FROM "resources"')
-  await testDb.$executeRawUnsafe('DELETE FROM "training"')
-  await testDb.$executeRawUnsafe('DELETE FROM "sites"')
-  await testDb.$executeRawUnsafe('DELETE FROM "communities"')
-  await testDb.$executeRawUnsafe('DELETE FROM "files"')
+  // Use a systematic TRUNCATE approach to handle all tables and foreign keys
+  try {
+    const tableNames = await testDb.$queryRaw<
+      Array<{ tablename: string }>
+    >`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE '_prisma_migrations%';`;
+
+    if (tableNames.length > 0) {
+      const tables = tableNames
+        .map(({ tablename }) => `"${tablename}"`)
+        .join(', ');
+      
+      await testDb.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
+    }
+  } catch (error) {
+    console.error('❌ Database cleanup failed:', error);
+    throw error;
+  }
 }

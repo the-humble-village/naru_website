@@ -1,14 +1,8 @@
-// Set up environment variables BEFORE importing anything else
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only';
-process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only';
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test';
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import familyRoutes from '../src/routes/families';
+import familiesRoutes from '../src/routes/families';
 import { testDb, createTestUser, createTestFamily, createTestCommunity } from './setup';
 import { appConfig } from '../src/config';
 
@@ -23,7 +17,7 @@ app.onError((err, c) => {
   return c.json({ message: 'Internal Server Error' }, 500);
 });
 
-app.route('/families', familyRoutes);
+app.route('/families', familiesRoutes);
 
 // Helper to create JWT tokens
 const createTokens = (userId: number, role: string, lang: string = 'en') => {
@@ -380,7 +374,8 @@ describe('Family Routes', () => {
       // Verify in database
       const dbFamily = await testDb.family.findUnique({
         where: { id: testFamily.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbFamily?.familyName).toBe(updateData.familyName);
       expect(dbFamily?.inCrisis).toBe(updateData.inCrisis);
     });
@@ -441,7 +436,8 @@ describe('Family Routes', () => {
       // Verify soft delete in database
       const dbFamily = await testDb.family.findUnique({
         where: { id: testFamily.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbFamily?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -453,7 +449,8 @@ describe('Family Routes', () => {
       // Verify soft delete in database
       const dbFamily = await testDb.family.findUnique({
         where: { id: testFamily.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbFamily?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -470,7 +467,8 @@ describe('Family Routes', () => {
       // Verify family was NOT deleted
       const dbFamily = await testDb.family.findUnique({
         where: { id: testFamily.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbFamily?.deletedAt).toBeNull(); // Should NOT be deleted
     });
 

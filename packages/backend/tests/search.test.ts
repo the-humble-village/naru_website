@@ -1,9 +1,3 @@
-// Set up environment variables BEFORE importing anything else
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only';
-process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only';
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test';
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';

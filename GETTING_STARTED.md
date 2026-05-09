@@ -6,7 +6,7 @@ Install these before cloning the repo:
 
 | Tool | Version | Install (macOS) |
 |------|---------|-----------------|
-| Node.js | v20+ | `brew install node` |
+| Node.js | v24+ | `brew install node` |
 | pnpm | v9+ | `npm install -g pnpm` |
 | PostgreSQL | 14+ | `brew install postgresql@16 && brew services start postgresql@16` |
 

@@ -2,17 +2,35 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
   pull_request:
-    branches:
-      - main
 
 jobs:
-  pipeline:
-    name: Test, Build & Deploy
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+  test:
+    name: Run Tests
+    needs: lint
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:15
@@ -30,53 +48,97 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Run Prisma migrations on test database
+      - name: Set up database and generate Prisma client
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/naru_test
         run: |
           cd packages/backend
           npx prisma migrate deploy
+          npx prisma generate
+
+      - name: Run all tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/naru_test
+          JWT_SECRET: test-jwt-secret-for-testing-only
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
+          NODE_ENV: test
+        run: pnpm test
+
+  build:
+    name: Build Project
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
         run: |
             cd packages/backend
             npx prisma generate
 
-      - name: Run all tests
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test
-          JWT_SECRET: test-jwt-secret-for-testing-only
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
-        run: pnpm test
+      - name: Build monorepo
+        run: pnpm build
+
+  deploy:
+    name: Deploy to EC2
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: |
+            cd packages/backend
+            npx prisma generate
 
       - name: Build monorepo
-        # pnpm test already triggers build due to turbo.json, 
-        # but we run it explicitly to ensure all artifacts (including web) are ready.
         run: pnpm build
 
       - name: Create standalone backend
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: pnpm --filter @naru/backend deploy ./backend-deploy
 
       - name: Deploy Web to EC2
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -88,7 +150,6 @@ jobs:
           strip_components: 3
 
       - name: Deploy Backend to EC2
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -100,7 +161,6 @@ jobs:
           strip_components: 1
 
       - name: Deploy Nginx Config to EC2 (Temporary)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -111,7 +171,6 @@ jobs:
           target: "/tmp"
 
       - name: Post-deployment on EC2
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}

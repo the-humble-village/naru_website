@@ -22,6 +22,8 @@ const TABLE_CONFIG: Record<string, { plural: string; singular: string }> = {
   'family-visit-questions':{ plural: 'Family Visit Questions', singular: 'Family Visit Question' },
 };
 
+const DEFAULT_ITEMS: LookupRead[] = [];
+
 export const AdminLookupsPage: React.FC = () => {
   const { table } = useParams<{ table: string }>();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -53,7 +55,7 @@ export const AdminLookupsPage: React.FC = () => {
   const isQuestionTable = !!lookupTable && QUESTION_TABLES.has(lookupTable);
 
   // Fetch lookup table data
-  const { data: items = [], isLoading, error } = useQuery({
+  const { data: items = DEFAULT_ITEMS, isLoading, error } = useQuery({
     queryKey: ['admin', lookupTable],
     queryFn: () => lookupTable ? adminApi.fetchLookupTable(lookupTable) : Promise.resolve([]),
     enabled: !!lookupTable,

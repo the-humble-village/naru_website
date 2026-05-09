@@ -7,6 +7,7 @@ import AddFamilyVisitPage from '../visits/AddFamilyVisitPage';
 import * as visitsApi from '../../api/visits';
 import * as familiesApi from '../../api/families';
 import * as adminApi from '../../api/admin';
+import * as questionSetsApi from '../../api/question-sets';
 
 // Mock the APIs
 vi.mock('../../api/visits', () => ({
@@ -26,6 +27,12 @@ vi.mock('../../api/admin', () => ({
     fetchTraining: vi.fn(),
     fetchResources: vi.fn(),
     fetchFamilyVisitQuestions: vi.fn(),
+  },
+}));
+
+vi.mock('../../api/question-sets', () => ({
+  questionSetsApi: {
+    list: vi.fn(),
   },
 }));
 
@@ -95,6 +102,7 @@ describe('AddFamilyVisitPage', () => {
     vi.mocked(adminApi.adminApi.fetchTraining).mockResolvedValue(mockTrainings);
     vi.mocked(adminApi.adminApi.fetchResources).mockResolvedValue(mockResources);
     vi.mocked(adminApi.adminApi.fetchFamilyVisitQuestions).mockResolvedValue(mockQuestions);
+    vi.mocked(questionSetsApi.questionSetsApi.list).mockResolvedValue([]);
   });
 
   describe('Initial Render', () => {
@@ -416,4 +424,4 @@ describe('AddFamilyVisitPage', () => {
   });
 
   // Note: Error handling for invalid IDs is tested through unit tests of the component logic
-});
+  });

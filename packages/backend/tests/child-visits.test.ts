@@ -1,14 +1,8 @@
-// Set up environment variables BEFORE importing anything else
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only';
-process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only';
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test';
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import childVisitsRoutes from '../src/routes/child-visits';
+import childVisitRoutes from '../src/routes/child-visits';
 import { testDb, createTestUser, createTestFamily, createTestChild, createTestChildVisit } from './setup';
 import { appConfig } from '../src/config';
 
@@ -24,7 +18,7 @@ app.onError((err, c) => {
 });
 
 // Mount child visits routes under /families/:fid/children/:cid/visits
-app.route('/families/:fid/children/:cid/visits', childVisitsRoutes);
+app.route('/families/:fid/children/:cid/visits', childVisitRoutes);
 
 // Helper to create JWT tokens
 const createTokens = (userId: number, role: string, lang: string = 'en') => {

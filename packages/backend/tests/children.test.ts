@@ -1,9 +1,3 @@
-// Set up environment variables BEFORE importing anything else
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only';
-process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only';
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test';
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -406,7 +400,8 @@ describe('Children Routes', () => {
       // Verify in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbChild?.name).toBe(updateData.name);
       expect(dbChild?.weight).toBe(updateData.weight);
     });
@@ -497,7 +492,8 @@ describe('Children Routes', () => {
       // Verify soft delete in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbChild?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -509,7 +505,8 @@ describe('Children Routes', () => {
       // Verify soft delete in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbChild?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -526,7 +523,8 @@ describe('Children Routes', () => {
       // Verify child was NOT deleted
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
-      });
+        includeDeleted: true,
+      } as any);
       expect(dbChild?.deletedAt).toBeNull(); // Should NOT be deleted
     });
 

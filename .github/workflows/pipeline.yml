@@ -21,11 +21,19 @@ jobs:
           node-version: 24
           cache: 'pnpm'
 
+      - name: Turborepo Cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm lint -- --cache-dir=".turbo"
 
   test:
     name: Run Tests
@@ -59,8 +67,23 @@ jobs:
           node-version: 24
           cache: 'pnpm'
 
+      - name: Turborepo Cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Cache Prisma Client
+        id: cache-prisma
+        uses: actions/cache@v6
+        with:
+          path: packages/backend/node_modules/.prisma
+          key: prisma-${{ runner.os }}-${{ hashFiles('packages/backend/prisma/schema.prisma') }}
 
       - name: Set up database and generate Prisma client
         env:
@@ -68,7 +91,9 @@ jobs:
         run: |
           cd packages/backend
           npx prisma migrate deploy
-          npx prisma generate
+          if [ "${{ steps.cache-prisma.outputs.cache-hit }}" != "true" ]; then
+            npx prisma generate
+          fi
 
       - name: Run all tests
         env:
@@ -76,7 +101,7 @@ jobs:
           JWT_SECRET: test-jwt-secret-for-testing-only
           JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
           NODE_ENV: test
-        run: pnpm test
+        run: pnpm test -- --cache-dir=".turbo"
 
   build:
     name: Build Project
@@ -95,16 +120,32 @@ jobs:
           node-version: 24
           cache: 'pnpm'
 
+      - name: Turborepo Cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Prisma Client
+        id: cache-prisma
+        uses: actions/cache@v6
+        with:
+          path: packages/backend/node_modules/.prisma
+          key: prisma-${{ runner.os }}-${{ hashFiles('packages/backend/prisma/schema.prisma') }}
+
       - name: Generate Prisma Client
+        if: steps.cache-prisma.outputs.cache-hit != 'true'
         run: |
             cd packages/backend
             npx prisma generate
 
       - name: Build monorepo
-        run: pnpm build
+        run: pnpm build -- --cache-dir=".turbo"
 
   deploy:
     name: Deploy to EC2
@@ -124,16 +165,32 @@ jobs:
           node-version: 24
           cache: 'pnpm'
 
+      - name: Turborepo Cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Prisma Client
+        id: cache-prisma
+        uses: actions/cache@v6
+        with:
+          path: packages/backend/node_modules/.prisma
+          key: prisma-${{ runner.os }}-${{ hashFiles('packages/backend/prisma/schema.prisma') }}
+
       - name: Generate Prisma Client
+        if: steps.cache-prisma.outputs.cache-hit != 'true'
         run: |
             cd packages/backend
             npx prisma generate
 
       - name: Build monorepo
-        run: pnpm build
+        run: pnpm build -- --cache-dir=".turbo"
 
       - name: Create standalone backend
         run: pnpm --filter @naru/backend deploy --legacy ./backend-deploy

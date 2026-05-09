@@ -192,6 +192,18 @@ jobs:
       - name: Build monorepo
         run: pnpm build -- --cache-dir=".turbo"
 
+      - name: Pre-deployment setup on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
+          script: |
+            sudo mkdir -p /var/www/web/dist
+            sudo mkdir -p /var/www/backend
+            sudo chown -R ec2-user:ec2-user /var/www/web
+            sudo chown -R ec2-user:ec2-user /var/www/backend
+
       - name: Create standalone backend
         run: pnpm --filter @naru/backend deploy --legacy ./backend-deploy
 
@@ -234,10 +246,6 @@ jobs:
           username: ec2-user
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           script: |
-            # Ensure permissions
-            sudo chown -R ec2-user:ec2-user /var/www/web/dist
-            sudo chown -R ec2-user:ec2-user /var/www/backend
-
             # Update Nginx config
             sudo mv /tmp/nginx/naru.conf /etc/nginx/conf.d/naru.conf
             sudo chown root:root /etc/nginx/conf.d/naru.conf

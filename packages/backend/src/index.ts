@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
-import app from './app';
-import { appConfig } from './config';
+import app from './app.js';
+import { appConfig } from './config.js';
 import { getPrisma } from './db';
 
 const port = appConfig.PORT;

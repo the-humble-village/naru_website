@@ -3,7 +3,7 @@
 import { execSync } from 'child_process';
 
 // Script to set up the test database
-const DEFAULT_DB_URL = 'postgresql://postgres@localhost:5432/naru_test';
+const DEFAULT_DB_URL = 'postgresql://postgres@127.0.0.1:5432/naru_test';
 process.env.DATABASE_URL = process.env.DATABASE_URL || DEFAULT_DB_URL;
 
 try {

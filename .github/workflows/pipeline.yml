@@ -136,7 +136,7 @@ jobs:
         run: pnpm build
 
       - name: Create standalone backend
-        run: pnpm --filter @naru/backend deploy ./backend-deploy
+        run: pnpm --filter @naru/backend deploy --legacy ./backend-deploy
 
       - name: Deploy Web to EC2
         uses: appleboy/scp-action@master

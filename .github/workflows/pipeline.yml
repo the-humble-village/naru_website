@@ -1,17 +1,119 @@
-name: Deployment
+name: CI/CD Pipeline
 
 on:
-  workflow_run:
-    workflows: ["Build"]
-    types: [completed]
-    branches: [main]
+  push:
+  pull_request:
 
 jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+  test:
+    name: Run Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: naru_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Prisma migrations on test database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test
+        run: |
+          cd packages/backend
+          npx prisma migrate deploy
+
+      - name: Generate Prisma Client
+        run: |
+            cd packages/backend
+            npx prisma generate
+
+      - name: Run all tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test
+          JWT_SECRET: test-jwt-secret-for-testing-only
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
+        run: pnpm test
+
+  build:
+    name: Build Project
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: |
+            cd packages/backend
+            npx prisma generate
+
+      - name: Build monorepo
+        run: pnpm build
+
   deploy:
     name: Deploy to EC2
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

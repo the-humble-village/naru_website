@@ -65,14 +65,14 @@ const mockBirthingAssistants = [
   },
 ];
 
-const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
 
+const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>{children}</BrowserRouter>
@@ -83,6 +83,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 describe('AddFamilyPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     (adminApi.adminApi.fetchCommunities as any).mockResolvedValue(mockCommunities);
     (adminApi.adminApi.fetchSites as any).mockResolvedValue(mockSites);
     (birthingAssistantsApi.birthingAssistantsApi.fetchBirthingAssistants as any).mockResolvedValue(mockBirthingAssistants);
@@ -271,10 +272,12 @@ describe('AddFamilyPage', () => {
   });
 
   it('shows loading state during submission', async () => {
-    // Mock a delayed API response
-    (familiesApi.familiesApi.createFamily as any).mockImplementation(
-      () => new Promise(resolve => setTimeout(resolve, 100))
-    );
+    let resolveMutation: any;
+    const mutationPromise = new Promise(resolve => {
+      resolveMutation = () => resolve({ id: 1 });
+    });
+
+    (familiesApi.familiesApi.createFamily as any).mockReturnValue(mutationPromise);
 
     render(
       <TestWrapper>
@@ -291,6 +294,12 @@ describe('AddFamilyPage', () => {
 
     expect(screen.getByText('Creating...')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Creating...' })).toBeDisabled();
+
+    // Resolve mutation to clean up
+    resolveMutation();
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalled();
+    });
   });
 
   it('navigates to families page when back link is clicked', async () => {

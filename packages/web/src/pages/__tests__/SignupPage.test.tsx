@@ -37,14 +37,14 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
 
+const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>{children}</BrowserRouter>
@@ -55,6 +55,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 describe('SignupPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
   });
 
   it('renders signup form', () => {
@@ -225,10 +226,16 @@ describe('SignupPage', () => {
   });
 
   it('shows loading state during form submission', async () => {
-    // Mock a delayed API response
-    (authApi.authApi.register as any).mockImplementation(
-      () => new Promise(resolve => setTimeout(resolve, 100))
-    );
+    let resolveSignup: any;
+    const signupPromise = new Promise(resolve => {
+      resolveSignup = () => resolve({
+        user: { id: 1, login: 'testuser' },
+        accessToken: 'abc',
+        refreshToken: 'def'
+      });
+    });
+
+    (authApi.authApi.register as any).mockReturnValue(signupPromise);
 
     render(
       <TestWrapper>
@@ -246,6 +253,10 @@ describe('SignupPage', () => {
 
     expect(screen.getByText('Creating account...')).toBeInTheDocument();
     expect(submitButton).toBeDisabled();
+
+    // Clean up
+    resolveSignup();
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
   });
 
   it('handles optional fields correctly', async () => {

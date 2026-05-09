@@ -39,14 +39,14 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
 
+const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>{children}</BrowserRouter>
@@ -57,6 +57,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
   });
 
   it('renders login form', () => {
@@ -206,10 +207,16 @@ describe('LoginPage', () => {
   });
 
   it('shows loading state during form submission', async () => {
-    // Mock a delayed API response
-    (authApi.authApi.login as any).mockImplementation(
-      () => new Promise(resolve => setTimeout(resolve, 100))
-    );
+    let resolveLogin: any;
+    const loginPromise = new Promise(resolve => {
+      resolveLogin = () => resolve({
+        user: { id: 1, login: 'testuser' },
+        accessToken: 'abc',
+        refreshToken: 'def'
+      });
+    });
+
+    (authApi.authApi.login as any).mockReturnValue(loginPromise);
 
     render(
       <TestWrapper>
@@ -226,5 +233,9 @@ describe('LoginPage', () => {
     fireEvent.click(submitButton);
 
     expect(screen.getByText('Signing in...')).toBeInTheDocument();
+
+    // Clean up
+    resolveLogin();
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
   });
 });

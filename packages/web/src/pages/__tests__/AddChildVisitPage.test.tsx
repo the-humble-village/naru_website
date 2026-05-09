@@ -66,15 +66,18 @@ const mockQuestions = [
   { id: 2, title: 'Any health concerns?', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
 ];
 
-const renderWithProviders = (component: React.ReactElement, initialEntries = ['/families/1/children/1/visits/new']) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
     },
-  });
+    mutations: {
+      retry: false,
+    },
+  },
+});
 
+const renderWithProviders = (component: React.ReactElement, initialEntries = ['/families/1/children/1/visits/new']) => {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={initialEntries}>
@@ -87,6 +90,7 @@ const renderWithProviders = (component: React.ReactElement, initialEntries = ['/
 describe('AddChildVisitPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
 
     // Setup default mock returns
     vi.mocked(childrenApi.childrenApi.fetchChild).mockResolvedValue(mockChild);

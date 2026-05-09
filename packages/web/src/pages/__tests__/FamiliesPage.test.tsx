@@ -57,14 +57,14 @@ const mockFamiliesResponse = {
   limit: 20,
 };
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+});
+
 // Helper to render component with providers
 const renderWithProviders = (component: React.ReactElement) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-    },
-  });
-
   return render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>{component}</BrowserRouter>
@@ -76,6 +76,7 @@ describe('FamiliesPage', () => {
   beforeEach(() => {
     // Reset mocks
     vi.resetAllMocks();
+    queryClient.clear();
 
     // Default mock implementations
     mockAdminApi.fetchCommunities.mockResolvedValue(mockCommunities);

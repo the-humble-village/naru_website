@@ -1,17 +1,18 @@
 import { beforeAll, afterAll, beforeEach } from 'vitest'
+
+// Override environment for tests BEFORE anything else imports src/db.
+// Do NOT import dotenv — the .env file points at the production database.
+process.env.NODE_ENV = 'test'
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/naru_test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only'
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-for-testing-only'
+
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { prisma as testDb } from '../src/db'
 
 // Export it so tests can use it
 export { testDb }
-
-// Override environment for tests BEFORE anything else reads process.env.
-// Do NOT import dotenv — the .env file points at the production database.
-process.env.NODE_ENV = 'test'
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/naru_test';
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only'
-process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-for-testing-only'
 
 // Setup hooks
 beforeAll(async () => {

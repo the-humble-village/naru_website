@@ -1,15 +1,9 @@
-// Set up environment variables BEFORE importing anything else
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only';
-process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only';
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/naru_test';
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import familyVisitsRoutes from '../src/routes/family-visits';
-import { testDb, createTestUser, createTestFamily, createTestFamilyVisit } from './setup';
+import familyVisitRoutes from '../src/routes/family-visits';
+import { testDb, createTestUser } from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with family visits routes and error handler

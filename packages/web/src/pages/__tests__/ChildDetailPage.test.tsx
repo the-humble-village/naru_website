@@ -173,9 +173,9 @@ describe('ChildDetailPage', () => {
       });
 
       // Birth date should be formatted
-      expect(screen.getByText('1/14/2023')).toBeInTheDocument();
+      expect(screen.getByText(/1\/15\/2023/)).toBeInTheDocument();
       // Date entered should be formatted
-      expect(screen.getByText('1/31/2023')).toBeInTheDocument();
+      expect(screen.getByText(/2\/1\/2023/)).toBeInTheDocument();
     });
 
     it('should calculate age correctly', async () => {

@@ -260,4 +260,4 @@ jobs:
 
             # Restart services
             sudo systemctl restart nginx
-            # pm2 restart naru-backend || pm2 start dist/index.js --name naru-backend
+            sudo systemctl restart naru-backend

@@ -10,15 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -48,37 +48,34 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run Prisma migrations on test database
+      - name: Set up database and generate Prisma client
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/naru_test
         run: |
           cd packages/backend
           npx prisma migrate deploy
-
-      - name: Generate Prisma Client
-        run: |
-            cd packages/backend
-            npx prisma generate
+          npx prisma generate
 
       - name: Run all tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/naru_test
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/naru_test
           JWT_SECRET: test-jwt-secret-for-testing-only
           JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
+          NODE_ENV: test
         run: pnpm test
 
   build:
@@ -87,15 +84,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -116,15 +113,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
 
       - name: Install dependencies

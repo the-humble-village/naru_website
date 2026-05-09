@@ -209,7 +209,7 @@ jobs:
             sudo chown -R ec2-user:ec2-user /var/www/backend
 
       - name: Create standalone backend
-        run: pnpm --filter @naru/backend deploy ./backend-deploy
+        run: pnpm --filter @naru/backend deploy --legacy ./backend-deploy
 
       - name: Deploy Web to EC2
         uses: appleboy/scp-action@master

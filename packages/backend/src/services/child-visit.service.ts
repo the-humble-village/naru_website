@@ -5,7 +5,7 @@ import {
   type ChildVisitRead,
   type UserRead,
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * List child visits for a specific child

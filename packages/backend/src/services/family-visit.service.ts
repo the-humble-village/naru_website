@@ -5,7 +5,7 @@ import {
   type FamilyVisitRead,
   type UserRead,
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * List family visits for a specific family

@@ -5,7 +5,7 @@ import {
   type ParentRead,
   type UserRead
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * List parents for a specific family

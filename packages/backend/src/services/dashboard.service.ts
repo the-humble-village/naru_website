@@ -6,7 +6,7 @@ import {
   type TrainingReceived,
   type ResourceReceived,
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * Get dashboard data with recent visits, recently updated children, families in crisis, and summary stats

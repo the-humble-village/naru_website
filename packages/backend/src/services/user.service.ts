@@ -6,7 +6,7 @@ import {
   type UserRead,
   type Role
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 const BCRYPT_ROUNDS = 12;
 

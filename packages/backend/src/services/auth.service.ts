@@ -8,8 +8,8 @@ import {
   type UserRead,
   type TokenPayload
 } from '@naru/shared';
-import { prisma } from '../db';
-import { appConfig } from '../config';
+import { prisma } from '../db.js';
+import { appConfig } from '../config.js';
 
 const BCRYPT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = '1h';

@@ -1,6 +1,6 @@
 import { HTTPException } from 'hono/http-exception';
 import { type LookupCreate, type LookupUpdate, type LookupRead, type LookupReorder } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * Valid lookup table names that can be managed via admin routes

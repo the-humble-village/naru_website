@@ -1,5 +1,5 @@
 import { type SearchResponse, type UserRead } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * Search across families, parents, and children by name

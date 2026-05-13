@@ -1,6 +1,6 @@
 import { HTTPException } from 'hono/http-exception';
 import { type QuestionSetCreate, type QuestionSetUpdate, type QuestionSetRead } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 type VisitType = 'child' | 'parent' | 'family';
 

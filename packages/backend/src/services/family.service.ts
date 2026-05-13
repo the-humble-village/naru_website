@@ -5,7 +5,7 @@ import {
   type FamilyRead,
   type UserRead
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * List families with optional pagination and filtering

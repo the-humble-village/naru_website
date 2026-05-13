@@ -9,7 +9,7 @@ import {
   armCircumferenceForAge,
   classifyZScore,
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * List children for a family

@@ -5,7 +5,7 @@ import {
   type BirthingAssistantRead,
   type UserRead
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * List all birthing assistants with communities and trainings

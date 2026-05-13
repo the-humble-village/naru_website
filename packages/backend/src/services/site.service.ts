@@ -1,6 +1,6 @@
 import { HTTPException } from 'hono/http-exception';
 import { type SiteCreate, type SiteUpdate, type SiteRead } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 function fmt(s: any): SiteRead {
   return {

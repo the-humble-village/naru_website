@@ -1,4 +1,4 @@
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * Generate test data matching the legacy PHP NGenerateTestData class.

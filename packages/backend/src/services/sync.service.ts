@@ -18,7 +18,7 @@ import {
   FamilyVisitCreateSchema,
   BirthingAssistantCreateSchema,
 } from '@naru/shared';
-import prisma from '../db';
+import prisma from '../db.js';
 
 // Dependency order for processing sync changes
 const ENTITY_DEPENDENCY_ORDER = [

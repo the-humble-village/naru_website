@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Signer } from '@aws-sdk/rds-signer';
 import { softDeleteExtension } from './middleware/soft-delete.js';
-import { appConfig } from './config';
+import { appConfig } from './config.js';
 
 // Create base client with explicit datasource for tests
 function createBasePrismaClient(databaseUrl?: string) {

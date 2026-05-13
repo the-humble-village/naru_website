@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { SiteCreateSchema, SiteUpdateSchema, type UserRead, type TokenPayload } from '@naru/shared';
-import { auth } from '../middleware/auth';
-import { requireAdmin } from '../middleware/role';
-import * as siteService from '../services/site.service';
+import { auth } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/role.js';
+import * as siteService from '../services/site.service.js';
 
 type Variables = { user: UserRead; tokenPayload: TokenPayload };
 const app = new Hono<{ Variables: Variables }>();

@@ -6,8 +6,8 @@ import {
   type UserRead,
   type TokenPayload,
 } from '@naru/shared';
-import { auth } from '../middleware/auth';
-import * as searchService from '../services/search.service';
+import { auth } from '../middleware/auth.js';
+import * as searchService from '../services/search.service.js';
 
 // Type for Hono context with user variable
 type Variables = {

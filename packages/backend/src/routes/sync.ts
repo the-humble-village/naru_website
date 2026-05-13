@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { SyncRequestSchema, type UserRead, type TokenPayload } from '@naru/shared';
-import { auth } from '../middleware/auth';
-import * as syncService from '../services/sync.service';
+import { auth } from '../middleware/auth.js';
+import * as syncService from '../services/sync.service.js';
 
 // Type for Hono context with user variable
 type Variables = {

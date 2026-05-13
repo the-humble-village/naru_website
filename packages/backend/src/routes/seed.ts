@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { type UserRead, type TokenPayload } from '@naru/shared';
-import { auth } from '../middleware/auth';
-import { requireAdmin } from '../middleware/role';
-import * as seedService from '../services/seed.service';
+import { auth } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/role.js';
+import * as seedService from '../services/seed.service.js';
 
 type Variables = {
   user: UserRead;

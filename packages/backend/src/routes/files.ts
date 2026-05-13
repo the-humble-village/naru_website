@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { auth } from '../middleware/auth';
-import * as fileService from '../services/file.service';
+import * as fileService from '../services/file.service.js';
 import { HTTPException } from 'hono/http-exception';
 
 const app = new Hono();

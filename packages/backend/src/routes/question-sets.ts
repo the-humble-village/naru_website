@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { QuestionSetCreateSchema, QuestionSetUpdateSchema, type UserRead, type TokenPayload } from '@naru/shared';
-import { auth } from '../middleware/auth';
-import { requireAdmin } from '../middleware/role';
-import * as questionSetService from '../services/question-set.service';
+import { auth } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/role.js';
+import * as questionSetService from '../services/question-set.service.js';
 
 type Variables = { user: UserRead; tokenPayload: TokenPayload };
 

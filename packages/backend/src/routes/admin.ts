@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { LookupCreateSchema, LookupUpdateSchema, LookupReorderSchema, type UserRead, type TokenPayload } from '@naru/shared';
-import { auth } from '../middleware/auth';
-import { requireAdmin } from '../middleware/role';
-import * as adminService from '../services/admin.service';
+import { auth } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/role.js';
+import * as adminService from '../services/admin.service.js';
 
 // Type for Hono context with user variable
 type Variables = {

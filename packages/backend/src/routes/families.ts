@@ -7,9 +7,9 @@ import {
   type UserRead,
   type TokenPayload,
 } from '@naru/shared';
-import { auth } from '../middleware/auth';
-import { requireSupervisor } from '../middleware/role';
-import * as familyService from '../services/family.service';
+import { auth } from '../middleware/auth.js';
+import { requireSupervisor } from '../middleware/role.js';
+import * as familyService from '../services/family.service.js';
 
 // Type for Hono context with user variable
 type Variables = {

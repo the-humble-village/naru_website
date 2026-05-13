@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { RegisterSchema, LoginSchema } from '@naru/shared';
 import { z } from 'zod';
-import * as authService from '../services/auth.service';
+import * as authService from '../services/auth.service.js';
 
 const app = new Hono();
 

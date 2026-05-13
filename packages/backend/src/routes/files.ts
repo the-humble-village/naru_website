@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { auth } from '../middleware/auth';
+import { auth } from '../middleware/auth.js';
 import * as fileService from '../services/file.service.js';
 import { HTTPException } from 'hono/http-exception';
 

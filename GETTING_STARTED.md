@@ -2,13 +2,13 @@
 
 ## Prerequisites
 
-Install these before cloning the repo:
+Install the following before cloning the repository:
 
-| Tool | Version | Install (macOS) |
-|------|---------|-----------------|
-| Node.js | v24+ | `brew install node` |
-| pnpm | v9+ | `npm install -g pnpm` |
-| PostgreSQL | 14+ | `brew install postgresql@16 && brew services start postgresql@16` |
+| Tool | Required version | macOS install |
+|------|------------------|--------------|
+| Node.js | v24 or later | `brew install node` |
+| pnpm | v9 or later | `npm install -g pnpm` |
+| PostgreSQL | v14 or later | `brew install postgresql@16 && brew services start postgresql@16` |
 
 ## Setup
 
@@ -41,22 +41,13 @@ cp .env.example .env
 Edit `packages/backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://<your-pg-username>@127.0.0.1:5432/naru
+DATABASE_URL=postgresql://<your-pg-username>:<your-pg-password>@127.0.0.1:5432/naru
 JWT_SECRET=pick-any-secret-string
 JWT_REFRESH_SECRET=pick-a-different-secret-string
 PORT=3000
 ```
+Replace `<your-pg-username>` and `<your-pg-password>` with your local PostgreSQL username and password (password can be omitted if your setup uses peer/ident authentication). For many macOS local installs the username is your macOS username — run `whoami` if unsure.
 
-Replace `<your-pg-username>` with your local PostgreSQL username (usually your macOS username — run `whoami` if unsure).
-
-### 4. Run database migrations
-
-```bash
-cd packages/backend
-npx prisma migrate dev
-```
-
-This creates all tables and generates the Prisma client. The database starts empty.
 
 ### 5. Build and verify
 
@@ -66,21 +57,16 @@ pnpm build
 pnpm test
 ```
 
-## Running the app
+### 6. Start development servers
 
-Start the backend and frontend in separate terminals:
+Run both development servers from the project root with:
 
 ```bash
-# Terminal 1 — Backend (http://localhost:3000)
-cd packages/backend
-pnpm dev
-
-# Terminal 2 — Web frontend (http://localhost:5173)
-cd packages/web
-pnpm dev
+make dev
 ```
 
-The web dev server proxies `/api` requests to the backend.
+This starts the backend and web apps together.
+
 
 ### Create your first user
 
@@ -92,17 +78,48 @@ curl -X POST http://localhost:3000/api/auth/register \
   -d '{"login": "admin", "password": "yourpassword", "role": "ADMIN"}'
 ```
 
-## Useful commands
+
+## Create SSH keys (ed25519)
+
+Generate a new ed25519 SSH key pair:
 
 ```bash
-pnpm build                         # Build all packages
-pnpm test                          # Run all tests
-pnpm --filter @naru/web test       # Web tests only
-pnpm --filter @naru/backend test   # Backend tests only
-
-# Prisma
-cd packages/backend
-npx prisma migrate dev             # Create/apply migrations
-npx prisma generate                # Regenerate client after schema changes
-npx prisma studio                  # Visual database browser
+ssh-keygen -t ed25519 -C "your_email@example.com"
 ```
+
+Press Enter to accept the default file location (~/.ssh/id_ed25519), and optionally set a passphrase for added security. To access EC2 instance, send your public key (~/.ssh/id_ed25519.pub) to a current team member who has server access and ask them to add it to the instance's authorized_keys.
+
+## Adding a public SSH key to the server
+
+To grant server access, add the user's public key to the target account on the EC2 instance.
+
+1. Open the public key file, usually `~/.ssh/id_ed25519.pub`.
+2. SSH into the server with an account that already has access.
+3. Append the public key to `~/.ssh/authorized_keys` for the target user. Make sure to add a comment so we know whose public key it is.
+4. Test the login from a new terminal using the corresponding private key.
+
+## Production Database (Prisma Studio)
+
+To inspect the production database with Prisma Studio:
+
+1. SSH into the production server and go to the backend directory:
+
+```bash
+cd ~/var/www/backend
+```
+
+2. Start Prisma Studio on the server:
+
+```bash
+npx prisma studio --port 5555
+```
+
+3. From your local machine, create an SSH tunnel to forward port `5555`:
+
+```bash
+ssh -i /path/to/pem_file.pem -L 5555:localhost:5555 ec2-user@<server-host>
+```
+
+4. Open Prisma Studio locally at:
+
+`http://localhost:5555`

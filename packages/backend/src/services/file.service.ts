@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import prisma from '../db';
+import prisma from '../db.js';
 import { HTTPException } from 'hono/http-exception';
 import type { FileCreate, FileRead, FileUploadResponse } from '@naru/shared';
 

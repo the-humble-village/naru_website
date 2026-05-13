@@ -5,23 +5,23 @@ import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
 
 // Route imports
-import authRoutes from './routes/auth';
-import adminRoutes from './routes/admin';
-import birthingAssistantsRoutes from './routes/birthing-assistants';
-import childVisitsRoutes from './routes/child-visits';
-import childrenRoutes from './routes/children';
-import dashboardRoutes from './routes/dashboard';
-import familiesRoutes from './routes/families';
-import familyVisitsRoutes from './routes/family-visits';
-import filesRoutes from './routes/files';
-import healthRoutes from './routes/health';
-import parentsRoutes from './routes/parents';
-import searchRoutes from './routes/search';
-import syncRoutes from './routes/sync';
-import seedRoutes from './routes/seed';
-import usersRoutes from './routes/users';
-import questionSetsRoutes from './routes/question-sets';
-import sitesRoutes from './routes/sites';
+import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
+import birthingAssistantsRoutes from './routes/birthing-assistants.js';
+import childVisitsRoutes from './routes/child-visits.js';
+import childrenRoutes from './routes/children.js';
+import dashboardRoutes from './routes/dashboard.js';
+import familiesRoutes from './routes/families.js';
+import familyVisitsRoutes from './routes/family-visits.js';
+import filesRoutes from './routes/files.js';
+import healthRoutes from './routes/health.js';
+import parentsRoutes from './routes/parents.js';
+import searchRoutes from './routes/search.js';
+import syncRoutes from './routes/sync.js';
+import seedRoutes from './routes/seed.js';
+import usersRoutes from './routes/users.js';
+import questionSetsRoutes from './routes/question-sets.js';
+import sitesRoutes from './routes/sites.js';
 
 // Initialize Hono app with OpenAPI support
 const app = new OpenAPIHono();

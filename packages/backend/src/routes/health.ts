@@ -7,7 +7,7 @@ import {
   armCircumferenceForAge,
   classifyZScore
 } from '@naru/shared';
-import { auth } from '../middleware/auth';
+import { auth } from '../middleware/auth.js';
 
 const app = new Hono();
 

@@ -2,8 +2,8 @@ import { Context, Next } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import { TokenPayloadSchema, type TokenPayload, type UserRead } from '@naru/shared';
-import { appConfig } from '../config';
-import { prisma } from '../db';
+import { appConfig } from '../config.js';
+import { prisma } from '../db.js';
 
 /**
  * Auth middleware that verifies JWT from Authorization header

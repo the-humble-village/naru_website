@@ -91,10 +91,9 @@ graph TD
         FilesR["files.ts"]
         SyncR["sync.ts"]
         BAR["birthing-assistants.ts"]
-        QSetR["question-sets.ts"]
+        QSetsR["question-sets.ts"]
         SitesR["sites.ts"]
-        SeedR["seed.ts"]
-    end
+        end
 
     subgraph Services["Service Layer (src/services/)"]
         AuthS["auth.service.ts"]
@@ -112,7 +111,6 @@ graph TD
         BAS["birthing-assistant.service.ts"]
         QSetS["question-set.service.ts"]
         SiteS["site.service.ts"]
-        SeedS["seed.service.ts"]
     end
 
     DB["Prisma Client (db.ts) → PostgreSQL"]
@@ -159,7 +157,6 @@ graph LR
             AdminLookups["GET|POST|PUT|DELETE /api/admin/:table"]
             Sites["GET|POST|PUT|DELETE /api/sites"]
             QSets["GET|POST|PUT|DELETE /api/question-sets"]
-            Seed["POST /api/seed"]
         end
     end
 
@@ -477,7 +474,6 @@ graph TD
     ADMIN -->|"additionally"| AD2["Manage lookup tables (community, site, resource, training)"]
     ADMIN -->|"additionally"| AD3["Manage question sets"]
     ADMIN -->|"additionally"| AD4["Manage sites"]
-    ADMIN -->|"additionally"| AD5["Generate test seed data"]
 ```
 
 ---

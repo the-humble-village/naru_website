@@ -1,0 +1,17 @@
+{
+  "name": "naru-project",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "turbo": "^2.9.14",
+    "typescript": "^5.8.0"
+  },
+  "packageManager": "pnpm@10.32.1"
+}

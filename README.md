@@ -133,7 +133,6 @@ packages/backend/
 │   │   ├── question-sets.ts    # CRUD /api/question-sets — ADMIN only
 │   │   ├── sites.ts            # CRUD /api/sites — ADMIN only
 │   │   ├── sync.ts             # POST /api/sync — mobile offline sync endpoint
-│   │   └── seed.ts             # POST /api/seed — generate test data (dev/staging only)
 │   └── services/
 │       ├── auth.service.ts             # register(), login(), refresh() — password hashing, token generation
 │       ├── family.service.ts           # list(), fetch(), create(), update(), softDelete()
@@ -150,7 +149,6 @@ packages/backend/
 │       ├── question-set.service.ts     # CRUD for question sets and their items
 │       ├── site.service.ts             # CRUD for sites with geo boundary support
 │       ├── sync.service.ts             # processSync() — upserts offline records in dependency order
-│       └── seed.service.ts             # generateTestData() — creates realistic dummy data
 └── tests/
     ├── auth.test.ts
     ├── families.test.ts
@@ -198,8 +196,7 @@ packages/web/src/
 │   ├── search.ts               # searchApi.search(query)
 │   ├── files.ts                # filesApi.upload(file), .getUrl(id)
 │   ├── question-sets.ts        # questionSetsApi CRUD
-│   ├── sites.ts                # sitesApi CRUD
-│   └── seed.ts                 # seedApi.generate() — triggers test data generation
+│   └── sites.ts                # sitesApi CRUD
 ├── components/
 │   ├── index.ts                # Barrel — import all components from here
 │   ├── Layout.tsx              # App shell with nav sidebar; wraps all authenticated pages
@@ -288,7 +285,7 @@ Communicates with the backend via `POST /api/sync` for offline-first data entry.
 |---|---|
 | `CASEWORKER` | CRUD own assigned families, children, parents, visits |
 | `SUPERVISOR` | All caseworker permissions + all families + soft-delete + birthing assistants |
-| `ADMIN` | All supervisor permissions + users + lookup tables + sites + question sets + seed |
+| `ADMIN` | All supervisor permissions + users + lookup tables + sites + question sets |
 
 ---
 

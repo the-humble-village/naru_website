@@ -41,7 +41,7 @@ export const AddChildPage: React.FC = () => {
 
     let processedValue: any = value;
     if (type === 'number') {
-      processedValue = value === '' ? 0 : Number(value);
+      processedValue = value === '' ? '' : Number(value);
     } else {
       processedValue = value === '' ? '' : value;
     }
@@ -62,7 +62,7 @@ export const AddChildPage: React.FC = () => {
         name: formData.name,
         birthDate: new Date(formData.birthDate).toISOString(),
         sex: formData.sex,
-        weight: formData.weight,
+        weight: Number(formData.weight) || 0,
         nutritionalState: formData.nutritionalState || null,
         reasonEnrollment: formData.reasonEnrollment || null,
         observations: formData.observations || null,
@@ -170,6 +170,8 @@ export const AddChildPage: React.FC = () => {
             name="weight"
             value={formData.weight}
             onChange={handleInputChange}
+            onFocus={(e) => { if (Number(e.target.value) === 0) setFormData(prev => ({ ...prev, weight: '' as unknown as number })); }}
+            onBlur={(e) => { if (e.target.value === '') setFormData(prev => ({ ...prev, weight: 0 })); }}
             min="0"
             className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
             placeholder="Weight in grams"

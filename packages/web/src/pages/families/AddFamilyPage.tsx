@@ -58,7 +58,7 @@ export const AddFamilyPage: React.FC = () => {
     if (type === 'checkbox') {
       processedValue = (e.target as HTMLInputElement).checked;
     } else if (type === 'number') {
-      processedValue = value === '' ? 0 : Number(value);
+      processedValue = value === '' ? '' : Number(value);
     } else if (e.target.tagName === 'SELECT') {
       // For select elements, convert empty strings to null for nullable fields
       if (['communityId', 'siteId', 'birthingAssistantId'].includes(name)) {
@@ -88,7 +88,10 @@ export const AddFamilyPage: React.FC = () => {
 
     try {
       // Validate form data with Zod schema
-      const validatedData = FamilyCreateSchema.parse(formData);
+      const validatedData = FamilyCreateSchema.parse({
+        ...formData,
+        childrenEditable: Number(formData.childrenEditable) || 0,
+      });
       createFamilyMutation.mutate(validatedData);
     } catch (error: any) {
       const fieldErrors: Record<string, string> = {};
@@ -227,8 +230,10 @@ export const AddFamilyPage: React.FC = () => {
             type="number"
             id="childrenEditable"
             name="childrenEditable"
-            value={formData.childrenEditable || 0}
+            value={formData.childrenEditable}
             onChange={handleInputChange}
+            onFocus={(e) => { if (Number(e.target.value) === 0) setFormData(prev => ({ ...prev, childrenEditable: '' as unknown as number })); }}
+            onBlur={(e) => { if (e.target.value === '') setFormData(prev => ({ ...prev, childrenEditable: 0 })); }}
             min="0"
             className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
           />

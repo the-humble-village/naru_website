@@ -214,6 +214,8 @@ export const AddChildVisitPage: React.FC = () => {
                 min="0"
                 value={formData.weight}
                 onChange={(e) => handleInputChange('weight', e.target.value)}
+                onFocus={(e) => { if (Number(e.target.value) === 0) handleInputChange('weight', '' as unknown as number); }}
+                onBlur={(e) => { if (e.target.value === '') handleInputChange('weight', 0); }}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-green ${
                   errors.weight ? 'border-red-500' : 'border-hv-border-input'
                 }`}
@@ -233,6 +235,8 @@ export const AddChildVisitPage: React.FC = () => {
                 min="0"
                 value={formData.armCircumference}
                 onChange={(e) => handleInputChange('armCircumference', e.target.value)}
+                onFocus={(e) => { if (Number(e.target.value) === 0) handleInputChange('armCircumference', '' as unknown as number); }}
+                onBlur={(e) => { if (e.target.value === '') handleInputChange('armCircumference', 0); }}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-green ${
                   errors.armCircumference ? 'border-red-500' : 'border-hv-border-input'
                 }`}
@@ -252,6 +256,8 @@ export const AddChildVisitPage: React.FC = () => {
                 min="0"
                 value={formData.height}
                 onChange={(e) => handleInputChange('height', e.target.value)}
+                onFocus={(e) => { if (Number(e.target.value) === 0) handleInputChange('height', '' as unknown as number); }}
+                onBlur={(e) => { if (e.target.value === '') handleInputChange('height', 0); }}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-green ${
                   errors.height ? 'border-red-500' : 'border-hv-border-input'
                 }`}

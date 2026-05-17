@@ -21,6 +21,9 @@ import {
   AdminUsersPage,
   AdminLookupsPage,
   AdminBirthingAssistantsPage,
+  AddParentVisitPage,
+  ParentVisitDetailPage,
+  EditParentVisitPage,
   AdminQuestionSetsPage,
   AdminSitesPage,
   LanguagePage,
@@ -91,6 +94,18 @@ const router = createBrowserRouter([
           {
             path: ':id/parents/:pid',
             element: <ParentDetailPage />,
+          },
+          {
+            path: ':id/parents/:pid/visits/new',
+            element: <AddParentVisitPage />,
+          },
+          {
+            path: ':id/parents/:pid/visits/:vid',
+            element: <ParentVisitDetailPage />,
+          },
+          {
+            path: ':id/parents/:pid/visits/:vid/edit',
+            element: <EditParentVisitPage />,
           },
           {
             path: ':id/children/:cid',

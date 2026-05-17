@@ -5,6 +5,7 @@ export * from './parent.js';
 export * from './child.js';
 export * from './child-visit.js';
 export * from './family-visit.js';
+export * from './parent-visit.js';
 export * from './birthing-assistant.js';
 export * from './file.js';
 export * from './lookups.js';

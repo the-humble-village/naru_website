@@ -18,6 +18,7 @@ import healthRoutes from './routes/health.js';
 import parentsRoutes from './routes/parents.js';
 import searchRoutes from './routes/search.js';
 import syncRoutes from './routes/sync.js';
+import parentVisitsRoutes from './routes/parent-visits.js';
 import usersRoutes from './routes/users.js';
 import questionSetsRoutes from './routes/question-sets.js';
 import sitesRoutes from './routes/sites.js';
@@ -77,6 +78,7 @@ app.route('/api/sync', syncRoutes);
 app.route('/api/users', usersRoutes);
 
 // Mount nested child routes through families
+app.route('/api/families/:familyId/parents/:pid/visits', parentVisitsRoutes);
 app.route('/api/families/:familyId/children', childrenRoutes);
 app.route('/api/families/:familyId/parents', parentsRoutes);
 app.route('/api/families/:fid/children/:cid/visits', childVisitsRoutes);

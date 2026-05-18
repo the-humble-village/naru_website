@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { FamilyVisitRead, FamilyVisitCreate, FamilyVisitUpdate, ChildVisitRead, ChildVisitCreate, ChildVisitUpdate, ParentVisitRead, ParentVisitCreate, ParentVisitUpdate } from '@naru/shared';
+import { FamilyVisitRead, FamilyVisitCreate, FamilyVisitUpdate, ChildVisitRead, ChildVisitCreate, ChildVisitUpdate } from '@naru/shared';
 
 /**
  * Family Visit API functions
@@ -94,47 +94,6 @@ export const updateChildVisit = async (familyId: number, childId: number, visitI
   return response.data;
 };
 
-/**
- * Parent Visit API functions
- */
-
-/**
- * List parent visits
- */
-export const listParentVisits = async (familyId: number, parentId: number, params: ListVisitsParams = {}): Promise<ListVisitsResponse<ParentVisitRead>> => {
-  const searchParams = new URLSearchParams();
-  if (params.skip !== undefined) searchParams.set('skip', params.skip.toString());
-  if (params.limit !== undefined) searchParams.set('limit', params.limit.toString());
-
-  const url = `/families/${familyId}/parents/${parentId}/visits${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-  const response = await apiClient.get<ListVisitsResponse<ParentVisitRead>>(url);
-  return response.data;
-};
-
-/**
- * Fetch a single parent visit by ID
- */
-export const fetchParentVisit = async (familyId: number, parentId: number, visitId: number): Promise<ParentVisitRead> => {
-  const response = await apiClient.get<ParentVisitRead>(`/families/${familyId}/parents/${parentId}/visits/${visitId}`);
-  return response.data;
-};
-
-/**
- * Create a new parent visit
- */
-export const createParentVisit = async (familyId: number, parentId: number, data: ParentVisitCreate): Promise<ParentVisitRead> => {
-  const response = await apiClient.post<ParentVisitRead>(`/families/${familyId}/parents/${parentId}/visits`, data);
-  return response.data;
-};
-
-/**
- * Update an existing parent visit
- */
-export const updateParentVisit = async (familyId: number, parentId: number, visitId: number, data: ParentVisitUpdate): Promise<ParentVisitRead> => {
-  const response = await apiClient.put<ParentVisitRead>(`/families/${familyId}/parents/${parentId}/visits/${visitId}`, data);
-  return response.data;
-};
-
 export const visitsApi = {
   listFamilyVisits,
   fetchFamilyVisit,
@@ -144,8 +103,4 @@ export const visitsApi = {
   fetchChildVisit,
   createChildVisit,
   updateChildVisit,
-  listParentVisits,
-  fetchParentVisit,
-  createParentVisit,
-  updateParentVisit,
 };

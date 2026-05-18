@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { parentsApi } from '../../api/parents';
-import { visitsApi } from '../../api/visits';
 import { ParentUpdate, ParentRead } from '@naru/shared';
 
 /**
@@ -25,13 +24,6 @@ export const ParentDetailPage: React.FC = () => {
   } = useQuery<ParentRead>({
     queryKey: ['parent', familyIdNum, parentIdNum],
     queryFn: () => parentsApi.fetchParent(familyIdNum, parentIdNum),
-    enabled: familyIdNum > 0 && parentIdNum > 0,
-  });
-
-  // Fetch parent visits
-  const { data: parentVisitsData } = useQuery({
-    queryKey: ['parentVisits', familyIdNum, parentIdNum],
-    queryFn: () => visitsApi.listParentVisits(familyIdNum, parentIdNum),
     enabled: familyIdNum > 0 && parentIdNum > 0,
   });
 
@@ -357,45 +349,6 @@ export const ParentDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Parent Visits Section */}
-      <div className="bg-white p-6 rounded-xl border border-hv-border mt-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-serif font-semibold text-hv-charcoal">Parent Visits</h2>
-          <Link
-            to={`/families/${familyId}/parents/${parentId}/visits/new`}
-            className="bg-hv-terracotta text-white px-4 py-2 rounded text-sm hover:bg-hv-terracotta-hover transition-colors"
-          >
-            Add Visit
-          </Link>
-        </div>
-
-        {parentVisitsData && parentVisitsData.visits && parentVisitsData.visits.length > 0 ? (
-          <div className="divide-y divide-hv-border">
-            {parentVisitsData.visits.map((visit) => (
-              <Link
-                key={visit.id}
-                to={`/families/${familyId}/parents/${parentId}/visits/${visit.id}`}
-                className="flex items-center justify-between py-3 hover:bg-hv-page px-2 -mx-2 rounded transition-colors"
-              >
-                <div>
-                  <span className="text-sm font-medium text-hv-charcoal">
-                    {new Date(visit.visitDate).toLocaleDateString()}
-                  </span>
-                  {visit.weight > 0 && (
-                    <span className="text-sm text-hv-sage ml-3">
-                      {visit.weight} kg
-                    </span>
-                  )}
-                </div>
-                <span className="text-hv-sage text-sm">&rarr;</span>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-hv-sage">No visits recorded yet.</p>
         )}
       </div>
     </div>

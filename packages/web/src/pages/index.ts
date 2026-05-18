@@ -18,11 +18,8 @@ export { default as ParentDetailPage } from './parents/ParentDetailPage';
 // Visit pages
 export { default as AddChildVisitPage } from './visits/AddChildVisitPage';
 export { default as AddFamilyVisitPage } from './visits/AddFamilyVisitPage';
-export { default as AddParentVisitPage } from './visits/AddParentVisitPage';
 export { default as FamilyVisitDetailPage } from './visits/FamilyVisitDetailPage';
 export { default as ChildVisitDetailPage } from './visits/ChildVisitDetailPage';
-export { default as ParentVisitDetailPage } from './visits/ParentVisitDetailPage';
-export { default as EditParentVisitPage } from './visits/EditParentVisitPage';
 
 // Admin pages
 export { default as AdminPage } from './admin/AdminPage';

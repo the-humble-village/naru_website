@@ -521,7 +521,7 @@ export const DashboardPage: React.FC = () => {
 
         {/* Families tab */}
         {activeTab === 'families' && (
-          <FamiliesTable table={table} highlightCrisis compact />
+          <FamiliesTable table={table} highlightCrisis compact actionLabel="View" />
         )}
       </div>
       {showAddVisitModal && <AddVisitModal onClose={() => setShowAddVisitModal(false)} />}

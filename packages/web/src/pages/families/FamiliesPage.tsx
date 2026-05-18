@@ -17,7 +17,7 @@ export const FamiliesPage: React.FC = () => {
           Add Family
         </Link>
       </div>
-      <FamiliesTable table={table} />
+      <FamiliesTable table={table} actionLabel="View Details" />
     </div>
   );
 };

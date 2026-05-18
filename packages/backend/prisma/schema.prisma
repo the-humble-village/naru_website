@@ -87,9 +87,8 @@ model Parent {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")
 
-  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  photo        File?         @relation(fields: [photoId], references: [id], onDelete: SetNull)
-  parentVisits ParentVisit[]
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  photo  File?  @relation(fields: [photoId], references: [id], onDelete: SetNull)
 
   @@map("parents")
 }
@@ -103,7 +102,7 @@ model Child {
   sex               Sex
   dateEntered       DateTime? @map("date_entered")
   photoId           Int?      @map("photo_id")
-  weight            Float     @default(0) // kilograms
+  weight            Int       @default(0) // grams
   nutritionalState  String?   @map("nutritional_state") @db.VarChar(512)
   reasonEnrollment  String?   @map("reason_enrollment") @db.VarChar(4096)
   observations      String?   @db.Text
@@ -131,7 +130,7 @@ model ChildVisit {
   familyId         Int       @map("family_id")
   childId          Int       @map("child_id")
   visitDate        DateTime  @map("visit_date")
-  weight           Float     @default(0) // kilograms
+  weight           Int       @default(0) // grams
   armCircumference Int       @default(0) @map("arm_circumference") // millimeters
   height           Int       @default(0) // millimeters
   incap            Boolean   @default(false) // gave special drink
@@ -141,7 +140,6 @@ model ChildVisit {
   leftFromProg     String?   @map("left_from_prog")
   passedAway       String?   @map("passed_away")
   questions        Json      @default("[]") // Array of { questionId, question, answer }
-  photos           Json      @default("[]") // Array of file IDs
   notes            String?   @db.Text
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
@@ -160,7 +158,6 @@ model FamilyVisit {
   trainingsReceived Json      @default("[]") @map("trainings_received") // Array of { id, title }
   resourcesReceived Json      @default("[]") @map("resources_received") // Array of { id, title }
   questions         Json      @default("[]") // Array of { questionId, question, answer }
-  photos            Json      @default("[]") // Array of file IDs
   notes             String?   @db.Text
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
@@ -169,27 +166,6 @@ model FamilyVisit {
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@map("family_visits")
-}
-
-model ParentVisit {
-  id                Int       @id @default(autoincrement())
-  localId           String?   @unique @map("local_id")
-  familyId          Int       @map("family_id")
-  parentId          Int       @map("parent_id")
-  visitDate         DateTime  @map("visit_date")
-  weight            Float     @default(0)           // kilograms
-  trainingsReceived Json      @default("[]") @map("trainings_received")
-  resourcesReceived Json      @default("[]") @map("resources_received")
-  questions         Json      @default("[]")
-  photos            Json      @default("[]") // Array of file IDs
-  notes             String?   @db.Text
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  deletedAt         DateTime? @map("deleted_at")
-
-  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
-
-  @@map("parent_visits")
 }
 
 // ──────────────────────────────────────

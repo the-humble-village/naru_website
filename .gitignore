@@ -29,6 +29,3 @@ packages/backend/prisma/*.db
 
 # OS
 .DS_Store
-
-# npm (this project uses pnpm)
-package-lock.json

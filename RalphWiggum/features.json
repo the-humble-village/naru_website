@@ -1,0 +1,698 @@
+[
+  {
+    "id": "infra-001",
+    "phase": "infrastructure",
+    "name": "Initialize pnpm monorepo",
+    "description": "Create root package.json with workspace scripts, pnpm-workspace.yaml listing packages/*, and turbo.json with build/test/dev tasks. Add .gitignore entries for node_modules, dist, .env, .turbo.",
+    "verify": "test -f package.json && test -f pnpm-workspace.yaml && test -f turbo.json",
+    "dependencies": [],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "infra-002",
+    "phase": "infrastructure",
+    "name": "Shared package skeleton",
+    "description": "Create packages/shared with package.json (@naru/shared), tsconfig.json (strict, ESNext), and src/index.ts that re-exports an empty object. Must build with tsc.",
+    "verify": "cd packages/shared && pnpm build",
+    "dependencies": [
+      "infra-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "infra-003",
+    "phase": "infrastructure",
+    "name": "Backend package skeleton (Hono + Prisma deps)",
+    "description": "Create packages/backend with package.json (@naru/backend) depending on hono, @hono/zod-validator, @prisma/client, prisma, bcrypt, jsonwebtoken, dotenv, zod, and @naru/shared. Include tsconfig.json (strict) and src/index.ts stub. Must build with tsc.",
+    "verify": "cd packages/backend && pnpm build",
+    "dependencies": [
+      "infra-002"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "infra-004",
+    "phase": "infrastructure",
+    "name": "Web package skeleton (React + Vite + Tailwind)",
+    "description": "Create packages/web with package.json (@naru/web) depending on react, react-dom, react-router-dom, axios, zustand, @tanstack/react-query, and @naru/shared. Include vite.config.ts, tsconfig.json (jsx: react-jsx), tailwind.config.ts with HV color palette, postcss.config.js, index.html, and src/main.tsx stub. Must build with vite build.",
+    "verify": "cd packages/web && pnpm build",
+    "dependencies": [
+      "infra-002"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "infra-005",
+    "phase": "infrastructure",
+    "name": "Prisma schema (all models from ARCHITECTURE.md)",
+    "description": "Create packages/backend/prisma/schema.prisma with all models: User, Family, Parent, Child, ChildVisit, FamilyVisit, BirthingAssistant, BirthingAssistantCommunity, BirthingAssistantTraining, File, Community, Site, Resource, Training, ChildVisitQuestion, ParentVisitQuestion, FamilyVisitQuestion. Include Role and Sex enums. Use @map for snake_case table/column names. Create .env with DATABASE_URL for naru database.",
+    "verify": "cd packages/backend && npx prisma validate",
+    "dependencies": [
+      "infra-003"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "infra-006",
+    "phase": "infrastructure",
+    "name": "Prisma generate + initial migration",
+    "description": "Run prisma generate to create the client, then prisma migrate dev --name init to create the initial migration. Verify migrations directory exists.",
+    "verify": "cd packages/backend && npx prisma generate && test -d prisma/migrations",
+    "dependencies": [
+      "infra-005"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "infra-007",
+    "phase": "infrastructure",
+    "name": "Vitest setup for backend",
+    "description": "Create packages/backend/vitest.config.ts with test environment config. Create packages/backend/tests/setup.ts with test database connection, Prisma client for tests, and cleanup helpers. Add a trivial placeholder test in tests/health.test.ts that passes. Ensure 'pnpm test -- --run' passes. Use .env.test for DATABASE_URL pointing to naru_test.",
+    "verify": "cd packages/backend && pnpm test -- --run",
+    "dependencies": [
+      "infra-003"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "infra-008",
+    "phase": "infrastructure",
+    "name": "Vitest setup for web",
+    "description": "Create packages/web/vitest.config.ts with jsdom environment. Create packages/web/src/test/setup.ts with @testing-library/jest-dom imports. Add a trivial placeholder test that passes. Ensure 'pnpm test -- --run' passes.",
+    "verify": "cd packages/web && pnpm test -- --run",
+    "dependencies": [
+      "infra-004"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "infra-009",
+    "phase": "infrastructure",
+    "name": "Nginx config",
+    "description": "Create nginx/naru.conf with reverse proxy rules: /api/* → localhost:3000, /* → static files from web dist directory. Include standard security headers.",
+    "verify": "test -f nginx/naru.conf",
+
+    "dependencies": [
+      "infra-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "shared-001",
+    "phase": "shared",
+    "name": "Constants (roles, sync)",
+    "description": "Create packages/shared/src/constants/roles.ts with Role enum (ADMIN, SUPERVISOR, CASEWORKER) and helper functions. Create packages/shared/src/constants/sync.ts with sync statuses and entity dependency order. Export from index.ts.",
+    "verify": "cd packages/shared && pnpm build",
+    "dependencies": [
+      "infra-002"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "shared-002",
+    "phase": "shared",
+    "name": "Zod schemas — User + Auth",
+    "description": "Create packages/shared/src/schemas/user.ts with UserCreateSchema, UserUpdateSchema, UserReadSchema, LoginSchema, RegisterSchema, TokenPayloadSchema, AuthResponseSchema. Export types. Re-export from schemas/index.ts and main index.ts.",
+    "verify": "cd packages/shared && pnpm build && node -e \"const s = require('./dist/index.js'); if (!s.LoginSchema) throw new Error('LoginSchema missing')\"",
+    "dependencies": [
+      "shared-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "shared-003",
+    "phase": "shared",
+    "name": "Zod schemas — Family",
+    "description": "Create packages/shared/src/schemas/family.ts with FamilyCreateSchema, FamilyUpdateSchema, FamilyReadSchema. Follow the pattern from ARCHITECTURE.md. Export types and re-export.",
+    "verify": "cd packages/shared && pnpm build && node -e \"const s = require('./dist/index.js'); if (!s.FamilyCreateSchema) throw new Error('FamilyCreateSchema missing')\"",
+    "dependencies": [
+      "shared-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "shared-004",
+    "phase": "shared",
+    "name": "Zod schemas — Parent",
+    "description": "Create packages/shared/src/schemas/parent.ts with ParentCreateSchema, ParentUpdateSchema, ParentReadSchema. Export types and re-export.",
+    "verify": "cd packages/shared && pnpm build && node -e \"const s = require('./dist/index.js'); if (!s.ParentCreateSchema) throw new Error('ParentCreateSchema missing')\"",
+    "dependencies": [
+      "shared-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "shared-005",
+    "phase": "shared",
+    "name": "Zod schemas — Child",
+    "description": "Create packages/shared/src/schemas/child.ts with ChildCreateSchema, ChildUpdateSchema, ChildReadSchema. Include sex enum validation. Export types and re-export.",
+    "verify": "cd packages/shared && pnpm build && node -e \"const s = require('./dist/index.js'); if (!s.ChildCreateSchema) throw new Error('ChildCreateSchema missing')\"",
+    "dependencies": [
+      "shared-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "shared-006",
+    "phase": "shared",
+    "name": "Zod schemas — ChildVisit + FamilyVisit",
+    "description": "Create packages/shared/src/schemas/child-visit.ts and family-visit.ts with Create/Update/Read schemas for both visit types. Include JSON field schemas for questions, trainingsReceived, resourcesReceived. Export types and re-export.",
+    "verify": "cd packages/shared && pnpm build && node -e \"const s = require('./dist/index.js'); if (!s.ChildVisitCreateSchema || !s.FamilyVisitCreateSchema) throw new Error('Visit schemas missing')\"",
+    "dependencies": [
+      "shared-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "shared-007",
+    "phase": "shared",
+    "name": "Zod schemas — BA, File, Lookups, Dashboard, Sync",
+    "description": "Create schemas for BirthingAssistant, File, all lookup tables (Community, Site, Resource, Training, ChildVisitQuestion, ParentVisitQuestion, FamilyVisitQuestion), Dashboard response, and Sync request/response. Export all types.",
+    "verify": "cd packages/shared && pnpm build && node -e \"const s = require('./dist/index.js'); if (!s.SyncRequestSchema || !s.DashboardResponseSchema) throw new Error('Schemas missing')\"",
+    "dependencies": [
+      "shared-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "shared-008",
+    "phase": "shared",
+    "name": "WHO z-score calculator (port from PHP)",
+    "description": "Create packages/shared/src/health/zscore.ts with weightForAge, armCircumferenceForAge, classifyZScore, and ageInDays functions. Create who-data.ts with LMS lookup tables for boys/girls WFA and ACFA. Port logic from the legacy PHP system. Add tests in packages/shared/src/health/__tests__/zscore.test.ts.",
+    "verify": "cd packages/shared && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "infra-002"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/shared@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/shared\n> tsc\n\n\n> @naru/shared@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/shared\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/shared\n\n ❯ src/health/__tests__/zscore.test.ts (24 tests | 2 failed) 6ms\n   ✓ Z-Score Calculator > ageInDays > should calculate age in days correctly 1ms\n   ✓ Z-Score Calculator > ageInDays > should return null for invalid birth date 0ms\n   ✓ Z-Score Calculator > ageInDays > should return null for negative age 0ms\n   × Z-Score Calculator > ageInDays > should use current date if no reference date provided 3ms\n     → expected 99 to be 100 // Object.is equality\n   ✓ Z-Score Calculator > weightForAge > should calculate weight-for-age z-score for male newborn 0ms\n   ✓ Z-Score Calculator > weightForAge > should calculate weight-for-age z-score for female newborn 0ms\n   ✓ Z-Score Calculator > weightForAge > should return null for invalid weight 0ms\n   ✓ Z-Score Calculator > weightForAge > should return null for age out of range 0ms\n   ✓ Z-Score Calculator > weightForAge > should calculate correct z-score for 6-month-old 0ms\n   ✓ Z-Score Calculator > armCircumferenceForAge > should calculate arm circumference z-score for valid age 0ms\n   ✓ Z-Score Calculator > armCircumferenceForAge > should return null for age below 91 days (before ACFA starts) 0ms\n   ✓ Z-Score Calculator > armCircumferenceForAge > should return null for invalid circumference 0ms\n   ✓ Z-Score Calculator > armCircumferenceForAge > should calculate for both sexes 0ms\n   ✓ Z-Score Calculator > classifyZScore > should classify severe malnutrition 0ms\n   ✓ Z-Score Calculator > classifyZScore > should classify moderate malnutrition 0ms\n   ✓ Z-Score Calculator > classifyZScore > should classify mild malnutrition 0ms\n   ✓ Z-Score Calculator > classifyZScore > should classify normal 0ms\n   ✓ Z-Score Calc"
+  },
+  {
+    "id": "shared-009",
+    "phase": "shared",
+    "name": "i18n strings (port en/es from PHP)",
+    "description": "Create packages/shared/src/i18n/en.ts and es.ts by porting translation strings from root/sys/i18n/en.php and root/sys/i18n/es.php. Create an index.ts that exports a t(key, lang) function. Export from main index.ts.",
+    "verify": "cd packages/shared && pnpm build && node -e \"const s = require('./dist/index.js'); if (!s.t) throw new Error('t function missing')\"",
+    "dependencies": [
+      "infra-002"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-001",
+    "phase": "backend",
+    "name": "Prisma client singleton + soft-delete middleware",
+    "description": "Create packages/backend/src/db.ts exporting a singleton Prisma client. Add Prisma middleware in packages/backend/src/middleware/soft-delete.ts that auto-filters deletedAt IS NULL on findMany, findFirst, findUnique. Create packages/backend/src/config.ts loading env vars from dotenv.",
+    "verify": "cd packages/backend && pnpm build",
+    "dependencies": [
+      "infra-006"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-002",
+    "phase": "backend",
+    "name": "Auth middleware (JWT + role gate)",
+    "description": "Create packages/backend/src/middleware/auth.ts with auth middleware that verifies JWT from Authorization header and sets c.var.user. Create role.ts with requireRole middleware that checks user role. Use jsonwebtoken for JWT ops.",
+    "verify": "cd packages/backend && pnpm build",
+    "dependencies": [
+      "backend-001",
+      "shared-002"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-003",
+    "phase": "backend",
+    "name": "Auth routes (register, login, refresh) + tests",
+    "description": "Create packages/backend/src/routes/auth.ts with POST /register, POST /login, POST /refresh. Use bcrypt for password hashing. Generate JWT access (15min) and refresh (30d) tokens. Create packages/backend/src/services/auth.service.ts with business logic. Add tests covering happy path, invalid credentials, and token refresh.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-002"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-004",
+    "phase": "backend",
+    "name": "User routes + tests",
+    "description": "Create packages/backend/src/routes/users.ts with GET /users (admin), GET /users/me, GET /users/:id (admin), PUT /users/:id (admin), PATCH /users/me/language. Create services/user.service.ts. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-003"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-005",
+    "phase": "backend",
+    "name": "Family CRUD routes + tests",
+    "description": "Create packages/backend/src/routes/families.ts with GET / (paginated, filterable), POST /, GET /:id, PUT /:id, DELETE /:id (supervisor+). Create services/family.service.ts. Validate with FamilyCreateSchema/FamilyUpdateSchema from @naru/shared. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-003",
+      "shared-003"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-006",
+    "phase": "backend",
+    "name": "Parent CRUD routes + tests",
+    "description": "Create packages/backend/src/routes/parents.ts with CRUD at /families/:familyId/parents. Create services/parent.service.ts. Validate with ParentCreateSchema/ParentUpdateSchema. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-005",
+      "shared-004"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/backend@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n> tsc\n\n\n> @naru/backend@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n\nstderr | tests/parents.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ❯ tests/parents.test.ts (28 tests | 7 failed) 206ms\n   ✓ Parent Routes > GET /families/:familyId/parents > should return empty array for family with no parents 32ms\n   ✓ Parent Routes > GET /families/:familyId/parents > should return parents for family with parents 8ms\n   ✓ Parent Routes > GET /families/:familyId/parents > should return 401 without auth token 5ms\n   ✓ Parent Routes > GET /families/:familyId/parents > should return 404 for non-existent family 6ms\n   ✓ Parent Routes > POST /families/:familyId/parents > should create parent successfully 12ms\n   ✓ Parent Routes > POST /families/:familyId/parents > should create parent with minimal data 6ms\n   ✓ Parent Routes > POST /families/:familyId/parents > should handle localId for offline sync 6ms\n   × Parent Routes > POST /families/:familyId/parents > should reject duplicate localId 7ms\n     → expected { success: false, error: { …(2) } } to have property \"message\"\n   ✓ Parent Routes > POST /families/:familyId/parents > should return 401 without auth token 5ms\n   ✓ Parent Routes > POST /families/:familyId/parents > should return 404 for non-existent family 7ms\n   ✓ Parent Routes > POST /families/:familyId/parents > should validate request body 4ms\n   ✓ Parent Routes > GET /families/:familyId/parents/:id > should return parent successfully 5ms\n   ✓ Parent Routes > GET /families/:familyId/parents/:id > should return 401 without auth token 4ms\n   ✓ Parent Routes > GET /families/:familyId/parents/:id > should return 404 for non-existent parent 4ms\n   × Parent Routes > GET /famili"
+  },
+  {
+    "id": "backend-007",
+    "phase": "backend",
+    "name": "Child CRUD routes + tests",
+    "description": "Create packages/backend/src/routes/children.ts with CRUD at /families/:familyId/children. Include z-score calculation on GET /:id using @naru/shared health utils. Create services/child.service.ts. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-005",
+      "shared-005",
+      "shared-008"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-008",
+    "phase": "backend",
+    "name": "Child visit routes + tests",
+    "description": "Create packages/backend/src/routes/child-visits.ts with CRUD at /families/:fid/children/:cid/visits. Create services/child-visit.service.ts. Validate with ChildVisitCreateSchema. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-007",
+      "shared-006"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-009",
+    "phase": "backend",
+    "name": "Family visit routes + tests",
+    "description": "Create packages/backend/src/routes/family-visits.ts with CRUD at /families/:familyId/visits. Create services/family-visit.service.ts. Validate with FamilyVisitCreateSchema. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-005",
+      "shared-006"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-010",
+    "phase": "backend",
+    "name": "Birthing assistant routes + tests",
+    "description": "Create packages/backend/src/routes/birthing-assistants.ts with full CRUD including community and training junction management. Create services/birthing-assistant.service.ts. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-003",
+      "shared-007"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-011",
+    "phase": "backend",
+    "name": "Admin lookup routes + tests",
+    "description": "Create packages/backend/src/routes/admin.ts with generic CRUD for lookup tables (communities, sites, resources, training, child-visit-questions, parent-visit-questions, family-visit-questions). Create services/admin.service.ts. Admin role required for write ops. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-003",
+      "shared-007"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-012",
+    "phase": "backend",
+    "name": "File upload routes + tests",
+    "description": "Create packages/backend/src/routes/files.ts with POST /files (multipart upload), GET /files/:id (metadata), GET /files/:id/download (binary). Implement SHA-256 dedup. Create services/file.service.ts. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-003",
+      "shared-007"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/backend@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n> tsc\n\n\n> @naru/backend@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n\nstderr | tests/files.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ❯ tests/files.test.ts (15 tests | 12 failed) 86ms\n   × File Routes > POST /files > should upload file successfully 24ms\n     → expected 401 to be 201 // Object.is equality\n   × File Routes > POST /files > should deduplicate identical files 4ms\n     → expected 401 to be 201 // Object.is equality\n   × File Routes > POST /files > should handle files with different extensions 3ms\n     → expected 401 to be 201 // Object.is equality\n   ✓ File Routes > POST /files > should return 401 without auth token 3ms\n   × File Routes > POST /files > should return 400 with no file 3ms\n     → expected 401 to be 400 // Object.is equality\n   × File Routes > POST /files > should return 400 for files too large 15ms\n     → expected 401 to be 400 // Object.is equality\n   × File Routes > GET /files/:id > should get file metadata successfully 3ms\n     → Cannot read properties of undefined (reading 'id')\n   ✓ File Routes > GET /files/:id > should return 401 without auth token 2ms\n   × File Routes > GET /files/:id > should return 404 for non-existent file 3ms\n     → expected 401 to be 404 // Object.is equality\n   × File Routes > GET /files/:id > should return 400 for invalid file ID 3ms\n     → expected 401 to be 400 // Object.is equality\n   × File Routes > GET /files/:id/download > should return 501 for download (not implemented) 3ms\n     → Cannot read properties of undefined (reading 'id')\n   ✓ File Routes > GET /files/:id/download > should return 401 without auth token 2ms\n   × File Routes > GET /files/:id/download > should return 400 for invalid file ID "
+  },
+  {
+    "id": "backend-013",
+    "phase": "backend",
+    "name": "Dashboard route + tests",
+    "description": "Create packages/backend/src/routes/dashboard.ts with GET /dashboard returning recent visits, recently updated children, families in crisis. Create services/dashboard.service.ts. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-008",
+      "backend-009"
+    ],
+    "status": "passed",
+    "retries": 2,
+    "lastError": "\n> @naru/backend@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n> tsc\n\n\n> @naru/backend@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n\nstderr | tests/users.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ✓ tests/users.test.ts (29 tests) 7588ms\n   ✓ User Routes > GET /users > should list users for admin  320ms\n   ✓ User Routes > POST /users > should create new user for admin  557ms\n   ✓ User Routes > POST /users > should use default values  398ms\nstderr | tests/auth.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ✓ tests/auth.test.ts (15 tests) 973ms\n   ✓ Auth Routes > POST /register > should register a new user successfully  324ms\nstderr | tests/child-visits.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ✓ tests/child-visits.test.ts (32 tests) 182ms\nstderr | tests/admin.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ✓ tests/admin.test.ts (27 tests) 135ms\nstderr | tests/dashboard.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ✓ tests/dashboard.test.ts (8 tests) 62ms\nstderr | tests/parents.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ✓ tests/parents.test.ts (28 tests) 123ms\nstderr | tests/family-visits.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\n ❯ tests/family-visits.test.ts (26 tests | 1 failed) 111ms\n   ✓ Family Visit Routes > GET /families/:familyId/visits > should return empty array for family with no visits 9ms\n   ✓ Family Visit Routes > GET /families/:familyId/visits > should return visits for family with visits 5ms\n   ✓ "
+  },
+  {
+    "id": "backend-014",
+    "phase": "backend",
+    "name": "Search route + tests",
+    "description": "Create packages/backend/src/routes/search.ts with GET /search?q= that searches across families, parents, children by name. Create services/search.service.ts. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-005"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-015",
+    "phase": "backend",
+    "name": "Health/z-score route + tests",
+    "description": "Create packages/backend/src/routes/health.ts with POST /health/zscore that computes z-scores using @naru/shared health utils. Add tests.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-003",
+      "shared-008"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "backend-016",
+    "phase": "backend",
+    "name": "Sync endpoint + comprehensive tests",
+    "description": "Create packages/backend/src/routes/sync.ts with POST /sync endpoint. Create services/sync.service.ts implementing: dependency-ordered processing, single transaction, localId duplicate detection, scoped pulls, parentLocalId resolution. Tests must cover: valid batch, duplicate localId, invalid operation type, partial failure rollback, access scoping, dependency resolution.",
+    "verify": "cd packages/backend && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "backend-008",
+      "backend-009",
+      "shared-007"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/backend@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n> tsc\n\n\n> @naru/backend@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/backend\n\nstderr | tests/sync.test.ts\nPrisma middleware not available - soft delete filtering will be handled in service layer\n\nstderr | tests/sync.test.ts > Sync Routes > POST /sync > should rollback entire transaction on partial failure\nFailed to create child: ZodError: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"number\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"familyId\"\n    ],\n    \"message\": \"Required\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"birthDate\"\n    ],\n    \"message\": \"Required\"\n  },\n  {\n    \"expected\": \"'MALE' | 'FEMALE'\",\n    \"received\": \"undefined\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"sex\"\n    ],\n    \"message\": \"Required\"\n  }\n]\n    at Object.get error [as error] (file:///Users/calebr/Desktop/WebProjects/NaruProject/node_modules/\u001b[4m.pnpm\u001b[24m/zod@3.25.76/node_modules/\u001b[4mzod\u001b[24m/v3/types.js:39:31)\n    at ZodObject.parse (file:///Users/calebr/Desktop/WebProjects/NaruProject/node_modules/\u001b[4m.pnpm\u001b[24m/zod@3.25.76/node_modules/\u001b[4mzod\u001b[24m/v3/types.js:114:22)\n    at createRecord \u001b[90m(/Users/calebr/Desktop/WebProjects/NaruProject/packages/backend/\u001b[39msrc/services/sync.service.ts:218:47\u001b[90m)\u001b[39m\n    at processChange \u001b[90m(/Users/calebr/Desktop/WebProjects/NaruProject/packages/backend/\u001b[39msrc/services/sync.service.ts:108:28\u001b[90m)\u001b[39m\n    at \u001b[90m/Users/calebr/Desktop/WebProjects/NaruProject/packages/backend/\u001b[39msrc/services/sync.service.ts:58:24\n    at Proxy._transactionWithCallback (/Users/calebr/Desktop/WebProjects/NaruProject/node_modules/\u001b[4m.pnpm\u001b[24m/@prisma+client@6.19.2_prisma@6.19.2_typescript@5.9.3__typescript@5.9.3/node_modules/\u001b[4m@prisma\u001b[24m/client/src/runtime/"
+  },
+  {
+    "id": "backend-017",
+    "phase": "backend",
+    "name": "Hono app assembly + server entrypoint",
+    "description": "Create packages/backend/src/app.ts that assembles the Hono app: register error handler, CORS, all route modules under /api prefix. Update packages/backend/src/index.ts to import app and listen on configured port. Must build successfully.",
+    "verify": "cd packages/backend && pnpm build",
+    "dependencies": [
+      "backend-003"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-001",
+    "phase": "web",
+    "name": "Axios client with JWT interceptor",
+    "description": "Create packages/web/src/api/client.ts with an Axios instance configured with baseURL /api, request interceptor that attaches JWT from auth store, and response interceptor that redirects to /login on 401.",
+    "verify": "cd packages/web && pnpm build",
+    "dependencies": [
+      "infra-004"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-002",
+    "phase": "web",
+    "name": "Zustand auth store",
+    "description": "Create packages/web/src/store/auth.ts with Zustand store managing: user object, accessToken, refreshToken, role, lang, login/logout/setTokens actions. Persist tokens to localStorage.",
+    "verify": "cd packages/web && pnpm build",
+    "dependencies": [
+      "infra-004"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-003",
+    "phase": "web",
+    "name": "ProtectedRoute + RoleGate components",
+    "description": "Create packages/web/src/components/ProtectedRoute.tsx that redirects to /login if no auth token. Create RoleGate.tsx that conditionally renders children based on user role. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-002"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-004",
+    "phase": "web",
+    "name": "Layout component with nav",
+    "description": "Create packages/web/src/components/Layout.tsx with navigation bar (Dashboard, Families, Admin links), page shell with Tailwind styling matching the HV color palette.",
+    "verify": "cd packages/web && pnpm build",
+    "dependencies": [
+      "web-002"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-005",
+    "phase": "web",
+    "name": "React Router setup with all routes + placeholder pages",
+    "description": "Create packages/web/src/App.tsx with React Router v6 createBrowserRouter. Define all routes from ARCHITECTURE.md with placeholder page components. Wrap authenticated routes in ProtectedRoute. Update main.tsx to render App.",
+    "verify": "cd packages/web && pnpm build",
+    "dependencies": [
+      "web-003",
+      "web-004"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-006",
+    "phase": "web",
+    "name": "LoginPage + SignupPage",
+    "description": "Create packages/web/src/pages/LoginPage.tsx and SignupPage.tsx with forms, validation, API calls to /auth/login and /auth/register, and auth store integration. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-005",
+      "web-001"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/web@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 186 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.39 kB │ gzip:   0.27 kB\ndist/assets/index-DWDyL-gj.css    0.27 kB │ gzip:   0.22 kB\ndist/assets/index-DrwSIgZ5.js   370.56 kB │ gzip: 110.63 kB\n✓ built in 464ms\n\n> @naru/web@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n\n ✓ src/app.test.tsx (2 tests) 1ms\nstderr | src/components/__tests__/ProtectedRoute.test.tsx > ProtectedRoute > should render children when user is authenticated\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\n ✓ src/components/__tests__/RoleGate.test.tsx (11 tests) 16ms\n ✓ src/components/__tests__/ProtectedRoute.test.tsx (3 tests) 19ms\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  src/pages/__tests__/LoginPage.test.tsx [ src/pages/__tests__/LoginPage.test.tsx ]\nError: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock\n ❯ src/pages/LoginPage.tsx:5:1\n      3| import { Login, LoginSchema } from '@naru/shared';\n      4| import { authApi } from '../api/auth';\n      5| import { "
+  },
+  {
+    "id": "web-007",
+    "phase": "web",
+    "name": "API layer (families, children, parents, visits, admin)",
+    "description": "Create packages/web/src/api/ modules: families.ts, children.ts, parents.ts, visits.ts, admin.ts, birthing-assistants.ts, files.ts, dashboard.ts, search.ts. Each exports typed functions using the Axios client.",
+    "verify": "cd packages/web && pnpm build",
+    "dependencies": [
+      "web-001"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-008",
+    "phase": "web",
+    "name": "DashboardPage",
+    "description": "Create packages/web/src/pages/DashboardPage.tsx showing recent visits, recently updated children, families in crisis. Use TanStack Query for data fetching. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-005",
+      "web-007"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-009",
+    "phase": "web",
+    "name": "FamiliesPage (table, search, pagination)",
+    "description": "Create packages/web/src/pages/FamiliesPage.tsx with a table of families, search input, pagination controls, and community filter. Use TanStack Query. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-007"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-010",
+    "phase": "web",
+    "name": "AddFamilyPage",
+    "description": "Create packages/web/src/pages/AddFamilyPage.tsx with a form to create a new family. Include community, site, and BA selectors. Validate with FamilyCreateSchema. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-007"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/web@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 190 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.39 kB │ gzip:   0.27 kB\ndist/assets/index-DWDyL-gj.css    0.27 kB │ gzip:   0.22 kB\ndist/assets/index-NXQcH_oN.js   401.39 kB │ gzip: 117.86 kB\n✓ built in 472ms\n\n> @naru/web@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n\n ✓ src/app.test.tsx (2 tests) 1ms\n ✓ src/components/__tests__/RoleGate.test.tsx (11 tests) 17ms\nstderr | src/components/__tests__/ProtectedRoute.test.tsx > ProtectedRoute > should render children when user is authenticated\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\n ✓ src/components/__tests__/ProtectedRoute.test.tsx (3 tests) 19ms\n ✓ src/pages/__tests__/DashboardPage.test.tsx (7 tests) 81ms\nstderr | src/pages/__tests__/FamiliesPage.test.tsx > FamiliesPage > Initial Render > should render the page title and add family button\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution withi"
+  },
+  {
+    "id": "web-011",
+    "phase": "web",
+    "name": "FamilyDetailPage",
+    "description": "Create packages/web/src/pages/FamilyDetailPage.tsx showing family details, edit form, lists of parents, children, and visits with links. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-007"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/web@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 193 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.39 kB │ gzip:   0.27 kB\ndist/assets/index-DWDyL-gj.css    0.27 kB │ gzip:   0.22 kB\ndist/assets/index-BvuIkKgG.js   412.05 kB │ gzip: 119.67 kB\n✓ built in 482ms\n\n> @naru/web@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n\n ✓ src/app.test.tsx (2 tests) 1ms\nstderr | src/components/__tests__/ProtectedRoute.test.tsx > ProtectedRoute > should render children when user is authenticated\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\n ✓ src/components/__tests__/ProtectedRoute.test.tsx (3 tests) 19ms\nstderr | src/pages/__tests__/FamilyDetailPage.test.tsx > FamilyDetailPage > Family Information Display > should render family details successfully\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more infor"
+  },
+  {
+    "id": "web-012",
+    "phase": "web",
+    "name": "ChildDetailPage with z-score badges",
+    "description": "Create packages/web/src/pages/ChildDetailPage.tsx showing child details, z-score badges (using classifyZScore from @naru/shared), visit history. Create components/ZScoreBadge.tsx. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-007",
+      "shared-008"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/web@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 194 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.39 kB │ gzip:   0.27 kB\ndist/assets/index-DWDyL-gj.css    0.27 kB │ gzip:   0.22 kB\ndist/assets/index-CoS4CWEG.js   419.36 kB │ gzip: 121.12 kB\n✓ built in 488ms\n\n> @naru/web@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n\n ✓ src/app.test.tsx (2 tests) 2ms\n ✓ src/components/__tests__/RoleGate.test.tsx (11 tests) 18ms\nstderr | src/components/__tests__/ProtectedRoute.test.tsx > ProtectedRoute > should render children when user is authenticated\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\n ✓ src/components/__tests__/ProtectedRoute.test.tsx (3 tests) 18ms\nstderr | src/pages/__tests__/FamilyDetailPage.test.tsx > FamilyDetailPage > Family Information Display > should render family details successfully\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v"
+  },
+  {
+    "id": "web-013",
+    "phase": "web",
+    "name": "ParentDetailPage",
+    "description": "Create packages/web/src/pages/ParentDetailPage.tsx showing parent details with edit form. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-007"
+    ],
+    "status": "passed",
+    "retries": 1,
+    "lastError": "\n> @naru/web@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 194 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.39 kB │ gzip:   0.27 kB\ndist/assets/index-DWDyL-gj.css    0.27 kB │ gzip:   0.22 kB\ndist/assets/index-DPCl_q2J.js   427.26 kB │ gzip: 122.16 kB\n✓ built in 488ms\n\n> @naru/web@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n\n ✓ src/app.test.tsx (2 tests) 1ms\n ✓ src/components/__tests__/RoleGate.test.tsx (11 tests) 17ms\nstderr | src/components/__tests__/ProtectedRoute.test.tsx > ProtectedRoute > should render children when user is authenticated\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\n ✓ src/components/__tests__/ProtectedRoute.test.tsx (3 tests) 18ms\nstderr | src/pages/__tests__/FamilyDetailPage.test.tsx > FamilyDetailPage > Family Information Display > should render family details successfully\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v"
+  },
+  {
+    "id": "web-014",
+    "phase": "web",
+    "name": "AddChildVisitPage + AddFamilyVisitPage",
+    "description": "Create packages/web/src/pages/AddChildVisitPage.tsx and AddFamilyVisitPage.tsx with forms for creating visits. Include dynamic question fields. Validate with visit schemas. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-007"
+    ],
+    "status": "passed",
+    "retries": 2,
+    "lastError": "\n> @naru/web@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 194 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.39 kB │ gzip:   0.27 kB\ndist/assets/index-DWDyL-gj.css    0.27 kB │ gzip:   0.22 kB\ndist/assets/index-BlV8Fglr.js   443.17 kB │ gzip: 124.58 kB\n✓ built in 499ms\n\n> @naru/web@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n\nstderr | src/components/__tests__/ProtectedRoute.test.tsx > ProtectedRoute > should render children when user is authenticated\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\n ✓ src/components/__tests__/ProtectedRoute.test.tsx (3 tests) 19ms\n ✓ src/components/__tests__/RoleGate.test.tsx (11 tests) 18ms\nstderr | src/pages/__tests__/ParentDetailPage.test.tsx > ParentDetailPage > Loading and Error States > should show loading state while fetching parent data\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future"
+  },
+  {
+    "id": "web-015",
+    "phase": "web",
+    "name": "Admin pages (users, lookups, birthing assistants)",
+    "description": "Create AdminPage.tsx (menu), AdminUsersPage.tsx, AdminLookupsPage.tsx (generic for communities/sites/resources/training/questions), AdminBirthingAssistantsPage.tsx. Gate with RoleGate. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-007",
+      "web-003"
+    ],
+    "status": "failed",
+    "retries": 3,
+    "lastError": "\n> @naru/web@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 195 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.39 kB │ gzip:   0.27 kB\ndist/assets/index-DWDyL-gj.css    0.27 kB │ gzip:   0.22 kB\ndist/assets/index-CQwVVV4z.js   468.12 kB │ gzip: 128.07 kB\n✓ built in 523ms\n\n> @naru/web@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n\nstderr | src/pages/__tests__/AdminPage.test.tsx > AdminPage > should render admin page title\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\nstderr | src/pages/__tests__/ParentDetailPage.test.tsx > ParentDetailPage > Loading and Error States > should show loading state while fetching parent data\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\nstderr | src/pages/__tests__/FamilyDetailPage.test."
+  },
+  {
+    "id": "web-016",
+    "phase": "web",
+    "name": "LanguagePage + i18n integration",
+    "description": "Create packages/web/src/pages/LanguagePage.tsx for language selection (en/es). Integrate @naru/shared i18n throughout the app using a useTranslation hook. Update Layout nav to use translated strings.",
+    "verify": "cd packages/web && pnpm build",
+    "dependencies": [
+      "web-005",
+      "shared-009"
+    ],
+    "status": "passed",
+    "retries": 0,
+    "lastError": null
+  },
+  {
+    "id": "web-017",
+    "phase": "web",
+    "name": "SearchBar component",
+    "description": "Create packages/web/src/components/SearchBar.tsx with global search input that queries /search?q= and shows results in a dropdown. Integrate into Layout. Add tests.",
+    "verify": "cd packages/web && pnpm build && pnpm test -- --run",
+    "dependencies": [
+      "web-004",
+      "web-007"
+    ],
+    "status": "failed",
+    "retries": 3,
+    "lastError": "\n> @naru/web@0.0.1 build /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vite build\n\nvite v6.4.1 building for production...\ntransforming...\n✓ 198 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.39 kB │ gzip:   0.27 kB\ndist/assets/index-DWDyL-gj.css    0.27 kB │ gzip:   0.22 kB\ndist/assets/index-DZag9Ux-.js   494.04 kB │ gzip: 134.20 kB\n✓ built in 495ms\n\n> @naru/web@0.0.1 test /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n> vitest run -- --run\n\n\n RUN  v3.2.4 /Users/calebr/Desktop/WebProjects/NaruProject/packages/web\n\nstderr | src/pages/__tests__/FamilyDetailPage.test.tsx > FamilyDetailPage > Family Information Display > should render family details successfully\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n\nstderr | src/pages/__tests__/ParentDetailPage.test.tsx > ParentDetailPage > Loading and Error States > should show loading state while fetching parent data\n⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath"
+  }
+]

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { visitsApi } from '../../api/visits';
+import { PhotoGallery } from '../../components';
 
 /**
  * FamilyVisitDetailPage - Shows full details of a single family visit
@@ -117,6 +118,11 @@ export const FamilyVisitDetailPage: React.FC = () => {
             <h2 className="text-sm font-semibold text-hv-charcoal mb-2">Notes</h2>
             <p className="text-sm text-hv-charcoal whitespace-pre-wrap">{visit.notes}</p>
           </div>
+        )}
+
+        {/* Photos */}
+        {visit.photos && visit.photos.length > 0 && (
+          <PhotoGallery photos={visit.photos} />
         )}
       </div>
     </div>

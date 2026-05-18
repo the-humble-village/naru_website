@@ -37,7 +37,7 @@ export async function listChildren(familyId: number, user: UserRead): Promise<Ch
       birthDate: true,
       sex: true,
       dateEntered: true,
-      photoId: true,
+      photos: true,
       weight: true,
       nutritionalState: true,
       reasonEnrollment: true,
@@ -54,6 +54,7 @@ export async function listChildren(familyId: number, user: UserRead): Promise<Ch
   // Transform dates to ISO strings
   const childrenRead: ChildRead[] = children.map((child: any) => ({
     ...child,
+    photos: child.photos as number[],
     birthDate: child.birthDate.toISOString(),
     dateEntered: child.dateEntered?.toISOString() || null,
     createdAt: child.createdAt.toISOString(),
@@ -97,7 +98,7 @@ export async function createChild(data: ChildCreate): Promise<ChildRead> {
       birthDate: new Date(data.birthDate),
       sex: data.sex,
       dateEntered: data.dateEntered ? new Date(data.dateEntered) : null,
-      photoId: data.photoId,
+      photos: data.photos ?? [],
       weight: data.weight ?? 0,
       nutritionalState: data.nutritionalState,
       reasonEnrollment: data.reasonEnrollment,
@@ -112,7 +113,7 @@ export async function createChild(data: ChildCreate): Promise<ChildRead> {
       birthDate: true,
       sex: true,
       dateEntered: true,
-      photoId: true,
+      photos: true,
       weight: true,
       nutritionalState: true,
       reasonEnrollment: true,
@@ -126,6 +127,7 @@ export async function createChild(data: ChildCreate): Promise<ChildRead> {
   // Transform dates to ISO strings
   const childRead: ChildRead = {
     ...child,
+    photos: child.photos as number[],
     birthDate: child.birthDate.toISOString(),
     dateEntered: child.dateEntered?.toISOString() || null,
     createdAt: child.createdAt.toISOString(),
@@ -162,7 +164,7 @@ export async function getChildById(familyId: number, childId: number, user: User
       birthDate: true,
       sex: true,
       dateEntered: true,
-      photoId: true,
+      photos: true,
       weight: true,
       nutritionalState: true,
       reasonEnrollment: true,
@@ -204,6 +206,7 @@ export async function getChildById(familyId: number, childId: number, user: User
   // Transform dates to ISO strings
   const childRead: ChildRead & { zScores?: any } = {
     ...child,
+    photos: child.photos as number[],
     birthDate: child.birthDate.toISOString(),
     dateEntered: child.dateEntered?.toISOString() || null,
     createdAt: child.createdAt.toISOString(),
@@ -265,7 +268,7 @@ export async function updateChild(familyId: number, childId: number, data: Child
   if (data.birthDate !== undefined) updateData.birthDate = data.birthDate ? new Date(data.birthDate) : null;
   if (data.sex !== undefined) updateData.sex = data.sex;
   if (data.dateEntered !== undefined) updateData.dateEntered = data.dateEntered ? new Date(data.dateEntered) : null;
-  if (data.photoId !== undefined) updateData.photoId = data.photoId;
+  if (data.photos !== undefined) updateData.photos = data.photos;
   if (data.weight !== undefined) updateData.weight = data.weight;
   if (data.nutritionalState !== undefined) updateData.nutritionalState = data.nutritionalState;
   if (data.reasonEnrollment !== undefined) updateData.reasonEnrollment = data.reasonEnrollment;
@@ -284,7 +287,7 @@ export async function updateChild(familyId: number, childId: number, data: Child
       birthDate: true,
       sex: true,
       dateEntered: true,
-      photoId: true,
+      photos: true,
       weight: true,
       nutritionalState: true,
       reasonEnrollment: true,
@@ -298,6 +301,7 @@ export async function updateChild(familyId: number, childId: number, data: Child
   // Transform dates to ISO strings
   const childRead: ChildRead = {
     ...updatedChild,
+    photos: updatedChild.photos as number[],
     birthDate: updatedChild.birthDate.toISOString(),
     dateEntered: updatedChild.dateEntered?.toISOString() || null,
     createdAt: updatedChild.createdAt.toISOString(),

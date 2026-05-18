@@ -8,6 +8,7 @@ import { childrenApi } from '../../api/children';
 import { visitsApi } from '../../api/visits';
 import { ChildRead, ChildVisitRead } from '@naru/shared';
 import ZScoreBadge from '../../components/ZScoreBadge';
+import { PhotoGallery } from '../../components';
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface ChildWithZScores extends ChildRead {
@@ -143,6 +144,13 @@ export const ChildDetailPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Photos */}
+      {child.photos && child.photos.length > 0 && (
+        <div className="bg-white rounded-xl border border-hv-border p-4 mb-5">
+          <PhotoGallery photos={child.photos} />
+        </div>
+      )}
 
       {/* Visit History */}
       <div className="bg-white rounded-xl border border-hv-border">

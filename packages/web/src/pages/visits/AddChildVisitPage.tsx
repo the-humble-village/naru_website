@@ -8,6 +8,7 @@ import { childrenApi } from '../../api/children';
 import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
+import { PhotoUpload } from '../../components';
 
 export const AddChildVisitPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export const AddChildVisitPage: React.FC = () => {
     leftFromProg: null,
     passedAway: null,
     questions: [],
+    photos: [] as number[],
     notes: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -147,6 +149,7 @@ export const AddChildVisitPage: React.FC = () => {
       weight: Number(formData.weight),
       armCircumference: Number(formData.armCircumference),
       height: Number(formData.height),
+      photos: formData.photos,
       questions: formData.questions.filter(q => q.answer.trim() !== ''),
     };
 
@@ -378,6 +381,12 @@ export const AddChildVisitPage: React.FC = () => {
               placeholder="Additional notes about the visit..."
             />
           </div>
+
+          {/* Photos */}
+          <PhotoUpload
+            photos={formData.photos}
+            onChange={(photos) => setFormData(prev => ({ ...prev, photos }))}
+          />
 
           {/* Form Actions */}
           <div className="flex gap-4 pt-4">

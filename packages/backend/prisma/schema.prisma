@@ -57,6 +57,7 @@ model Family {
   communityId         Int?      @map("community_id")
   siteId              Int?      @map("site_id")
   birthingAssistantId Int?      @map("birthing_assistant_id")
+  photos              Json      @default("[]")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
   deletedAt           DateTime? @map("deleted_at")
@@ -79,7 +80,7 @@ model Parent {
   role         String?   @db.VarChar(64) // "mother", "caregiver", etc.
   birthDate    DateTime? @map("birth_date")
   dateEntered  DateTime? @map("date_entered")
-  photoId      Int?      @map("photo_id")
+  photos       Json      @default("[]")
   reasonEnroll String?   @map("reason_enroll") @db.VarChar(4096)
   dueDate      DateTime? @map("due_date")
   notes        String?   @db.Text
@@ -88,7 +89,6 @@ model Parent {
   deletedAt    DateTime? @map("deleted_at")
 
   family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  photo        File?         @relation(fields: [photoId], references: [id], onDelete: SetNull)
   parentVisits ParentVisit[]
 
   @@map("parents")
@@ -102,7 +102,7 @@ model Child {
   birthDate         DateTime  @map("birth_date")
   sex               Sex
   dateEntered       DateTime? @map("date_entered")
-  photoId           Int?      @map("photo_id")
+  photos            Json      @default("[]")
   weight            Float     @default(0) // kilograms
   nutritionalState  String?   @map("nutritional_state") @db.VarChar(512)
   reasonEnrollment  String?   @map("reason_enrollment") @db.VarChar(4096)
@@ -112,7 +112,6 @@ model Child {
   deletedAt         DateTime? @map("deleted_at")
 
   family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  photo       File?        @relation(fields: [photoId], references: [id], onDelete: SetNull)
   childVisits ChildVisit[]
 
   @@map("children")
@@ -239,15 +238,15 @@ model BirthingAssistantTraining {
 // Files (Photos)
 // ──────────────────────────────────────
 
-// No soft delete. Files are content-addressed and immutable.
 model File {
   id        Int      @id @default(autoincrement())
-  hash      String   @unique @db.VarChar(256) // SHA-256
+  hash      String?  @db.VarChar(256)
   extension String   @db.VarChar(128)
+  s3Key     String   @map("s3_key") @db.VarChar(512)
+  mimeType  String   @map("mime_type") @db.VarChar(128)
+  size      Int      @default(0)
+  confirmed Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
-
-  parentPhotos Parent[]
-  childPhotos  Child[]
 
   @@map("files")
 }

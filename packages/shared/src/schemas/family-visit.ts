@@ -26,6 +26,7 @@ export const FamilyVisitCreateSchema = z.object({
   trainingsReceived: z.array(TrainingReceivedSchema).default([]), // Array of training objects
   resourcesReceived: z.array(ResourceReceivedSchema).default([]), // Array of resource objects
   questions: z.array(FamilyVisitQuestionSchema).default([]), // Array of question objects
+  photos: z.array(z.number().int().positive()).default([]),
   notes: z.string().optional().nullable(),
   localId: z.string().uuid().optional(), // Set by client for offline-created records
 });
@@ -42,6 +43,7 @@ export const FamilyVisitReadSchema = z.object({
   trainingsReceived: z.array(TrainingReceivedSchema),
   resourcesReceived: z.array(ResourceReceivedSchema),
   questions: z.array(FamilyVisitQuestionSchema),
+  photos: z.array(z.number().int().positive()),
   notes: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

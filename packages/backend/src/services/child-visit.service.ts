@@ -67,6 +67,7 @@ export async function listChildVisits(
       leftFromProg: true,
       passedAway: true,
       questions: true,
+      photos: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -83,6 +84,7 @@ export async function listChildVisits(
   const childVisitsRead: ChildVisitRead[] = childVisits.map((visit: any) => ({
     ...visit,
     questions: visit.questions as any, // Cast JsonValue to ChildVisitQuestion[]
+    photos: visit.photos as number[],
     visitDate: visit.visitDate.toISOString(),
     createdAt: visit.createdAt.toISOString(),
     updatedAt: visit.updatedAt.toISOString(),
@@ -146,6 +148,7 @@ export async function createChildVisit(data: ChildVisitCreate): Promise<ChildVis
       leftFromProg: data.leftFromProg,
       passedAway: data.passedAway,
       questions: data.questions ?? [],
+      photos: data.photos ?? [],
       notes: data.notes,
       localId: data.localId,
     },
@@ -165,6 +168,7 @@ export async function createChildVisit(data: ChildVisitCreate): Promise<ChildVis
       leftFromProg: true,
       passedAway: true,
       questions: true,
+      photos: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -176,6 +180,7 @@ export async function createChildVisit(data: ChildVisitCreate): Promise<ChildVis
   const childVisitRead: ChildVisitRead = {
     ...childVisit,
     questions: childVisit.questions as any, // Cast JsonValue to ChildVisitQuestion[]
+    photos: childVisit.photos as number[],
     visitDate: childVisit.visitDate.toISOString(),
     createdAt: childVisit.createdAt.toISOString(),
     updatedAt: childVisit.updatedAt.toISOString(),
@@ -238,6 +243,7 @@ export async function getChildVisitById(
       leftFromProg: true,
       passedAway: true,
       questions: true,
+      photos: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -255,6 +261,7 @@ export async function getChildVisitById(
   const childVisitRead: ChildVisitRead = {
     ...childVisit,
     questions: childVisit.questions as any, // Cast JsonValue to ChildVisitQuestion[]
+    photos: childVisit.photos as number[],
     visitDate: childVisit.visitDate.toISOString(),
     createdAt: childVisit.createdAt.toISOString(),
     updatedAt: childVisit.updatedAt.toISOString(),
@@ -341,6 +348,7 @@ export async function updateChildVisit(
   if (data.leftFromProg !== undefined) updateData.leftFromProg = data.leftFromProg;
   if (data.passedAway !== undefined) updateData.passedAway = data.passedAway;
   if (data.questions !== undefined) updateData.questions = data.questions;
+  if (data.photos !== undefined) updateData.photos = data.photos;
   if (data.notes !== undefined) updateData.notes = data.notes;
   if (data.localId !== undefined) updateData.localId = data.localId;
 
@@ -364,6 +372,7 @@ export async function updateChildVisit(
       leftFromProg: true,
       passedAway: true,
       questions: true,
+      photos: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -375,6 +384,7 @@ export async function updateChildVisit(
   const childVisitRead: ChildVisitRead = {
     ...updatedVisit,
     questions: updatedVisit.questions as any, // Cast JsonValue to ChildVisitQuestion[]
+    photos: updatedVisit.photos as number[],
     visitDate: updatedVisit.visitDate.toISOString(),
     createdAt: updatedVisit.createdAt.toISOString(),
     updatedAt: updatedVisit.updatedAt.toISOString(),

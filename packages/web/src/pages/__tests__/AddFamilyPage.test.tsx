@@ -215,6 +215,7 @@ describe('AddFamilyPage', () => {
         communityId: 1,
         siteId: 1,
         birthingAssistantId: null,
+        photos: [],
       });
     }, { timeout: 3000 });
 

@@ -67,6 +67,7 @@ export async function listFamilies(options: {
         communityId: true,
         siteId: true,
         birthingAssistantId: true,
+        photos: true,
         createdAt: true,
         updatedAt: true,
         // Explicitly exclude deletedAt
@@ -81,6 +82,7 @@ export async function listFamilies(options: {
   // Transform dates to ISO strings
   const familiesRead: FamilyRead[] = families.map((family: any) => ({
     ...family,
+    photos: family.photos as number[],
     createdAt: family.createdAt.toISOString(),
     updatedAt: family.updatedAt.toISOString(),
   }));
@@ -117,6 +119,7 @@ export async function createFamily(data: FamilyCreate): Promise<FamilyRead> {
       communityId: data.communityId,
       siteId: data.siteId,
       birthingAssistantId: data.birthingAssistantId,
+      photos: data.photos ?? [],
       localId: data.localId,
     },
     select: {
@@ -138,6 +141,7 @@ export async function createFamily(data: FamilyCreate): Promise<FamilyRead> {
   // Transform dates to ISO strings
   const familyRead: FamilyRead = {
     ...family,
+    photos: family.photos as number[],
     createdAt: family.createdAt.toISOString(),
     updatedAt: family.updatedAt.toISOString(),
   };
@@ -179,6 +183,7 @@ export async function getFamilyById(id: number, user: UserRead): Promise<FamilyR
   // Transform dates to ISO strings
   const familyRead: FamilyRead = {
     ...family,
+    photos: family.photos as number[],
     createdAt: family.createdAt.toISOString(),
     updatedAt: family.updatedAt.toISOString(),
   };
@@ -228,6 +233,7 @@ export async function updateFamily(id: number, data: FamilyUpdate, user: UserRea
       communityId: data.communityId,
       siteId: data.siteId,
       birthingAssistantId: data.birthingAssistantId,
+      photos: data.photos !== undefined ? data.photos : undefined,
       localId: data.localId,
       updatedAt: new Date(),
     },
@@ -250,6 +256,7 @@ export async function updateFamily(id: number, data: FamilyUpdate, user: UserRea
   // Transform dates to ISO strings
   const familyRead: FamilyRead = {
     ...updatedFamily,
+    photos: updatedFamily.photos as number[],
     createdAt: updatedFamily.createdAt.toISOString(),
     updatedAt: updatedFamily.updatedAt.toISOString(),
   };

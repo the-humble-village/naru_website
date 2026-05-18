@@ -23,7 +23,7 @@ const mockParent: ParentRead = {
   role: 'mother',
   birthDate: '1985-03-15T00:00:00.000Z',
   dateEntered: '2024-01-10T00:00:00.000Z',
-  photoId: null,
+  photos: [],
   reasonEnroll: 'Expecting second child',
   dueDate: '2024-09-15T00:00:00.000Z',
   notes: 'Attends all appointments regularly',

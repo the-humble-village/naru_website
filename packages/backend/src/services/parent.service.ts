@@ -36,7 +36,7 @@ export async function listParents(familyId: number, user: UserRead): Promise<Par
       role: true,
       birthDate: true,
       dateEntered: true,
-      photoId: true,
+      photos: true,
       reasonEnroll: true,
       dueDate: true,
       notes: true,
@@ -52,6 +52,7 @@ export async function listParents(familyId: number, user: UserRead): Promise<Par
   // Transform dates to ISO strings
   const parentsRead: ParentRead[] = parents.map((parent: any) => ({
     ...parent,
+    photos: parent.photos as number[],
     birthDate: parent.birthDate?.toISOString() ?? null,
     dateEntered: parent.dateEntered?.toISOString() ?? null,
     dueDate: parent.dueDate?.toISOString() ?? null,
@@ -101,7 +102,7 @@ export async function createParent(familyId: number, data: ParentCreate, user: U
       role: data.role,
       birthDate: data.birthDate ? new Date(data.birthDate) : null,
       dateEntered: data.dateEntered ? new Date(data.dateEntered) : null,
-      photoId: data.photoId,
+      photos: data.photos ?? [],
       reasonEnroll: data.reasonEnroll,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       notes: data.notes,
@@ -115,7 +116,7 @@ export async function createParent(familyId: number, data: ParentCreate, user: U
       role: true,
       birthDate: true,
       dateEntered: true,
-      photoId: true,
+      photos: true,
       reasonEnroll: true,
       dueDate: true,
       notes: true,
@@ -128,6 +129,7 @@ export async function createParent(familyId: number, data: ParentCreate, user: U
   // Transform dates to ISO strings
   const parentRead: ParentRead = {
     ...parent,
+    photos: parent.photos as number[],
     birthDate: parent.birthDate?.toISOString() ?? null,
     dateEntered: parent.dateEntered?.toISOString() ?? null,
     dueDate: parent.dueDate?.toISOString() ?? null,
@@ -156,7 +158,7 @@ export async function getParentById(familyId: number, parentId: number, user: Us
       role: true,
       birthDate: true,
       dateEntered: true,
-      photoId: true,
+      photos: true,
       reasonEnroll: true,
       dueDate: true,
       notes: true,
@@ -178,6 +180,7 @@ export async function getParentById(familyId: number, parentId: number, user: Us
   // Transform dates to ISO strings
   const parentRead: ParentRead = {
     ...parent,
+    photos: parent.photos as number[],
     birthDate: parent.birthDate?.toISOString() ?? null,
     dateEntered: parent.dateEntered?.toISOString() ?? null,
     dueDate: parent.dueDate?.toISOString() ?? null,
@@ -231,7 +234,7 @@ export async function updateParent(familyId: number, parentId: number, data: Par
       role: data.role,
       birthDate: data.birthDate ? new Date(data.birthDate) : data.birthDate === null ? null : undefined,
       dateEntered: data.dateEntered ? new Date(data.dateEntered) : data.dateEntered === null ? null : undefined,
-      photoId: data.photoId,
+      photos: data.photos !== undefined ? data.photos : undefined,
       reasonEnroll: data.reasonEnroll,
       dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate === null ? null : undefined,
       notes: data.notes,
@@ -246,7 +249,7 @@ export async function updateParent(familyId: number, parentId: number, data: Par
       role: true,
       birthDate: true,
       dateEntered: true,
-      photoId: true,
+      photos: true,
       reasonEnroll: true,
       dueDate: true,
       notes: true,
@@ -259,6 +262,7 @@ export async function updateParent(familyId: number, parentId: number, data: Par
   // Transform dates to ISO strings
   const parentRead: ParentRead = {
     ...updatedParent,
+    photos: updatedParent.photos as number[],
     birthDate: updatedParent.birthDate?.toISOString() ?? null,
     dateEntered: updatedParent.dateEntered?.toISOString() ?? null,
     dueDate: updatedParent.dueDate?.toISOString() ?? null,

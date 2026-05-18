@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ParentCreate, ParentCreateSchema } from '@naru/shared';
 import { parentsApi } from '../../api/parents';
+import { PhotoUpload } from '../../components';
 
 /**
  * AddParentPage - Form to add a new parent to a family
@@ -20,6 +21,7 @@ export const AddParentPage: React.FC = () => {
     dueDate: '',
     reasonEnroll: '',
     notes: '',
+    photos: [] as number[],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -56,6 +58,7 @@ export const AddParentPage: React.FC = () => {
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
         reasonEnroll: formData.reasonEnroll || null,
         notes: formData.notes || null,
+        photos: formData.photos,
         dateEntered: new Date().toISOString(),
       };
 
@@ -195,6 +198,12 @@ export const AddParentPage: React.FC = () => {
             placeholder="Any notes about this parent"
           />
         </div>
+
+        {/* Photos */}
+        <PhotoUpload
+          photos={formData.photos}
+          onChange={(photos) => setFormData(prev => ({ ...prev, photos }))}
+        />
 
         {/* Submit Error */}
         {errors.submit && (

@@ -239,10 +239,8 @@ export const AddParentVisitPage: React.FC = () => {
             <input
               type="number"
               id="weight"
-              value={formData.weight}
+              value={formData.weight || ''}
               onChange={(e) => handleInputChange('weight', e.target.value as unknown as number)}
-              onFocus={(e) => { if (Number(e.target.value) === 0) handleInputChange('weight', '' as unknown as number); }}
-              onBlur={(e) => { if (e.target.value === '') handleInputChange('weight', 0); }}
               step="0.1"
               min="0"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-green ${

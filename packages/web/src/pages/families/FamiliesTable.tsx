@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Columns2 } from 'lucide-react';
 import { type FamilyRead } from '@naru/shared';
 import { ALL_COLUMNS, SORTABLE, type ColumnKey, type SortColumn, type FamilyTableState } from './useFamilyTable';
@@ -41,12 +41,14 @@ interface FamiliesTableProps {
   table: FamilyTableState;
   highlightCrisis?: boolean;
   compact?: boolean;
+  actionLabel?: string;
 }
 
 export const FamiliesTable: React.FC<FamiliesTableProps> = ({
   table,
   highlightCrisis = false,
   compact = false,
+  actionLabel = 'View',
 }) => {
   const {
     searchTerm, setSearchTerm,
@@ -65,7 +67,6 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
     handleFilterChange,
   } = table;
 
-  const navigate = useNavigate();
   const labelClass = `block ${compact ? 'text-xs' : 'text-sm'} font-medium text-hv-charcoal mb-1`;
   const inputClass = `w-full px-3 py-2 ${compact ? 'text-sm' : ''} border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent`;
 
@@ -200,14 +201,16 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
                         </th>
                       );
                     })}
+                    <th className="px-4 py-3 text-right text-xs font-medium text-hv-sage uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-hv-border">
                   {families.map((family) => (
                     <tr
                       key={family.id}
-                      onClick={() => navigate(`/families/${family.id}`)}
-                      className={`cursor-pointer ${highlightCrisis && family.inCrisis ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-hv-page'}`}
+                      className={highlightCrisis && family.inCrisis ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-hv-page'}
                     >
                       {activeColumns.map((col) => (
                         <td
@@ -218,6 +221,11 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
                           {renderCell(col.key, family, communityLookup)}
                         </td>
                       ))}
+                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <Link to={`/families/${family.id}`} className="text-hv-terracotta hover:underline">
+                          {actionLabel}
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

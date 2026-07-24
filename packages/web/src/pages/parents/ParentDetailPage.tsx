@@ -106,7 +106,9 @@ export const ParentDetailPage: React.FC = () => {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '—';
-    return new Date(dateString).toLocaleDateString();
+    // Calendar dates are stored as UTC midnight; render in UTC so they don't
+    // shift back a day in local timezones.
+    return new Date(dateString).toLocaleDateString(undefined, { timeZone: 'UTC' });
   };
 
   const formatRole = (role: string | null) => {
@@ -382,7 +384,7 @@ export const ParentDetailPage: React.FC = () => {
               >
                 <div>
                   <span className="text-sm font-medium text-hv-charcoal">
-                    {new Date(visit.visitDate).toLocaleDateString()}
+                    {formatDate(visit.visitDate)}
                   </span>
                   {visit.weight > 0 && (
                     <span className="text-sm text-hv-sage ml-3">

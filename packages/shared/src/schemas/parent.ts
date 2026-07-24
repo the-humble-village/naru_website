@@ -7,7 +7,7 @@ export const ParentCreateSchema = z.object({
   role: z.string().max(64).optional().nullable(), // "mother", "caregiver", etc.
   birthDate: z.string().datetime().optional().nullable(),
   dateEntered: z.string().datetime().optional().nullable(),
-  photoId: z.number().int().positive().optional().nullable(),
+  photos: z.array(z.number().int().positive()).optional(),
   reasonEnroll: z.string().max(4096).optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -26,7 +26,7 @@ export const ParentReadSchema = z.object({
   role: z.string().nullable(),
   birthDate: z.string().datetime().nullable(),
   dateEntered: z.string().datetime().nullable(),
-  photoId: z.number().int().nullable(),
+  photos: z.array(z.number().int()),
   reasonEnroll: z.string().nullable(),
   dueDate: z.string().datetime().nullable(),
   notes: z.string().nullable(),

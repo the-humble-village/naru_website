@@ -25,11 +25,15 @@ function ageLabel(dateStr: string | null): string {
   if (!dateStr) return '';
   const birth = new Date(dateStr);
   const now = new Date();
-  const months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+  const months = (now.getUTCFullYear() - birth.getUTCFullYear()) * 12 + (now.getUTCMonth() - birth.getUTCMonth());
   if (months < 1) return '< 1 mo';
   if (months < 24) return `${months} mo`;
   return `${Math.floor(months / 12)} yr`;
 }
+
+// Calendar dates (birthDate, dueDate, visitDate) are stored as UTC midnight, so
+// render them in UTC to avoid the local-timezone shift that pushes them back a day.
+const formatDateOnly = (d: string) => new Date(d).toLocaleDateString(undefined, { timeZone: 'UTC' });
 
 function roleIcon(role: string | null) {
   const r = (role ?? '').toLowerCase();
@@ -386,10 +390,10 @@ export const FamilyDetailPage: React.FC = () => {
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-hv-sage pl-10">
                       {parent.birthDate && (
-                        <span>{new Date(parent.birthDate).toLocaleDateString()} · {ageLabel(parent.birthDate)}</span>
+                        <span>{formatDateOnly(parent.birthDate)} · {ageLabel(parent.birthDate)}</span>
                       )}
                       {parent.dueDate && (
-                        <span className="text-hv-terracotta">Due {new Date(parent.dueDate).toLocaleDateString()}</span>
+                        <span className="text-hv-terracotta">Due {formatDateOnly(parent.dueDate)}</span>
                       )}
                     </div>
                     {parent.notes && (
@@ -436,7 +440,7 @@ export const FamilyDetailPage: React.FC = () => {
                         {child.name}
                       </span>
                       <span className="ml-2 text-xs text-hv-sage">
-                        {child.sex} • {ageLabel(child.birthDate)} • {new Date(child.birthDate).toLocaleDateString()}
+                        {child.sex} • {ageLabel(child.birthDate)} • {formatDateOnly(child.birthDate)}
                         {child.weight > 0 && ` • ${(child.weight / 1000).toFixed(1)} kg`}
                       </span>
                     </div>
@@ -478,7 +482,7 @@ export const FamilyDetailPage: React.FC = () => {
                   >
                     <div>
                       <div className="text-sm font-medium text-hv-charcoal group-hover:text-hv-green transition-colors">
-                        {new Date(visit.visitDate).toLocaleDateString()}
+                        {formatDateOnly(visit.visitDate)}
                       </div>
                       <div className="text-xs text-hv-sage mt-0.5">
                         {[

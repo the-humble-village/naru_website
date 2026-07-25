@@ -11,6 +11,10 @@ interface Config {
   JWT_SECRET: string;
   JWT_REFRESH_SECRET: string;
   PORT: number;
+  AWS_S3_BUCKET: string;
+  AWS_S3_REGION: string;
+  AWS_ACCESS_KEY_ID: string;
+  AWS_SECRET_ACCESS_KEY: string;
 }
 
 function getRequiredEnv(key: string): string {
@@ -39,5 +43,17 @@ export const appConfig: Config = {
   },
   get PORT(): number {
     return parseInt(getOptionalEnv('PORT', '3000'), 10);
+  },
+  get AWS_S3_BUCKET(): string {
+    return getRequiredEnv('AWS_S3_BUCKET');
+  },
+  get AWS_S3_REGION(): string {
+    return getRequiredEnv('AWS_S3_REGION');
+  },
+  get AWS_ACCESS_KEY_ID(): string {
+    return getRequiredEnv('AWS_ACCESS_KEY_ID');
+  },
+  get AWS_SECRET_ACCESS_KEY(): string {
+    return getRequiredEnv('AWS_SECRET_ACCESS_KEY');
   },
 };

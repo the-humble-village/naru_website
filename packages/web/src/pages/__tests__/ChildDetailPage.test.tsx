@@ -61,7 +61,7 @@ const mockChild = {
   birthDate: '2023-01-15T00:00:00.000Z',
   sex: 'FEMALE' as const,
   dateEntered: '2023-02-01T00:00:00.000Z',
-  photoId: null,
+  photos: [],
   weight: 12500, // 12.5 kg in grams
   nutritionalState: 'Good',
   reasonEnrollment: 'Regular checkup',
@@ -206,7 +206,7 @@ describe('ChildDetailPage', () => {
         birthDate: '2023-01-15T00:00:00.000Z',
         sex: 'MALE' as const,
         dateEntered: null,
-        photoId: null,
+        photos: [],
         weight: 10000,
         nutritionalState: null,
         reasonEnrollment: null,

@@ -52,7 +52,7 @@ const mockChild = {
   birthDate: '2020-01-01T00:00:00Z',
   sex: 'MALE' as const,
   dateEntered: null,
-  photoId: null,
+  photos: [],
   weight: 5000,
   nutritionalState: null,
   reasonEnrollment: null,

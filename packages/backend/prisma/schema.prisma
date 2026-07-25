@@ -238,11 +238,14 @@ model BirthingAssistantTraining {
 // Files (Photos)
 // ──────────────────────────────────────
 
-// No soft delete. Files are content-addressed and immutable.
 model File {
   id        Int      @id @default(autoincrement())
-  hash      String   @unique @db.VarChar(256) // SHA-256
+  hash      String?  @db.VarChar(256)
   extension String   @db.VarChar(128)
+  s3Key     String   @map("s3_key") @db.VarChar(512)
+  mimeType  String   @map("mime_type") @db.VarChar(128)
+  size      Int      @default(0)
+  confirmed Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("files")

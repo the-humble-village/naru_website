@@ -296,7 +296,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
       birthDate: child.birthDate.toISOString(),
       sex: child.sex,
       dateEntered: child.dateEntered?.toISOString() || null,
-      photos: child.photos,
+      photos: child.photos as number[],
       weight: child.weight,
       nutritionalState: child.nutritionalState,
       reasonEnrollment: child.reasonEnrollment,

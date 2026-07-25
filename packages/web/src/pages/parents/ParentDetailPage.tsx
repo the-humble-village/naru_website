@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { parentsApi } from '../../api/parents';
 import { visitsApi } from '../../api/visits';
 import { ParentUpdate, ParentRead } from '@naru/shared';
+import { PhotoUpload, PhotoGallery } from '../../components';
 
 /**
  * ParentDetailPage - Shows parent details with edit form
@@ -56,6 +57,7 @@ export const ParentDetailPage: React.FC = () => {
         reasonEnroll: parent.reasonEnroll || '',
         dueDate: parent.dueDate ? parent.dueDate.split('T')[0] : '',
         notes: parent.notes || '',
+        photos: parent.photos ?? [],
       });
       setIsEditing(true);
     }
@@ -99,6 +101,12 @@ export const ParentDetailPage: React.FC = () => {
     }
     if (editData.notes !== undefined && editData.notes !== (parent?.notes || '')) {
       dataToSave.notes = editData.notes || null;
+    }
+    if (editData.photos !== undefined) {
+      const currentPhotos = parent?.photos ?? [];
+      if (JSON.stringify(editData.photos) !== JSON.stringify(currentPhotos)) {
+        dataToSave.photos = editData.photos;
+      }
     }
 
     updateParentMutation.mutate(dataToSave);
@@ -277,6 +285,11 @@ export const ParentDetailPage: React.FC = () => {
               />
             </div>
 
+            <PhotoUpload
+              photos={(editData.photos as number[]) ?? []}
+              onChange={(photos) => setEditData({ ...editData, photos })}
+            />
+
             <div className="flex gap-2 pt-4">
               <button
                 onClick={handleSave}
@@ -345,6 +358,10 @@ export const ParentDetailPage: React.FC = () => {
                 <label className="text-sm font-medium text-hv-charcoal">Notes</label>
                 <p className="text-hv-charcoal text-sm whitespace-pre-wrap">{parent.notes}</p>
               </div>
+            )}
+
+            {parent.photos && parent.photos.length > 0 && (
+              <PhotoGallery photos={parent.photos} />
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-hv-border">

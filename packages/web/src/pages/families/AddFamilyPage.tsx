@@ -5,6 +5,7 @@ import { FamilyCreate, FamilyCreateSchema } from '@naru/shared';
 import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
 import { birthingAssistantsApi } from '../../api/birthing-assistants';
+import { PhotoUpload } from '../../components';
 
 /**
  * AddFamilyPage - Form to create a new family
@@ -275,6 +276,12 @@ export const AddFamilyPage: React.FC = () => {
             <p className="text-hv-crisis text-sm mt-1">{errors.notes}</p>
           )}
         </div>
+
+        {/* Photos */}
+        <PhotoUpload
+          photos={formData.photos ?? []}
+          onChange={(photos) => setFormData(prev => ({ ...prev, photos }))}
+        />
 
         {/* Submit Error */}
         {errors.submit && (

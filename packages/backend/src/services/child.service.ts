@@ -54,6 +54,7 @@ export async function listChildren(familyId: number, user: UserRead): Promise<Ch
   // Transform dates to ISO strings
   const childrenRead: ChildRead[] = children.map((child: any) => ({
     ...child,
+    photos: child.photos as number[],
     birthDate: child.birthDate.toISOString(),
     dateEntered: child.dateEntered?.toISOString() || null,
     createdAt: child.createdAt.toISOString(),
@@ -97,7 +98,7 @@ export async function createChild(data: ChildCreate): Promise<ChildRead> {
       birthDate: new Date(data.birthDate),
       sex: data.sex,
       dateEntered: data.dateEntered ? new Date(data.dateEntered) : null,
-      photos: data.photos,
+      photos: data.photos ?? [],
       weight: data.weight ?? 0,
       nutritionalState: data.nutritionalState,
       reasonEnrollment: data.reasonEnrollment,

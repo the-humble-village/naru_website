@@ -7,6 +7,7 @@ import { visitsApi } from '../../api/visits';
 import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
+import { PhotoUpload } from '../../components';
 
 export const EditParentVisitPage: React.FC = () => {
   const navigate = useNavigate();
@@ -381,6 +382,12 @@ export const EditParentVisitPage: React.FC = () => {
             onAdd={addQuestion}
             onChange={handleQuestionChange}
             onRemove={handleQuestionRemove}
+          />
+
+          {/* Photos */}
+          <PhotoUpload
+            photos={formData.photos}
+            onChange={(photos) => handleInputChange('photos', photos)}
           />
 
           {/* Notes */}

@@ -9,6 +9,7 @@ export const FamilyCreateSchema = z.object({
   communityId: z.number().int().positive().optional().nullable(),
   siteId: z.number().int().positive().optional().nullable(),
   birthingAssistantId: z.number().int().positive().optional().nullable(),
+  photos: z.array(z.number().int().positive()).default([]),
   localId: z.string().uuid().optional(), // Set by client for offline-created records
 });
 
@@ -26,6 +27,7 @@ export const FamilyReadSchema = z.object({
   communityId: z.number().int().nullable(),
   siteId: z.number().int().nullable(),
   birthingAssistantId: z.number().int().nullable(),
+  photos: z.array(z.number().int().positive()),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   // Note: deletedAt is never exposed to clients

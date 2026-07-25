@@ -8,6 +8,7 @@ import { parentsApi } from '../../api/parents';
 import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
+import { PhotoUpload } from '../../components';
 
 export const AddParentVisitPage: React.FC = () => {
   const navigate = useNavigate();
@@ -374,6 +375,12 @@ export const AddParentVisitPage: React.FC = () => {
               placeholder="Additional notes about the visit..."
             />
           </div>
+
+          {/* Photos */}
+          <PhotoUpload
+            photos={formData.photos}
+            onChange={(photos) => setFormData(prev => ({ ...prev, photos }))}
+          />
 
           {/* Form Actions */}
           <div className="flex gap-4 pt-4">

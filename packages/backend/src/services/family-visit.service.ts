@@ -44,6 +44,7 @@ export async function listFamilyVisits(
       trainingsReceived: true,
       resourcesReceived: true,
       questions: true,
+      photos: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -62,6 +63,7 @@ export async function listFamilyVisits(
     trainingsReceived: visit.trainingsReceived as any, // Cast JsonValue to TrainingReceived[]
     resourcesReceived: visit.resourcesReceived as any, // Cast JsonValue to ResourceReceived[]
     questions: visit.questions as any, // Cast JsonValue to FamilyVisitQuestion[]
+    photos: visit.photos as number[],
     visitDate: visit.visitDate.toISOString(),
     createdAt: visit.createdAt.toISOString(),
     updatedAt: visit.updatedAt.toISOString(),
@@ -104,6 +106,7 @@ export async function createFamilyVisit(data: FamilyVisitCreate): Promise<Family
       trainingsReceived: data.trainingsReceived ?? [],
       resourcesReceived: data.resourcesReceived ?? [],
       questions: data.questions ?? [],
+      photos: data.photos ?? [],
       notes: data.notes,
       localId: data.localId,
     },
@@ -115,6 +118,7 @@ export async function createFamilyVisit(data: FamilyVisitCreate): Promise<Family
       trainingsReceived: true,
       resourcesReceived: true,
       questions: true,
+      photos: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -128,6 +132,7 @@ export async function createFamilyVisit(data: FamilyVisitCreate): Promise<Family
     trainingsReceived: familyVisit.trainingsReceived as any, // Cast JsonValue to TrainingReceived[]
     resourcesReceived: familyVisit.resourcesReceived as any, // Cast JsonValue to ResourceReceived[]
     questions: familyVisit.questions as any, // Cast JsonValue to FamilyVisitQuestion[]
+    photos: familyVisit.photos as number[],
     visitDate: familyVisit.visitDate.toISOString(),
     createdAt: familyVisit.createdAt.toISOString(),
     updatedAt: familyVisit.updatedAt.toISOString(),
@@ -167,6 +172,7 @@ export async function getFamilyVisitById(
       trainingsReceived: true,
       resourcesReceived: true,
       questions: true,
+      photos: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -186,6 +192,7 @@ export async function getFamilyVisitById(
     trainingsReceived: familyVisit.trainingsReceived as any, // Cast JsonValue to TrainingReceived[]
     resourcesReceived: familyVisit.resourcesReceived as any, // Cast JsonValue to ResourceReceived[]
     questions: familyVisit.questions as any, // Cast JsonValue to FamilyVisitQuestion[]
+    photos: familyVisit.photos as number[],
     visitDate: familyVisit.visitDate.toISOString(),
     createdAt: familyVisit.createdAt.toISOString(),
     updatedAt: familyVisit.updatedAt.toISOString(),
@@ -250,6 +257,7 @@ export async function updateFamilyVisit(
   if (data.trainingsReceived !== undefined) updateData.trainingsReceived = data.trainingsReceived;
   if (data.resourcesReceived !== undefined) updateData.resourcesReceived = data.resourcesReceived;
   if (data.questions !== undefined) updateData.questions = data.questions;
+  if (data.photos !== undefined) updateData.photos = data.photos;
   if (data.notes !== undefined) updateData.notes = data.notes;
   if (data.localId !== undefined) updateData.localId = data.localId;
 
@@ -265,6 +273,7 @@ export async function updateFamilyVisit(
       trainingsReceived: true,
       resourcesReceived: true,
       questions: true,
+      photos: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -278,6 +287,7 @@ export async function updateFamilyVisit(
     trainingsReceived: updatedVisit.trainingsReceived as any, // Cast JsonValue to TrainingReceived[]
     resourcesReceived: updatedVisit.resourcesReceived as any, // Cast JsonValue to ResourceReceived[]
     questions: updatedVisit.questions as any, // Cast JsonValue to FamilyVisitQuestion[]
+    photos: updatedVisit.photos as number[],
     visitDate: updatedVisit.visitDate.toISOString(),
     createdAt: updatedVisit.createdAt.toISOString(),
     updatedAt: updatedVisit.updatedAt.toISOString(),

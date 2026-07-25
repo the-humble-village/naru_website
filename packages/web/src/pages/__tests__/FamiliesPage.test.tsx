@@ -380,15 +380,21 @@ describe('FamiliesPage', () => {
       });
     });
 
-    it('should have view details links for each family', async () => {
+    it('should navigate to the family detail page when a row is clicked', async () => {
+      window.history.pushState({}, '', '/');
       renderWithProviders(<FamiliesPage />);
 
       await waitFor(() => {
-        const viewLinks = screen.getAllByText('View Details');
-        expect(viewLinks).toHaveLength(2);
-        expect(viewLinks[0].closest('a')).toHaveAttribute('href', '/families/1');
-        expect(viewLinks[1].closest('a')).toHaveAttribute('href', '/families/2');
+        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
       });
+
+      fireEvent.click(screen.getByText('Garcia Family'));
+
+      await waitFor(() => {
+        expect(window.location.pathname).toBe('/families/1');
+      });
+
+      window.history.pushState({}, '', '/');
     });
   });
 

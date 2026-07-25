@@ -5,6 +5,9 @@ export { SearchBar } from './SearchBar';
 export { ZScoreBadge } from './ZScoreBadge';
 export type { Role } from './RoleGate';
 
+export { PhotoUpload } from './PhotoUpload';
+export { PhotoGallery } from './PhotoGallery';
+
 // UI components
 export { PageHeader } from './ui/PageHeader';
 export { FormField } from './ui/FormField';

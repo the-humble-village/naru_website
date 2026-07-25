@@ -22,6 +22,7 @@ export const ChildVisitCreateSchema = z.object({
   leftFromProg: z.string().optional().nullable(),
   passedAway: z.string().optional().nullable(),
   questions: z.array(ChildVisitQuestionSchema).default([]), // Array of question objects
+  photos: z.array(z.number().int().positive()).default([]),
   notes: z.string().optional().nullable(),
   localId: z.string().uuid().optional(), // Set by client for offline-created records
 });
@@ -46,6 +47,7 @@ export const ChildVisitReadSchema = z.object({
   leftFromProg: z.string().nullable(),
   passedAway: z.string().nullable(),
   questions: z.array(ChildVisitQuestionSchema),
+  photos: z.array(z.number().int().positive()),
   notes: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

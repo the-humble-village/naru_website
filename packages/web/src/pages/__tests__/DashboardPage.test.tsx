@@ -100,7 +100,7 @@ const mockDashboardData: DashboardResponse = {
       birthDate: '2023-01-01T00:00:00Z',
       sex: 'MALE' as const,
       dateEntered: null,
-      photoId: null,
+      photos: [],
       weight: 4000,
       nutritionalState: null,
       reasonEnrollment: null,

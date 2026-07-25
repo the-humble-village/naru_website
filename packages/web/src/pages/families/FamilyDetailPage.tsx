@@ -11,6 +11,7 @@ import { visitsApi } from '../../api/visits';
 import { adminApi } from '../../api/admin';
 import { birthingAssistantsApi } from '../../api/birthing-assistants';
 import { FamilyUpdate, SiteRead } from '@naru/shared';
+import { PhotoUpload, PhotoGallery } from '../../components';
 import { AlertTriangle, Users, Baby, CalendarCheck, Pencil, Trash2, Plus, ChevronRight, UserRound, PersonStanding, Heart, MapPin, X } from 'lucide-react';
 
 // Fix Leaflet default marker icons broken by bundlers
@@ -135,6 +136,7 @@ export const FamilyDetailPage: React.FC = () => {
       communityId: family.communityId,
       siteId: family.siteId,
       birthingAssistantId: family.birthingAssistantId,
+      photos: family.photos ?? [],
     });
   };
 
@@ -282,6 +284,12 @@ export const FamilyDetailPage: React.FC = () => {
                 className="w-full px-3 py-2 text-sm border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
               />
             </div>
+            <div className="mb-4">
+              <PhotoUpload
+                photos={(editData.photos as number[]) ?? []}
+                onChange={(photos) => setEditData({ ...editData, photos })}
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -335,6 +343,11 @@ export const FamilyDetailPage: React.FC = () => {
             <div className="px-4 py-3 border-t border-hv-border">
               <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Notes</div>
               <div className="text-sm text-hv-charcoal">{family.notes}</div>
+            </div>
+          )}
+          {family.photos && family.photos.length > 0 && (
+            <div className="px-4 py-3 border-t border-hv-border">
+              <PhotoGallery photos={family.photos} />
             </div>
           )}
         </div>

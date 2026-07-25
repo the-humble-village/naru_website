@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { type ChildVisitQuestion } from '@naru/shared';
 import { visitsApi } from '../../api/visits';
 import { childrenApi } from '../../api/children';
+import { PhotoGallery } from '../../components';
 
 export const ChildVisitDetailPage: React.FC = () => {
   const { id: familyId, cid: childId, vid: visitId } = useParams<{ id: string; cid: string; vid: string }>();
@@ -88,6 +89,11 @@ export const ChildVisitDetailPage: React.FC = () => {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Photos */}
+        {visit.photos && visit.photos.length > 0 && (
+          <PhotoGallery photos={visit.photos} />
         )}
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChildCreate, ChildCreateSchema } from '@naru/shared';
 import { childrenApi } from '../../api/children';
+import { PhotoUpload } from '../../components';
 
 /**
  * AddChildPage - Form to add a new child to a family
@@ -21,6 +22,7 @@ export const AddChildPage: React.FC = () => {
     nutritionalState: '',
     reasonEnrollment: '',
     observations: '',
+    photos: [] as number[],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -66,6 +68,7 @@ export const AddChildPage: React.FC = () => {
         nutritionalState: formData.nutritionalState || null,
         reasonEnrollment: formData.reasonEnrollment || null,
         observations: formData.observations || null,
+        photos: formData.photos,
         dateEntered: new Date().toISOString(),
       };
 
@@ -227,6 +230,12 @@ export const AddChildPage: React.FC = () => {
             placeholder="Any observations"
           />
         </div>
+
+        {/* Photos */}
+        <PhotoUpload
+          photos={formData.photos}
+          onChange={(photos) => setFormData(prev => ({ ...prev, photos }))}
+        />
 
         {/* Submit Error */}
         {errors.submit && (

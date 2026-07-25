@@ -209,12 +209,13 @@ export const AddChildVisitPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label htmlFor="weight" className="block text-sm font-medium text-hv-charcoal mb-1">
-                Weight (grams)
+                Weight (kg)
               </label>
               <input
                 type="number"
                 id="weight"
                 min="0"
+                step="0.1"
                 value={formData.weight}
                 onChange={(e) => handleInputChange('weight', e.target.value)}
                 onFocus={(e) => { if (Number(e.target.value) === 0) handleInputChange('weight', '' as unknown as number); }}

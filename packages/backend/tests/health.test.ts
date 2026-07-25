@@ -60,7 +60,7 @@ describe('Health Routes', () => {
       const accessToken = createTokens(user.id, user.role);
 
       const response = await testClient.post('/health/zscore', {
-        weight: 3500, // 3.5kg in grams
+        weight: 3.5, // kg
         armCircumference: 110, // 11cm in millimeters
         birthDate: '2024-01-01T00:00:00Z',
         sex: 'MALE',
@@ -82,7 +82,7 @@ describe('Health Routes', () => {
       const accessToken = createTokens(user.id, user.role);
 
       const response = await testClient.post('/health/zscore', {
-        weight: 8000, // 8kg in grams
+        weight: 8, // kg
         armCircumference: 140, // 14cm in millimeters
         birthDate: '2023-01-01T00:00:00Z',
         sex: 'FEMALE',
@@ -107,7 +107,7 @@ describe('Health Routes', () => {
       birthDate.setDate(birthDate.getDate() - 100); // 100 days ago
 
       const response = await testClient.post('/health/zscore', {
-        weight: 5000,
+        weight: 5,
         birthDate: birthDate.toISOString(),
         sex: 'MALE'
       }, accessToken);
@@ -125,7 +125,7 @@ describe('Health Routes', () => {
       const accessToken = createTokens(user.id, user.role);
 
       const response = await testClient.post('/health/zscore', {
-        weight: 5000,
+        weight: 5,
         birthDate: '2025-01-01T00:00:00Z', // Future date
         sex: 'MALE',
         referenceDate: '2024-01-01T00:00:00Z'
@@ -143,7 +143,7 @@ describe('Health Routes', () => {
 
     it('should return 401 without auth token', async () => {
       const response = await testClient.post('/health/zscore', {
-        weight: 5000,
+        weight: 5,
         birthDate: '2024-01-01T00:00:00Z',
         sex: 'MALE'
       });
@@ -156,7 +156,7 @@ describe('Health Routes', () => {
       const accessToken = createTokens(user.id, user.role);
 
       const response = await testClient.post('/health/zscore', {
-        weight: -1000, // Invalid negative weight
+        weight: -1, // Invalid negative weight
         birthDate: '2024-01-01T00:00:00Z',
         sex: 'MALE'
       }, accessToken);
@@ -169,7 +169,7 @@ describe('Health Routes', () => {
       const accessToken = createTokens(user.id, user.role);
 
       const response = await testClient.post('/health/zscore', {
-        weight: 5000,
+        weight: 5,
         birthDate: '2024-01-01T00:00:00Z',
         sex: 'INVALID_SEX'
       }, accessToken);
@@ -187,7 +187,7 @@ describe('Health Routes', () => {
         const accessToken = createTokens(user.id, user.role);
 
         const response = await testClient.post('/health/zscore', {
-          weight: 5000,
+          weight: 5,
           birthDate: '2024-01-01T00:00:00Z',
           sex: 'MALE',
           referenceDate: '2024-02-01T00:00:00Z'

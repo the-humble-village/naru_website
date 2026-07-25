@@ -178,7 +178,7 @@ describe('Children Routes', () => {
         name: 'New Test Child',
         birthDate: '2022-06-15T00:00:00.000Z',
         sex: 'FEMALE' as const,
-        weight: 12000, // 12kg in grams
+        weight: 12, // kg
         nutritionalState: 'Normal',
         reasonEnrollment: 'Routine monitoring',
         observations: 'Healthy child',
@@ -300,7 +300,7 @@ describe('Children Routes', () => {
     beforeEach(async () => {
       testChild = await createTestChild(testFamily.id, 'Detail Test Child', {
         sex: 'MALE',
-        weight: 18000, // 18kg
+        weight: 18, // kg
         birthDate: new Date('2020-01-15'), // About 4 years old
       });
     });
@@ -375,14 +375,14 @@ describe('Children Routes', () => {
     beforeEach(async () => {
       testChild = await createTestChild(testFamily.id, 'Update Test Child', {
         sex: 'FEMALE',
-        weight: 15000,
+        weight: 15,
       });
     });
 
     it('should update child successfully', async () => {
       const updateData = {
         name: 'Updated Child Name',
-        weight: 20000,
+        weight: 20,
         nutritionalState: 'Improved',
         observations: 'Updated observations',
       };
@@ -408,7 +408,7 @@ describe('Children Routes', () => {
 
     it('should handle partial updates', async () => {
       const updateData = {
-        weight: 25000, // Only update weight
+        weight: 25, // Only update weight
       };
 
       const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}`, updateData, caseworkerToken);

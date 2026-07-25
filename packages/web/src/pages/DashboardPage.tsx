@@ -507,7 +507,7 @@ export const DashboardPage: React.FC = () => {
                       </div>
                       {child.latestVisit && (
                         <div className="text-xs text-hv-gray mt-0.5">
-                          {(child.latestVisit.weight / 1000).toFixed(1)} kg
+                          {child.latestVisit.weight.toFixed(1)} kg
                           {child.latestVisit.height > 0 && ` · ${child.latestVisit.height} mm`}
                         </div>
                       )}

@@ -62,7 +62,7 @@ const mockChild = {
   sex: 'FEMALE' as const,
   dateEntered: '2023-02-01T00:00:00.000Z',
   photos: [],
-  weight: 12500, // 12.5 kg in grams
+  weight: 12.5, // kg
   nutritionalState: 'Good',
   reasonEnrollment: 'Regular checkup',
   observations: 'Healthy development',
@@ -85,7 +85,7 @@ const mockVisitsResponse = {
       familyId: 1,
       childId: 2,
       visitDate: '2023-03-01T10:00:00.000Z',
-      weight: 12000,
+      weight: 12,
       armCircumference: 165, // 16.5 cm in mm
       height: 850, // 85 cm in mm
       incap: false,
@@ -105,7 +105,7 @@ const mockVisitsResponse = {
       familyId: 1,
       childId: 2,
       visitDate: '2023-02-01T10:00:00.000Z',
-      weight: 11000,
+      weight: 11,
       armCircumference: 160,
       height: 820,
       incap: false,
@@ -207,7 +207,7 @@ describe('ChildDetailPage', () => {
         sex: 'MALE' as const,
         dateEntered: null,
         photos: [],
-        weight: 10000,
+        weight: 10,
         nutritionalState: null,
         reasonEnrollment: null,
         observations: null,
@@ -282,7 +282,7 @@ describe('ChildDetailPage', () => {
       expect(screen.getAllByText('MUAC (cm)').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('Height (cm)').length).toBeGreaterThanOrEqual(1);
 
-      // Check visit data (converted from grams/mm to kg/cm)
+      // Check visit data (weight in kg; mm converted to cm)
       expect(screen.getByText('12.00')).toBeInTheDocument(); // weight
       expect(screen.getByText('16.5')).toBeInTheDocument(); // arm circumference
       expect(screen.getByText('85.0')).toBeInTheDocument(); // height

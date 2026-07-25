@@ -127,11 +127,11 @@ describe('Child Visits Routes', () => {
       // Create test visits
       await createTestChildVisit(testFamily.id, testChild.id, {
         visitDate: new Date('2024-01-15T10:00:00.000Z'),
-        weight: 16000,
+        weight: 16,
       });
       await createTestChildVisit(testFamily.id, testChild.id, {
         visitDate: new Date('2024-02-15T10:00:00.000Z'),
-        weight: 16500,
+        weight: 16.5,
       });
 
       const response = await testClient.get(`/families/${testFamily.id}/children/${testChild.id}/visits`, caseworkerToken);
@@ -218,7 +218,7 @@ describe('Child Visits Routes', () => {
     it('should create child visit successfully', async () => {
       const visitData = {
         visitDate: '2024-03-15T10:00:00.000Z',
-        weight: 17000, // 17kg in grams
+        weight: 17, // kg
         armCircumference: 145, // 145mm
         height: 1050, // 1050mm (105cm)
         incap: true,
@@ -284,7 +284,7 @@ describe('Child Visits Routes', () => {
     it('should handle localId for offline sync', async () => {
       const visitData = {
         visitDate: '2024-03-15T10:00:00.000Z',
-        weight: 17000,
+        weight: 17,
         localId: '550e8400-e29b-41d4-a716-446655440000',
       };
 
@@ -303,7 +303,7 @@ describe('Child Visits Routes', () => {
 
       const visitData = {
         visitDate: '2024-03-15T10:00:00.000Z',
-        weight: 17000,
+        weight: 17,
         localId,
       };
 
@@ -320,7 +320,7 @@ describe('Child Visits Routes', () => {
     it('should return 401 without auth token', async () => {
       const visitData = {
         visitDate: '2024-03-15T10:00:00.000Z',
-        weight: 17000,
+        weight: 17,
       };
 
       const response = await testClient.post(`/families/${testFamily.id}/children/${testChild.id}/visits`, visitData);
@@ -331,7 +331,7 @@ describe('Child Visits Routes', () => {
     it('should return 404 for non-existent family', async () => {
       const visitData = {
         visitDate: '2024-03-15T10:00:00.000Z',
-        weight: 17000,
+        weight: 17,
       };
 
       const response = await testClient.post(`/families/99999/children/${testChild.id}/visits`, visitData, caseworkerToken);
@@ -342,7 +342,7 @@ describe('Child Visits Routes', () => {
     it('should return 404 for non-existent child', async () => {
       const visitData = {
         visitDate: '2024-03-15T10:00:00.000Z',
-        weight: 17000,
+        weight: 17,
       };
 
       const response = await testClient.post(`/families/${testFamily.id}/children/99999/visits`, visitData, caseworkerToken);
@@ -353,7 +353,7 @@ describe('Child Visits Routes', () => {
     it('should validate request body', async () => {
       const invalidVisitData = {
         // Missing required visitDate
-        weight: 17000,
+        weight: 17,
       };
 
       const response = await testClient.post(`/families/${testFamily.id}/children/${testChild.id}/visits`, invalidVisitData, caseworkerToken);
@@ -364,7 +364,7 @@ describe('Child Visits Routes', () => {
     it('should validate questions array structure', async () => {
       const visitData = {
         visitDate: '2024-03-15T10:00:00.000Z',
-        weight: 17000,
+        weight: 17,
         questions: [
           {
             // Missing questionId
@@ -386,7 +386,7 @@ describe('Child Visits Routes', () => {
     beforeEach(async () => {
       testVisit = await createTestChildVisit(testFamily.id, testChild.id, {
         visitDate: new Date('2024-01-15T10:00:00.000Z'),
-        weight: 16000,
+        weight: 16,
         armCircumference: 140,
         height: 1000,
         notes: 'Test visit for detail view',
@@ -463,7 +463,7 @@ describe('Child Visits Routes', () => {
     beforeEach(async () => {
       testVisit = await createTestChildVisit(testFamily.id, testChild.id, {
         visitDate: new Date('2024-01-15T10:00:00.000Z'),
-        weight: 16000,
+        weight: 16,
         armCircumference: 140,
         height: 1000,
         incap: false,
@@ -474,7 +474,7 @@ describe('Child Visits Routes', () => {
 
     it('should update visit successfully', async () => {
       const updateData = {
-        weight: 17500,
+        weight: 17.5,
         armCircumference: 150,
         height: 1100,
         incap: true,
@@ -506,7 +506,7 @@ describe('Child Visits Routes', () => {
 
     it('should handle partial updates', async () => {
       const updateData = {
-        weight: 18000, // Only update weight
+        weight: 18, // Only update weight
       };
 
       const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, updateData, caseworkerToken);
@@ -575,7 +575,7 @@ describe('Child Visits Routes', () => {
 
     it('should return 404 for non-existent visit', async () => {
       const updateData = {
-        weight: 18000,
+        weight: 18,
       };
 
       const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/99999`, updateData, caseworkerToken);
@@ -585,7 +585,7 @@ describe('Child Visits Routes', () => {
 
     it('should return 401 without auth token', async () => {
       const updateData = {
-        weight: 18000,
+        weight: 18,
       };
 
       const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, updateData);
@@ -595,7 +595,7 @@ describe('Child Visits Routes', () => {
 
     it('should return 404 for non-existent family', async () => {
       const updateData = {
-        weight: 18000,
+        weight: 18,
       };
 
       const response = await testClient.put(`/families/99999/children/${testChild.id}/visits/${testVisit.id}`, updateData, caseworkerToken);
@@ -605,7 +605,7 @@ describe('Child Visits Routes', () => {
 
     it('should return 404 for non-existent child', async () => {
       const updateData = {
-        weight: 18000,
+        weight: 18,
       };
 
       const response = await testClient.put(`/families/${testFamily.id}/children/99999/visits/${testVisit.id}`, updateData, caseworkerToken);

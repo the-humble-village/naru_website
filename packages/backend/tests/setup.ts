@@ -115,7 +115,7 @@ export const createTestChild = async (familyId: number, name: string = 'Test Chi
       name,
       birthDate: new Date('2020-01-15'), // Default to 4+ year old child
       sex: 'MALE',
-      weight: 15000, // 15kg in grams
+      weight: 15, // kg
       observations: 'Test child observations',
       ...overrides
     }
@@ -128,7 +128,7 @@ export const createTestChildVisit = async (familyId: number, childId: number, ov
       familyId,
       childId,
       visitDate: new Date('2024-01-15T10:00:00.000Z'),
-      weight: 16000, // 16kg in grams
+      weight: 16, // kg
       armCircumference: 140, // 140mm
       height: 1000, // 1000mm (100cm)
       incap: false,

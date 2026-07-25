@@ -4,8 +4,8 @@ import { z } from 'zod';
  * Schema for z-score computation request
  */
 export const ZScoreRequestSchema = z.object({
-  // Weight in grams (matches child.weight field in schema)
-  weight: z.number().int().positive(),
+  // Weight in kilograms (matches child.weight field in schema)
+  weight: z.number().positive(),
   // Arm circumference in millimeters (matches child_visits.arm_circumference)
   armCircumference: z.number().int().positive().optional(),
   // Birth date as ISO string

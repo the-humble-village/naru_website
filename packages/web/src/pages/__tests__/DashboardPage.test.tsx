@@ -52,7 +52,7 @@ const mockDashboardData: DashboardResponse = {
         familyId: 1,
         childId: 1,
         visitDate: '2024-03-15T10:00:00Z',
-        weight: 3500,
+        weight: 3.5,
         height: 500,
         armCircumference: 120,
         incap: false,
@@ -101,7 +101,7 @@ const mockDashboardData: DashboardResponse = {
       sex: 'MALE' as const,
       dateEntered: null,
       photos: [],
-      weight: 4000,
+      weight: 4,
       nutritionalState: null,
       reasonEnrollment: null,
       observations: null,
@@ -114,7 +114,7 @@ const mockDashboardData: DashboardResponse = {
       latestVisit: {
         id: 2,
         visitDate: '2024-03-15T10:00:00Z',
-        weight: 4000,
+        weight: 4,
         height: 520,
         armCircumference: 125,
       },
@@ -275,7 +275,7 @@ describe('DashboardPage', () => {
     renderWithQueryClient(<DashboardPage />);
 
     await waitFor(() => {
-      // Weight shown as kg (4000g → 4.0 kg), height shown in mm
+      // Weight shown as kg (4 kg → 4.0 kg), height shown in mm
       expect(screen.getByText(/4\.0 kg/)).toBeInTheDocument();
       expect(screen.getByText(/520 mm/)).toBeInTheDocument();
     });

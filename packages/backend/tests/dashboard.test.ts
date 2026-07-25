@@ -69,7 +69,7 @@ describe('Dashboard Routes', () => {
           familyId: family.id,
           childId: child.id,
           visitDate: new Date(),
-          weight: 5000,
+          weight: 5,
           armCircumference: 150,
           height: 700,
           incap: false,
@@ -157,7 +157,7 @@ describe('Dashboard Routes', () => {
           familyId: family.id,
           childId: child.id,
           visitDate: new Date(),
-          weight: 5000,
+          weight: 5,
           armCircumference: 150,
           height: 700,
           incap: false,
@@ -208,7 +208,7 @@ describe('Dashboard Routes', () => {
           familyId: family.id,
           childId: child.id,
           visitDate: new Date(),
-          weight: 6000,
+          weight: 6,
           armCircumference: 160,
           height: 750,
           incap: true,
@@ -226,7 +226,7 @@ describe('Dashboard Routes', () => {
       expect(updatedChild.family).toHaveProperty('id', family.id);
       expect(updatedChild).toHaveProperty('latestVisit');
       expect(updatedChild.latestVisit).toHaveProperty('id', visit.id);
-      expect(updatedChild.latestVisit).toHaveProperty('weight', 6000);
+      expect(updatedChild.latestVisit).toHaveProperty('weight', 6);
       expect(updatedChild.latestVisit).toHaveProperty('height', 750);
       expect(updatedChild.latestVisit).toHaveProperty('armCircumference', 160);
     });
@@ -253,7 +253,7 @@ describe('Dashboard Routes', () => {
           familyId: family.id,
           childId: child.id,
           visitDate: new Date('2024-01-15T10:30:00Z'),
-          weight: 5000,
+          weight: 5,
           armCircumference: 150,
           height: 700,
         },

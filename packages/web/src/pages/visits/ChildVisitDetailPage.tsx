@@ -30,7 +30,7 @@ export const ChildVisitDetailPage: React.FC = () => {
 
   const fields: { label: string; value: React.ReactNode }[] = [
     { label: 'Visit Date', value: new Date(visit.visitDate).toLocaleDateString() },
-    { label: 'Weight', value: visit.weight > 0 ? `${(visit.weight / 1000).toFixed(2)} kg` : '—' },
+    { label: 'Weight', value: visit.weight > 0 ? `${visit.weight.toFixed(2)} kg` : '—' },
     { label: 'Arm Circumference (MUAC)', value: visit.armCircumference > 0 ? `${(visit.armCircumference / 10).toFixed(1)} cm` : '—' },
     { label: 'Height', value: visit.height > 0 ? `${(visit.height / 10).toFixed(1)} cm` : '—' },
     { label: 'INCAP', value: visit.incap ? 'Yes' : 'No' },

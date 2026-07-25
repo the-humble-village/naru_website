@@ -472,7 +472,7 @@ describe('Sync Routes', () => {
               familyId: family.id,
               childId: child.id,
               visitDate: '2024-03-01T10:00:00Z',
-              weight: 16000,
+              weight: 16,
               armCircumference: 140,
               height: 1000,
               incap: false,

@@ -53,7 +53,7 @@ const mockChild = {
   sex: 'MALE' as const,
   dateEntered: null,
   photos: [],
-  weight: 5000,
+  weight: 5,
   nutritionalState: null,
   reasonEnrollment: null,
   observations: null,
@@ -142,11 +142,11 @@ describe('AddChildVisitPage', () => {
       const heightInput = screen.getByLabelText(/Height/);
       const armCircInput = screen.getByLabelText(/Arm Circumference/);
 
-      fireEvent.change(weightInput, { target: { value: '5500' } });
+      fireEvent.change(weightInput, { target: { value: '5.5' } });
       fireEvent.change(heightInput, { target: { value: '800' } });
       fireEvent.change(armCircInput, { target: { value: '150' } });
 
-      expect((weightInput as HTMLInputElement).value).toBe('5500');
+      expect((weightInput as HTMLInputElement).value).toBe('5.5');
       expect((heightInput as HTMLInputElement).value).toBe('800');
       expect((armCircInput as HTMLInputElement).value).toBe('150');
     });
@@ -214,7 +214,7 @@ describe('AddChildVisitPage', () => {
         familyId: 1,
         childId: 1,
         visitDate: '2024-01-01T10:00:00Z',
-        weight: 5500,
+        weight: 5.5,
         armCircumference: 150,
         height: 800,
         incap: false,
@@ -235,7 +235,7 @@ describe('AddChildVisitPage', () => {
 
       // Fill out basic form data
       const weightInput = screen.getByLabelText(/Weight/);
-      fireEvent.change(weightInput, { target: { value: '5500' } });
+      fireEvent.change(weightInput, { target: { value: '5.5' } });
 
       const submitButton = screen.getByText('Create Visit');
       fireEvent.click(submitButton);
@@ -247,7 +247,7 @@ describe('AddChildVisitPage', () => {
           expect.objectContaining({
             familyId: 1,
             childId: 1,
-            weight: 5500,
+            weight: 5.5,
           })
         );
       });
@@ -273,7 +273,7 @@ describe('AddChildVisitPage', () => {
       renderWithProviders(<AddChildVisitPage />);
 
       const weightInput = screen.getByLabelText(/Weight/);
-      fireEvent.change(weightInput, { target: { value: '5500' } });
+      fireEvent.change(weightInput, { target: { value: '5.5' } });
 
       const submitButton = screen.getByText('Create Visit');
       fireEvent.click(submitButton);

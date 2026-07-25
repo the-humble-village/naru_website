@@ -12,7 +12,7 @@ export const ChildVisitCreateSchema = z.object({
   familyId: z.number().int().positive(),
   childId: z.number().int().positive(),
   visitDate: z.string().datetime(),
-  weight: z.number().int().min(0).default(0), // grams
+  weight: z.number().min(0).default(0), // kilograms
   armCircumference: z.number().int().min(0).default(0), // millimeters
   height: z.number().int().min(0).default(0), // millimeters
   incap: z.boolean().default(false), // gave special drink
@@ -37,7 +37,7 @@ export const ChildVisitReadSchema = z.object({
   familyId: z.number().int().positive(),
   childId: z.number().int().positive(),
   visitDate: z.string().datetime(),
-  weight: z.number().int(),
+  weight: z.number(),
   armCircumference: z.number().int(),
   height: z.number().int(),
   incap: z.boolean(),

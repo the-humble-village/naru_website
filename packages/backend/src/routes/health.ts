@@ -30,9 +30,8 @@ app.post('/zscore', auth, zValidator('json', ZScoreRequestSchema), async (c) => 
   let armCircumferenceZScore: number | null = null;
 
   if (ageDays !== null) {
-    // Weight for age z-score (weight is in grams, function expects kg)
-    const weightKg = weight / 1000;
-    weightZScore = weightForAge(weightKg, ageDays, sex);
+    // Weight for age z-score (weight is in kilograms)
+    weightZScore = weightForAge(weight, ageDays, sex);
 
     // Arm circumference for age z-score (if provided, convert mm to cm)
     if (armCircumference !== undefined) {

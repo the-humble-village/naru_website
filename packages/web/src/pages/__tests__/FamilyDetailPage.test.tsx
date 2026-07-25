@@ -101,7 +101,7 @@ const mockChildren = [
     sex: 'MALE' as const,
     dateEntered: null,
     photos: [],
-    weight: 5000,
+    weight: 5,
     nutritionalState: null,
     reasonEnrollment: null,
     observations: null,

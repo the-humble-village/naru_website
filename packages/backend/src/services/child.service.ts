@@ -186,7 +186,7 @@ export async function getChildById(familyId: number, childId: number, user: User
   let zScores = null;
 
   if (ageDaysValue !== null) {
-    const weightKg = child.weight / 1000; // Convert grams to kg
+    const weightKg = child.weight; // Weight is stored in kilograms
 
     const weightForAgeZ = weightForAge(weightKg, ageDaysValue, child.sex);
 

@@ -454,7 +454,7 @@ export const FamilyDetailPage: React.FC = () => {
                       </span>
                       <span className="ml-2 text-xs text-hv-sage">
                         {child.sex} • {ageLabel(child.birthDate)} • {formatDateOnly(child.birthDate)}
-                        {child.weight > 0 && ` • ${(child.weight / 1000).toFixed(1)} kg`}
+                        {child.weight > 0 && ` • ${child.weight.toFixed(1)} kg`}
                       </span>
                     </div>
                     <ChevronRight size={14} className="text-hv-border group-hover:text-hv-sage transition-colors" />

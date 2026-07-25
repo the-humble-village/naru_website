@@ -145,7 +145,7 @@ export const ChildDetailPage: React.FC = () => {
         .sort((a, b) => new Date(a.visitDate).getTime() - new Date(b.visitDate).getTime())
         .map(v => ({
           date: new Date(v.visitDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
-          weight: parseFloat((v.weight / 1000).toFixed(2)),
+          weight: parseFloat(v.weight.toFixed(2)),
           muac:   v.armCircumference > 0 ? parseFloat((v.armCircumference / 10).toFixed(1)) : null,
           height: v.height > 0          ? parseFloat((v.height / 10).toFixed(1))           : null,
         }))
@@ -239,15 +239,16 @@ export const ChildDetailPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="weight" className="block text-sm font-medium text-hv-charcoal mb-1">Weight (grams)</label>
+              <label htmlFor="weight" className="block text-sm font-medium text-hv-charcoal mb-1">Weight (kg)</label>
               <input
                 type="number"
                 id="weight"
                 value={editData.weight}
                 onChange={(e) => setEditData({ ...editData, weight: e.target.value === '' ? '' : Number(e.target.value) })}
                 min="0"
+                step="0.1"
                 className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-                placeholder="Weight in grams"
+                placeholder="Weight in kg"
               />
             </div>
 
@@ -325,7 +326,7 @@ export const ChildDetailPage: React.FC = () => {
           </div>
           <div className="px-4 py-3">
             <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Weight</div>
-            <div className="text-sm font-medium text-hv-charcoal">{(child.weight / 1000).toFixed(2)} kg</div>
+            <div className="text-sm font-medium text-hv-charcoal">{child.weight.toFixed(2)} kg</div>
           </div>
           <div className="px-4 py-3">
             <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Nutritional State</div>
@@ -456,7 +457,7 @@ export const ChildDetailPage: React.FC = () => {
                               : <ChevronRight size={14} />}
                           </td>
                           <td className="px-4 py-2.5 text-sm text-hv-charcoal">{formatDateOnly(visit.visitDate)}</td>
-                          <td className="px-4 py-2.5 text-sm text-hv-charcoal">{(visit.weight / 1000).toFixed(2)}</td>
+                          <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.weight.toFixed(2)}</td>
                           <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.armCircumference > 0 ? (visit.armCircumference / 10).toFixed(1) : '—'}</td>
                           <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.height > 0 ? (visit.height / 10).toFixed(1) : '—'}</td>
                           <td className="px-4 py-2.5 text-sm text-hv-charcoal truncate max-w-xs">{visit.notes || '—'}</td>

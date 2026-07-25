@@ -165,7 +165,7 @@ export const AddChildPage: React.FC = () => {
         {/* Weight */}
         <div>
           <label htmlFor="weight" className="block text-sm font-medium text-hv-charcoal mb-2">
-            Weight (grams)
+            Weight (kg)
           </label>
           <input
             type="number"
@@ -176,8 +176,9 @@ export const AddChildPage: React.FC = () => {
             onFocus={(e) => { if (Number(e.target.value) === 0) setFormData(prev => ({ ...prev, weight: '' as unknown as number })); }}
             onBlur={(e) => { if (e.target.value === '') setFormData(prev => ({ ...prev, weight: 0 })); }}
             min="0"
+            step="0.1"
             className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-            placeholder="Weight in grams"
+            placeholder="Weight in kg"
           />
           {errors.weight && <p className="text-hv-crisis text-sm mt-1">{errors.weight}</p>}
         </div>

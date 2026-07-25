@@ -11,7 +11,7 @@ export const ChildCreateSchema = z.object({
   sex: SexEnum,
   dateEntered: z.string().datetime().optional().nullable(),
   photos: z.array(z.number().int().positive()).default([]),
-  weight: z.number().int().min(0).default(0), // grams
+  weight: z.number().min(0).default(0), // kilograms
   nutritionalState: z.string().max(512).optional().nullable(),
   reasonEnrollment: z.string().max(4096).optional().nullable(),
   observations: z.string().optional().nullable(),
@@ -31,7 +31,7 @@ export const ChildReadSchema = z.object({
   sex: SexEnum,
   dateEntered: z.string().datetime().nullable(),
   photos: z.array(z.number().int().positive()),
-  weight: z.number().int(),
+  weight: z.number(),
   nutritionalState: z.string().nullable(),
   reasonEnrollment: z.string().nullable(),
   observations: z.string().nullable(),

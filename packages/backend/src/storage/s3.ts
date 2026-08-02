@@ -23,12 +23,19 @@ export class S3Storage implements StorageDriver {
 
   constructor() {
     this.bucket = appConfig.AWS_S3_BUCKET;
+    // In production credentials come from the EC2 instance profile, so no static
+    // keys live on the server. Only fall back to explicit keys when both are set,
+    // which is the local-dev-against-real-S3 case.
+    const hasStaticKeys =
+      Boolean(process.env.AWS_ACCESS_KEY_ID) && Boolean(process.env.AWS_SECRET_ACCESS_KEY);
     this.client = new S3Client({
       region: appConfig.AWS_S3_REGION,
-      credentials: {
-        accessKeyId: appConfig.AWS_ACCESS_KEY_ID,
-        secretAccessKey: appConfig.AWS_SECRET_ACCESS_KEY,
-      },
+      ...(hasStaticKeys && {
+        credentials: {
+          accessKeyId: appConfig.AWS_ACCESS_KEY_ID,
+          secretAccessKey: appConfig.AWS_SECRET_ACCESS_KEY,
+        },
+      }),
     });
   }
 

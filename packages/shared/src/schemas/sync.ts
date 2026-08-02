@@ -16,6 +16,40 @@ export const SyncEntitySchema = z.enum([
   'birthingAssistant'
 ]);
 
+// Entity types that can appear as a tombstone in serverChanges.deleted.
+// Superset of SyncEntitySchema: clients cache the lookup tables too, and those
+// rows are soft-deleted by admins, so a client must be told to drop them.
+export const SyncDeletableEntitySchema = z.enum([
+  'family',
+  'parent',
+  'child',
+  'childVisit',
+  'familyVisit',
+  'birthingAssistant',
+  'community',
+  'site',
+  'resource',
+  'training',
+  'childVisitQuestion',
+  'parentVisitQuestion',
+  'familyVisitQuestion',
+]);
+
+/**
+ * A record that was soft-deleted on the server.
+ *
+ * Soft-deleted rows are filtered out of every other array in ServerChanges, so
+ * without a tombstone an offline client would keep a deleted record forever —
+ * it simply stops appearing in the delta. `localId` is present when the record
+ * originated on a client, letting it be matched before the server id is known.
+ */
+export const SyncTombstoneSchema = z.object({
+  entity: SyncDeletableEntitySchema,
+  id: z.number().int().positive(),
+  localId: z.string().uuid().nullable().default(null),
+  deletedAt: z.string().datetime(),
+});
+
 // Sync operation types (only "create" is allowed from clients)
 export const SyncOperationSchema = z.enum(['create']);
 
@@ -60,6 +94,9 @@ export const ServerChangesSchema = z.object({
     parentVisitQuestions: z.array(ParentVisitQuestionReadSchema),
     familyVisitQuestions: z.array(FamilyVisitQuestionReadSchema),
   }),
+  // Records soft-deleted since lastSyncedAt. Empty on a first sync (lastSyncedAt
+  // null), because a client with no local data has nothing to delete.
+  deleted: z.array(SyncTombstoneSchema).default([]),
 });
 
 // Sync response schema
@@ -72,6 +109,8 @@ export const SyncResponseSchema = z.object({
 
 // Inferred types for TypeScript
 export type SyncEntity = z.infer<typeof SyncEntitySchema>;
+export type SyncDeletableEntity = z.infer<typeof SyncDeletableEntitySchema>;
+export type SyncTombstone = z.infer<typeof SyncTombstoneSchema>;
 export type SyncOperation = z.infer<typeof SyncOperationSchema>;
 export type SyncChange = z.infer<typeof SyncChangeSchema>;
 export type SyncRequest = z.infer<typeof SyncRequestSchema>;

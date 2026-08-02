@@ -239,14 +239,15 @@ model BirthingAssistantTraining {
 // ──────────────────────────────────────
 
 model File {
-  id        Int      @id @default(autoincrement())
-  hash      String?  @db.VarChar(256)
-  extension String   @db.VarChar(128)
-  s3Key     String   @map("s3_key") @db.VarChar(512)
-  mimeType  String   @map("mime_type") @db.VarChar(128)
-  size      Int      @default(0)
-  confirmed Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
+  id        Int       @id @default(autoincrement())
+  hash      String?   @db.VarChar(256)
+  extension String    @db.VarChar(128)
+  s3Key     String    @map("s3_key") @db.VarChar(512)
+  mimeType  String    @map("mime_type") @db.VarChar(128)
+  size      Int       @default(0)
+  confirmed Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
 
   @@map("files")
 }

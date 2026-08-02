@@ -9,6 +9,7 @@ import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoUpload } from '../../components';
+import { toDateTimeLocal, fromDateTimeLocal, nowDateTimeLocal } from '../../utils/datetime';
 
 export const AddFamilyVisitPage: React.FC = () => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export const AddFamilyVisitPage: React.FC = () => {
 
   const [formData, setFormData] = useState<FamilyVisitCreate>({
     familyId: familyIdNum,
-    visitDate: new Date().toISOString().slice(0, 16), // Format for datetime-local input
+    visitDate: nowDateTimeLocal(),
     trainingsReceived: [],
     resourcesReceived: [],
     questions: [],
@@ -150,7 +151,7 @@ export const AddFamilyVisitPage: React.FC = () => {
     try {
       FamilyVisitCreateSchema.parse({
         ...formData,
-        visitDate: new Date(formData.visitDate).toISOString(),
+        visitDate: fromDateTimeLocal(formData.visitDate),
       });
     } catch (error: unknown) {
       if (error instanceof ZodError) {
@@ -173,7 +174,7 @@ export const AddFamilyVisitPage: React.FC = () => {
 
     const submitData: FamilyVisitCreate = {
       ...formData,
-      visitDate: new Date(formData.visitDate).toISOString(),
+      visitDate: fromDateTimeLocal(formData.visitDate),
       questions: formData.questions.filter(q => q.answer.trim() !== ''),
     };
 

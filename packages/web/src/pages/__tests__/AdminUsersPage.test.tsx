@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -14,10 +14,13 @@ vi.mock('../../api/users', () => ({
     fetchUsers: vi.fn(),
     createUser: vi.fn(),
     updateUser: vi.fn(),
+    resetUserPassword: vi.fn(),
+    deleteUser: vi.fn(),
   },
 }));
 
-// Mock the auth store
+// Mock the auth store — the signed-in admin is user id 1 ("admin"), which is
+// also the first row of the table, so the self-protection guards are exercised.
 const mockAdminUser = {
   id: 1,
   login: 'admin',
@@ -36,6 +39,13 @@ vi.mock('../../store/auth', () => ({
     user: mockAdminUser,
   }),
 }));
+
+/** Build a rejection that looks like an axios error carrying the API body. */
+const apiError = (message: string) =>
+  Object.assign(new Error('Request failed with status code 400'), {
+    isAxiosError: true,
+    response: { data: { error: message } },
+  });
 
 const mockUsers: UserRead[] = [
   {
@@ -100,6 +110,12 @@ const renderWithProviders = (component: React.ReactElement) => {
   );
 };
 
+/** Row-level Delete buttons, excluding the confirm dialog's own Delete button. */
+const getRowDeleteButtons = () =>
+  screen
+    .getAllByRole('button', { name: 'Delete' })
+    .filter((button) => button.closest('[role="dialog"]') === null);
+
 describe('AdminUsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -141,37 +157,41 @@ describe('AdminUsersPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Users (3)')).toBeInTheDocument();
-
-      // Check table headers
-      expect(screen.getByText('User')).toBeInTheDocument();
-      expect(screen.getByText('Login')).toBeInTheDocument();
-      expect(screen.getByText('Email')).toBeInTheDocument();
-      expect(screen.getByText('Role')).toBeInTheDocument();
-      expect(screen.getByText('Language')).toBeInTheDocument();
-      expect(screen.getByText('Created')).toBeInTheDocument();
-      expect(screen.getByText('Actions')).toBeInTheDocument();
-
-      // Check user data
-      expect(screen.getByText('Admin User')).toBeInTheDocument();
-      expect(screen.getByText('admin')).toBeInTheDocument();
-      expect(screen.getByText('admin@test.com')).toBeInTheDocument();
-      expect(screen.getByText('Jane Supervisor')).toBeInTheDocument();
-      expect(screen.getByText('supervisor1')).toBeInTheDocument();
-      // caseworker1 appears twice: once as display name (no first/last), once as login
-      expect(screen.getAllByText('caseworker1')).toHaveLength(2);
-
-      // Check role badges
-      expect(screen.getByText('Admin')).toBeInTheDocument();
-      expect(screen.getByText('Supervisor')).toBeInTheDocument();
-      expect(screen.getByText('Caseworker')).toBeInTheDocument();
-
-      // Check languages
-      expect(screen.getAllByText('English')).toHaveLength(2);
-      expect(screen.getByText('Spanish')).toBeInTheDocument();
-
-      // Check edit buttons
-      expect(screen.getAllByText('Edit')).toHaveLength(3);
     });
+
+    // Check table headers
+    expect(screen.getByText('User')).toBeInTheDocument();
+    expect(screen.getByText('Login')).toBeInTheDocument();
+    expect(screen.getByText('Email')).toBeInTheDocument();
+    expect(screen.getByText('Role')).toBeInTheDocument();
+    expect(screen.getByText('Language')).toBeInTheDocument();
+    expect(screen.getByText('Created')).toBeInTheDocument();
+    expect(screen.getByText('Actions')).toBeInTheDocument();
+
+    // Check user data
+    expect(screen.getByText('Admin User')).toBeInTheDocument();
+    expect(screen.getByText('admin')).toBeInTheDocument();
+    expect(screen.getByText('admin@test.com')).toBeInTheDocument();
+    expect(screen.getByText('Jane Supervisor')).toBeInTheDocument();
+    expect(screen.getByText('supervisor1')).toBeInTheDocument();
+    // caseworker1 appears twice: once as display name (no first/last), once as login
+    expect(screen.getAllByText('caseworker1')).toHaveLength(2);
+
+    // Check role badges
+    expect(screen.getByText('Admin')).toBeInTheDocument();
+    expect(screen.getByText('Supervisor')).toBeInTheDocument();
+    expect(screen.getByText('Caseworker')).toBeInTheDocument();
+
+    // Check languages
+    expect(screen.getAllByText('English')).toHaveLength(2);
+    expect(screen.getByText('Spanish')).toBeInTheDocument();
+
+    // Check row actions
+    expect(screen.getAllByText('Edit')).toHaveLength(3);
+    expect(getRowDeleteButtons()).toHaveLength(3);
+
+    // The signed-in admin's own row is marked
+    expect(screen.getByText('(you)')).toBeInTheDocument();
   });
 
   it('should show add user form when add button clicked', async () => {
@@ -199,7 +219,7 @@ describe('AdminUsersPage', () => {
   it('should create new user successfully', async () => {
     const user = userEvent.setup();
     vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
-    vi.mocked(usersApi.createUser).mockResolvedValue(mockUsers[0]);
+    vi.mocked(usersApi.createUser).mockResolvedValue(mockUsers[0]!);
 
     renderWithProviders(<AdminUsersPage />);
 
@@ -236,6 +256,35 @@ describe('AdminUsersPage', () => {
     });
   });
 
+  it('should send blank optional fields as null when creating', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    vi.mocked(usersApi.createUser).mockResolvedValue(mockUsers[0]!);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add User'));
+    await user.type(screen.getByLabelText(/Login/), 'minimal');
+    await user.type(screen.getByLabelText(/Password/), 'password123');
+    fireEvent.click(screen.getByText('Create User'));
+
+    await waitFor(() => {
+      expect(usersApi.createUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          login: 'minimal',
+          email: null,
+          firstName: null,
+          lastName: null,
+        }),
+        expect.anything(),
+      );
+    });
+  });
+
   it('should show edit form when edit button clicked', async () => {
     vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
 
@@ -246,7 +295,7 @@ describe('AdminUsersPage', () => {
     });
 
     const editButtons = screen.getAllByText('Edit');
-    fireEvent.click(editButtons[0]); // Click first edit button
+    fireEvent.click(editButtons[0]!); // Click first edit button
 
     expect(screen.getByText('Edit User')).toBeInTheDocument();
     // Use getByLabelText to target form inputs specifically, avoiding
@@ -256,8 +305,235 @@ describe('AdminUsersPage', () => {
     expect(screen.getByLabelText(/First Name/)).toHaveValue('Admin');
     expect(screen.getByLabelText(/Last Name/)).toHaveValue('User');
 
-    // Password field should not be shown for edits
-    expect(screen.queryByLabelText(/Password/)).not.toBeInTheDocument();
+    // Password field is now shown for edits (blank = keep current password)
+    expect(screen.getByLabelText(/New Password/)).toHaveValue('');
+  });
+
+  it('should update every editable field including role', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    vi.mocked(usersApi.updateUser).mockResolvedValue(mockUsers[1]!);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    // Edit the supervisor (not the signed-in user)
+    fireEvent.click(screen.getAllByText('Edit')[1]!);
+
+    await user.clear(screen.getByLabelText(/Login/));
+    await user.type(screen.getByLabelText(/Login/), 'supervisor2');
+    await user.clear(screen.getByLabelText(/First Name/));
+    await user.type(screen.getByLabelText(/First Name/), 'Janet');
+    fireEvent.change(screen.getByLabelText(/Role/), { target: { value: 'ADMIN' } });
+    fireEvent.change(screen.getByLabelText(/Language/), { target: { value: 'es' } });
+
+    fireEvent.click(screen.getByText('Update User'));
+
+    await waitFor(() => {
+      expect(usersApi.updateUser).toHaveBeenCalledWith(2, {
+        login: 'supervisor2',
+        firstName: 'Janet',
+        role: 'ADMIN',
+        lang: 'es',
+      });
+    });
+  });
+
+  it('should reset the password through the dedicated endpoint', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    vi.mocked(usersApi.resetUserPassword).mockResolvedValue(mockUsers[1]!);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByText('Edit')[1]!);
+
+    await user.type(screen.getByLabelText(/New Password/), 'brandnewpass');
+    fireEvent.click(screen.getByText('Update User'));
+
+    await waitFor(() => {
+      expect(usersApi.resetUserPassword).toHaveBeenCalledWith(2, { password: 'brandnewpass' });
+    });
+    // No other field changed, so no update call was made
+    expect(usersApi.updateUser).not.toHaveBeenCalled();
+  });
+
+  it('should lock the role select when an admin edits their own account', async () => {
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    // Edit self (row 0 is the signed-in admin)
+    fireEvent.click(screen.getAllByText('Edit')[0]!);
+
+    const roleSelect = screen.getByLabelText(/Role/);
+    expect(roleSelect).toBeDisabled();
+    expect(roleSelect).toHaveAttribute(
+      'title',
+      'You cannot change your own admin role. Ask another admin to do it.'
+    );
+  });
+
+  it('should leave the role select enabled when editing another user', async () => {
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByText('Edit')[1]!);
+
+    expect(screen.getByLabelText(/Role/)).toBeEnabled();
+  });
+
+  it('should disable delete for the signed-in user with an explanatory title', async () => {
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    const deleteButtons = getRowDeleteButtons();
+    expect(deleteButtons[0]).toBeDisabled();
+    expect(deleteButtons[0]).toHaveAttribute('title', 'You cannot delete your own account');
+    expect(deleteButtons[1]).toBeEnabled();
+  });
+
+  it('should delete a user through the confirm dialog', async () => {
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    vi.mocked(usersApi.deleteUser).mockResolvedValue(undefined);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    // No dialog before clicking
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.click(getRowDeleteButtons()[1]!); // Jane Supervisor
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Delete user')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Jane Supervisor/)).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(usersApi.deleteUser).toHaveBeenCalledWith(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should not delete when the confirm dialog is cancelled', async () => {
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    vi.mocked(usersApi.deleteUser).mockResolvedValue(undefined);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getRowDeleteButtons()[2]!);
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(usersApi.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('should never call window.confirm', async () => {
+    const confirmSpy = vi.fn().mockReturnValue(true);
+    Object.defineProperty(window, 'confirm', {
+      value: confirmSpy,
+      writable: true,
+      configurable: true,
+    });
+
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    vi.mocked(usersApi.deleteUser).mockResolvedValue(undefined);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getRowDeleteButtons()[1]!);
+    await screen.findByRole('dialog');
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it('should surface the server message when a delete is rejected', async () => {
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    vi.mocked(usersApi.deleteUser).mockRejectedValue(
+      apiError('Cannot delete the last remaining admin')
+    );
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getRowDeleteButtons()[1]!);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Cannot delete the last remaining admin')).toBeInTheDocument();
+    });
+    // Dialog stays open so the reason remains visible
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('should surface the server message when an update is rejected', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    vi.mocked(usersApi.updateUser).mockRejectedValue(
+      apiError('A user with this login already exists')
+    );
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByText('Edit')[1]!);
+    await user.clear(screen.getByLabelText(/Login/));
+    await user.type(screen.getByLabelText(/Login/), 'admin');
+    fireEvent.click(screen.getByText('Update User'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Failed to update user: A user with this login already exists')
+      ).toBeInTheDocument();
+    });
+    // The form stays open on failure
+    expect(screen.getByText('Edit User')).toBeInTheDocument();
   });
 
   it('should cancel form when cancel button clicked', async () => {

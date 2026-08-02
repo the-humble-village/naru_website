@@ -8,6 +8,7 @@ import {
   type TokenPayload,
 } from '@naru/shared';
 import { auth } from '../middleware/auth.js';
+import { requireSupervisor } from '../middleware/role.js';
 import * as childVisitService from '../services/child-visit.service.js';
 
 // Type for Hono context with user variable
@@ -100,6 +101,25 @@ app.put('/:id', auth,
 
     const childVisit = await childVisitService.updateChildVisit(familyId, childId, id, data, user);
     return c.json(childVisit);
+  }
+);
+
+/**
+ * DELETE /families/:fid/children/:cid/visits/:id
+ * Soft delete child visit (supervisor+ only)
+ */
+app.delete('/:id', auth, requireSupervisor,
+  zValidator('param', z.object({
+    fid: z.string().transform(val => parseInt(val, 10)),
+    cid: z.string().transform(val => parseInt(val, 10)),
+    id: z.string().transform(val => parseInt(val, 10)),
+  })),
+  async (c) => {
+    const { fid: familyId, cid: childId, id } = c.req.valid('param');
+    const user = c.get('user') as UserRead;
+
+    await childVisitService.deleteChildVisit(familyId, childId, id, user);
+    return c.json({ message: 'Child visit deleted successfully' });
   }
 );
 

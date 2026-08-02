@@ -51,6 +51,12 @@ function toRead(visit: {
   };
 }
 
+// ParentVisit is NOT registered in the soft-delete Prisma extension
+// (src/middleware/soft-delete.ts), so every query in this service has to filter
+// `deletedAt: null` explicitly. Without it a soft-deleted parent visit would still be
+// listed, fetched and editable.
+const NOT_DELETED = { deletedAt: null } as const;
+
 async function validateFamilyAndParent(familyId: number, parentId: number) {
   const family = await prisma.family.findUnique({
     where: { id: familyId },
@@ -84,7 +90,7 @@ export async function listParentVisits(
 
   const { skip = 0, limit = 50 } = options;
 
-  const where = { familyId, parentId };
+  const where = { familyId, parentId, ...NOT_DELETED };
 
   const [parentVisits, total] = await Promise.all([
     prisma.parentVisit.findMany({
@@ -148,7 +154,7 @@ export async function getParentVisitById(
   await validateFamilyAndParent(familyId, parentId);
 
   const parentVisit = await prisma.parentVisit.findFirst({
-    where: { id: visitId, familyId, parentId },
+    where: { id: visitId, familyId, parentId, ...NOT_DELETED },
     select: PARENT_VISIT_SELECT,
   });
 
@@ -172,7 +178,7 @@ export async function updateParentVisit(
   await validateFamilyAndParent(familyId, parentId);
 
   const existingVisit = await prisma.parentVisit.findFirst({
-    where: { id: visitId, familyId, parentId },
+    where: { id: visitId, familyId, parentId, ...NOT_DELETED },
     select: { id: true, localId: true },
   });
 
@@ -195,7 +201,11 @@ export async function updateParentVisit(
     updatedAt: new Date(),
   };
 
-  if (data.visitDate !== undefined) updateData.visitDate = data.visitDate ? new Date(data.visitDate) : null;
+  // Every mutable column on ParentVisit is represented below — weight, the
+  // trainingsReceived / resourcesReceived lists, the questions answer array and the
+  // photos array included. All of them are inline JSON on the row (no answer rows with
+  // their own deletedAt), so the create path's whole-array replace strategy applies.
+  if (data.visitDate !== undefined) updateData.visitDate = new Date(data.visitDate);
   if (data.weight !== undefined) updateData.weight = data.weight;
   if (data.trainingsReceived !== undefined) updateData.trainingsReceived = data.trainingsReceived;
   if (data.resourcesReceived !== undefined) updateData.resourcesReceived = data.resourcesReceived;
@@ -211,4 +221,36 @@ export async function updateParentVisit(
   });
 
   return toRead(updatedVisit);
+}
+
+/**
+ * Delete parent visit by ID (soft delete)
+ * Only supervisors and admins can delete parent visits
+ */
+export async function deleteParentVisit(
+  familyId: number,
+  parentId: number,
+  visitId: number,
+  user: UserRead
+): Promise<void> {
+  await validateFamilyAndParent(familyId, parentId);
+
+  // An already-deleted visit is excluded by NOT_DELETED, so a second delete returns 404
+  const existingVisit = await prisma.parentVisit.findFirst({
+    where: { id: visitId, familyId, parentId, ...NOT_DELETED },
+    select: { id: true },
+  });
+
+  if (!existingVisit) {
+    throw new HTTPException(404, { message: 'Parent visit not found' });
+  }
+
+  // TODO: When we implement user assignment/scoping, add access control here
+
+  // Soft delete the visit. Weight, trainings, resources, question answers and photos
+  // all live inline on this row, so there is nothing to cascade.
+  await prisma.parentVisit.update({
+    where: { id: visitId },
+    data: { deletedAt: new Date() },
+  });
 }

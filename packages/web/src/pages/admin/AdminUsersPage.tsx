@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { usersApi } from '../../api/users';
 import { UserRead, UserCreate, UserUpdate, Role } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { useAuthStore } from '../../store/auth';
 
 interface UserFormData {
   login: string;
@@ -15,21 +18,44 @@ interface UserFormData {
   lang: string;
 }
 
+const EMPTY_FORM: UserFormData = {
+  login: '',
+  email: '',
+  firstName: '',
+  lastName: '',
+  password: '',
+  role: 'CASEWORKER',
+  lang: 'en',
+};
+
+/**
+ * Pull the server's message out of an API failure.
+ *
+ * The backend error handler responds with `{ error: string }` (see app.ts
+ * onError), so domain messages such as "Cannot delete the last remaining admin"
+ * only live on the response body — axios' own `.message` is just
+ * "Request failed with status code 400".
+ */
+const getErrorMessage = (err: unknown, fallback: string): string => {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { error?: string } | undefined;
+    if (data?.error) return data.error;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+};
+
 /**
  * AdminUsersPage - User management interface for admins
  */
 export const AdminUsersPage: React.FC = () => {
+  const { user: currentUser } = useAuthStore();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRead | null>(null);
-  const [formData, setFormData] = useState<UserFormData>({
-    login: '',
-    email: '',
-    firstName: '',
-    lastName: '',
-    password: '',
-    role: 'CASEWORKER',
-    lang: 'en',
-  });
+  const [formData, setFormData] = useState<UserFormData>(EMPTY_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserRead | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -44,8 +70,6 @@ export const AdminUsersPage: React.FC = () => {
     mutationFn: usersApi.createUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      setShowCreateForm(false);
-      resetForm();
     },
   });
 
@@ -55,63 +79,108 @@ export const AdminUsersPage: React.FC = () => {
       usersApi.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      setEditingUser(null);
-      resetForm();
+    },
+  });
+
+  // Password reset mutation (dedicated admin endpoint)
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, password }: { id: number; password: string }) =>
+      usersApi.resetUserPassword(id, { password }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+
+  // Delete (soft) user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: number) => usersApi.deleteUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 
   const resetForm = () => {
-    setFormData({
-      login: '',
-      email: '',
-      firstName: '',
-      lastName: '',
-      password: '',
-      role: 'CASEWORKER',
-      lang: 'en',
-    });
+    setFormData(EMPTY_FORM);
+  };
+
+  const closeForm = () => {
+    setShowCreateForm(false);
+    setEditingUser(null);
+    setFormError(null);
+    resetForm();
   };
 
   const handleCreate = async () => {
+    setFormError(null);
+    // Blank optional strings must go over the wire as null: `email` is validated
+    // with z.string().email() and would reject ''.
+    const createData: UserCreate = {
+      login: formData.login,
+      email: formData.email || null,
+      firstName: formData.firstName || null,
+      lastName: formData.lastName || null,
+      password: formData.password,
+      role: formData.role,
+      lang: formData.lang,
+    };
     try {
-      await createUserMutation.mutateAsync(formData);
-    } catch (error) {
-      console.error('Failed to create user:', error);
+      await createUserMutation.mutateAsync(createData);
+      closeForm();
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'Failed to create user'));
     }
   };
 
   const handleUpdate = async () => {
     if (!editingUser) return;
+    setFormError(null);
 
-    const updateData: UserUpdate = {
-      login: formData.login !== editingUser.login ? formData.login : undefined,
-      email: formData.email !== editingUser.email ? formData.email : undefined,
-      firstName: formData.firstName !== editingUser.firstName ? formData.firstName : undefined,
-      lastName: formData.lastName !== editingUser.lastName ? formData.lastName : undefined,
-      role: formData.role !== editingUser.role ? formData.role : undefined,
-      lang: formData.lang !== editingUser.lang ? formData.lang : undefined,
-    };
-
-    // Remove undefined values
-    const cleanUpdateData = Object.fromEntries(
-      Object.entries(updateData).filter(([_, value]) => value !== undefined)
-    ) as UserUpdate;
+    // Only send changed fields
+    const dataToSave: UserUpdate = {};
+    if (formData.login !== editingUser.login) {
+      dataToSave.login = formData.login;
+    }
+    if (formData.email !== (editingUser.email ?? '')) {
+      dataToSave.email = formData.email || null;
+    }
+    if (formData.firstName !== (editingUser.firstName ?? '')) {
+      dataToSave.firstName = formData.firstName || null;
+    }
+    if (formData.lastName !== (editingUser.lastName ?? '')) {
+      dataToSave.lastName = formData.lastName || null;
+    }
+    if (formData.role !== editingUser.role) {
+      dataToSave.role = formData.role;
+    }
+    if (formData.lang !== editingUser.lang) {
+      dataToSave.lang = formData.lang;
+    }
 
     try {
-      await updateUserMutation.mutateAsync({ id: editingUser.id, data: cleanUpdateData });
-    } catch (error) {
-      console.error('Failed to update user:', error);
+      if (Object.keys(dataToSave).length > 0) {
+        await updateUserMutation.mutateAsync({ id: editingUser.id, data: dataToSave });
+      }
+      if (formData.password) {
+        await resetPasswordMutation.mutateAsync({
+          id: editingUser.id,
+          password: formData.password,
+        });
+      }
+      closeForm();
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'Failed to update user'));
     }
   };
 
   const startEdit = (user: UserRead) => {
+    setFormError(null);
     setEditingUser(user);
     setFormData({
       login: user.login,
       email: user.email || '',
       firstName: user.firstName || '',
       lastName: user.lastName || '',
-      password: '', // Don't pre-fill password for edits
+      password: '', // Blank means "keep the current password"
       role: user.role,
       lang: user.lang,
     });
@@ -119,9 +188,30 @@ export const AdminUsersPage: React.FC = () => {
   };
 
   const cancelForm = () => {
-    setShowCreateForm(false);
-    setEditingUser(null);
-    resetForm();
+    closeForm();
+  };
+
+  const requestDelete = (user: UserRead) => {
+    setDeleteError(null);
+    setDeleteTarget(user);
+  };
+
+  const cancelDelete = () => {
+    setDeleteTarget(null);
+    setDeleteError(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteError(null);
+    try {
+      await deleteUserMutation.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (err) {
+      // Keep the dialog open so the server's reason (e.g. "Cannot delete the
+      // last remaining admin") stays visible.
+      setDeleteError(getErrorMessage(err, 'Failed to delete user'));
+    }
   };
 
   const getRoleDisplayName = (role: Role) => {
@@ -136,6 +226,16 @@ export const AdminUsersPage: React.FC = () => {
     const parts = [user.firstName, user.lastName].filter(Boolean);
     return parts.length > 0 ? parts.join(' ') : user.login;
   };
+
+  const isCurrentUser = (user: UserRead) => currentUser?.id === user.id;
+
+  // Mirrors the server guard: an admin may not demote themselves out of ADMIN.
+  const roleLocked = editingUser !== null && isCurrentUser(editingUser) && editingUser.role === 'ADMIN';
+  const selfRoleTitle = 'You cannot change your own admin role. Ask another admin to do it.';
+  const selfDeleteTitle = 'You cannot delete your own account';
+
+  const isSaving =
+    createUserMutation.isPending || updateUserMutation.isPending || resetPasswordMutation.isPending;
 
   if (isLoading) {
     return (
@@ -256,22 +356,27 @@ export const AdminUsersPage: React.FC = () => {
                       className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                     />
                   </div>
-                  {!editingUser && (
-                    <div>
-                      <label htmlFor="user-password" className="block text-sm font-medium text-hv-charcoal mb-1">
-                        Password <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="user-password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
-                        required={!editingUser}
-                        minLength={6}
-                      />
-                    </div>
-                  )}
+                  <div>
+                    <label htmlFor="user-password" className="block text-sm font-medium text-hv-charcoal mb-1">
+                      {editingUser ? 'New Password' : <>Password <span className="text-red-500">*</span></>}
+                    </label>
+                    <input
+                      id="user-password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      required={!editingUser}
+                      minLength={6}
+                      autoComplete="new-password"
+                      placeholder={editingUser ? 'Leave blank to keep current password' : ''}
+                    />
+                    {editingUser && (
+                      <p className="text-xs text-hv-gray mt-1">
+                        Leave blank to keep the current password. At least 6 characters to reset it.
+                      </p>
+                    )}
+                  </div>
                   <div>
                     <label htmlFor="user-role" className="block text-sm font-medium text-hv-charcoal mb-1">
                       Role
@@ -280,12 +385,17 @@ export const AdminUsersPage: React.FC = () => {
                       id="user-role"
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      disabled={roleLocked}
+                      title={roleLocked ? selfRoleTitle : undefined}
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="CASEWORKER">Caseworker</option>
                       <option value="SUPERVISOR">Supervisor</option>
                       <option value="ADMIN">Admin</option>
                     </select>
+                    {roleLocked && (
+                      <p className="text-xs text-hv-gray mt-1">{selfRoleTitle}</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="user-language" className="block text-sm font-medium text-hv-charcoal mb-1">
@@ -313,20 +423,20 @@ export const AdminUsersPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={editingUser ? handleUpdate : handleCreate}
-                    disabled={createUserMutation.isPending || updateUserMutation.isPending}
+                    disabled={isSaving}
                     className="px-4 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover disabled:opacity-50 transition-colors"
                   >
-                    {createUserMutation.isPending || updateUserMutation.isPending
+                    {isSaving
                       ? 'Saving...'
                       : editingUser
                         ? 'Update User'
                         : 'Create User'}
                   </button>
                 </div>
-                {(createUserMutation.error || updateUserMutation.error) && (
+                {formError && (
                   <div className="bg-red-50 border border-red-200 rounded-md p-3">
                     <p className="text-hv-crisis text-sm">
-                      Failed to {editingUser ? 'update' : 'create'} user: {(createUserMutation.error || updateUserMutation.error)?.message}
+                      Failed to {editingUser ? 'update' : 'create'} user: {formError}
                     </p>
                   </div>
                 )}
@@ -368,6 +478,9 @@ export const AdminUsersPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-hv-charcoal">
                         {formatUserName(user)}
+                        {isCurrentUser(user) && (
+                          <span className="ml-2 text-xs font-normal text-hv-gray">(you)</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
@@ -393,12 +506,20 @@ export const AdminUsersPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-3">
                       <button
                         onClick={() => startEdit(user)}
                         className="text-hv-terracotta hover:underline transition-colors"
                       >
                         Edit
+                      </button>
+                      <button
+                        onClick={() => requestDelete(user)}
+                        disabled={isCurrentUser(user) || deleteUserMutation.isPending}
+                        title={isCurrentUser(user) ? selfDeleteTitle : `Delete ${formatUserName(user)}`}
+                        className="text-hv-crisis hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline transition-colors"
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -413,6 +534,33 @@ export const AdminUsersPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {deleteTarget && (
+          <ConfirmDialog
+            open
+            title="Delete user"
+            confirmLabel="Delete"
+            busy={deleteUserMutation.isPending}
+            message={
+              <div className="space-y-2">
+                <p>
+                  Delete <strong>{formatUserName(deleteTarget)}</strong> ({deleteTarget.login})?
+                  They will immediately lose access and will no longer be able to sign in.
+                </p>
+                {deleteError && (
+                  <p className="text-hv-crisis font-medium">{deleteError}</p>
+                )}
+              </div>
+            }
+            warning={
+              deleteTarget.role === 'ADMIN'
+                ? 'This is an admin account. The last remaining admin cannot be deleted.'
+                : undefined
+            }
+            onConfirm={confirmDelete}
+            onCancel={cancelDelete}
+          />
+        )}
       </div>
     </RoleGate>
   );

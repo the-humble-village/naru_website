@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -46,6 +46,13 @@ vi.mock('../../store/auth', () => ({
   }),
 }));
 
+/** Build a rejection that looks like an axios error carrying the API body. */
+const apiError = (message: string) =>
+  Object.assign(new Error('Request failed with status code 400'), {
+    isAxiosError: true,
+    response: { data: { error: message } },
+  });
+
 const mockCommunities: LookupRead[] = [
   { id: 1, title: 'Community A', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
   { id: 2, title: 'Community B', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
@@ -56,6 +63,8 @@ const mockTrainings: LookupRead[] = [
   { id: 2, title: 'Advanced Training', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
 ];
 
+// The API flattens each junction row to the lookup's own { id, title }
+// (see listBirthingAssistants in birthing-assistant.service.ts).
 const mockBirthingAssistants: BirthingAssistantRead[] = [
   {
     id: 1,
@@ -63,12 +72,10 @@ const mockBirthingAssistants: BirthingAssistantRead[] = [
     name: 'Maria Santos',
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
-    servedCommunities: [
-      { communityId: 1, community: { id: 1, title: 'Community A' } as any },
-    ],
+    servedCommunities: [{ id: 1, title: 'Community A' }],
     trainingsReceived: [
-      { trainingId: 1, training: { id: 1, title: 'Basic Training' } as any },
-      { trainingId: 2, training: { id: 2, title: 'Advanced Training' } as any },
+      { id: 1, title: 'Basic Training' },
+      { id: 2, title: 'Advanced Training' },
     ],
   },
   {
@@ -78,8 +85,8 @@ const mockBirthingAssistants: BirthingAssistantRead[] = [
     createdAt: '2024-01-02T00:00:00Z',
     updatedAt: '2024-01-02T00:00:00Z',
     servedCommunities: [
-      { communityId: 1, community: { id: 1, title: 'Community A' } as any },
-      { communityId: 2, community: { id: 2, title: 'Community B' } as any },
+      { id: 1, title: 'Community A' },
+      { id: 2, title: 'Community B' },
     ],
     trainingsReceived: [],
   },
@@ -108,6 +115,12 @@ const renderWithProviders = (component: React.ReactElement) => {
     </MemoryRouter>
   );
 };
+
+/** Row-level Delete buttons, excluding the confirm dialog's own Delete button. */
+const getRowDeleteButtons = () =>
+  screen
+    .getAllByRole('button', { name: 'Delete' })
+    .filter((button) => button.closest('[role="dialog"]') === null);
 
 describe('AdminBirthingAssistantsPage', () => {
   beforeEach(() => {
@@ -152,27 +165,27 @@ describe('AdminBirthingAssistantsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Birthing Assistants (2)')).toBeInTheDocument();
-
-      // Check table headers
-      expect(screen.getByText('Name')).toBeInTheDocument();
-      expect(screen.getByText('Communities Served')).toBeInTheDocument();
-      expect(screen.getByText('Trainings Received')).toBeInTheDocument();
-      expect(screen.getByText('Created')).toBeInTheDocument();
-      expect(screen.getByText('Actions')).toBeInTheDocument();
-
-      // Check birthing assistant data
-      expect(screen.getByText('Maria Santos')).toBeInTheDocument();
-      expect(screen.getByText('Ana Rodriguez')).toBeInTheDocument();
-
-      // Check communities and trainings
-      expect(screen.getByText('Community A')).toBeInTheDocument();
-      expect(screen.getByText('Community A, Community B')).toBeInTheDocument();
-      expect(screen.getByText('Basic Training, Advanced Training')).toBeInTheDocument();
-
-      // Check action buttons
-      expect(screen.getAllByText('Edit')).toHaveLength(2);
-      expect(screen.getAllByText('Delete')).toHaveLength(2);
     });
+
+    // Check table headers
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Communities Served')).toBeInTheDocument();
+    expect(screen.getByText('Trainings Received')).toBeInTheDocument();
+    expect(screen.getByText('Created')).toBeInTheDocument();
+    expect(screen.getByText('Actions')).toBeInTheDocument();
+
+    // Check birthing assistant data
+    expect(screen.getByText('Maria Santos')).toBeInTheDocument();
+    expect(screen.getByText('Ana Rodriguez')).toBeInTheDocument();
+
+    // Check communities and trainings (titles come straight off the record)
+    expect(screen.getByText('Community A')).toBeInTheDocument();
+    expect(screen.getByText('Community A, Community B')).toBeInTheDocument();
+    expect(screen.getByText('Basic Training, Advanced Training')).toBeInTheDocument();
+
+    // Check action buttons
+    expect(screen.getAllByText('Edit')).toHaveLength(2);
+    expect(getRowDeleteButtons()).toHaveLength(2);
   });
 
   it('should show create form when add button clicked', async () => {
@@ -225,7 +238,7 @@ describe('AdminBirthingAssistantsPage', () => {
   it('should create new birthing assistant successfully', async () => {
     const user = userEvent.setup();
     vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
-    vi.mocked(birthingAssistantsApi.createBirthingAssistant).mockResolvedValue(mockBirthingAssistants[0]);
+    vi.mocked(birthingAssistantsApi.createBirthingAssistant).mockResolvedValue(mockBirthingAssistants[0]!);
 
     renderWithProviders(<AdminBirthingAssistantsPage />);
 
@@ -275,7 +288,7 @@ describe('AdminBirthingAssistantsPage', () => {
     });
 
     const editButtons = screen.getAllByText('Edit');
-    fireEvent.click(editButtons[0]); // Edit Maria Santos
+    fireEvent.click(editButtons[0]!); // Edit Maria Santos
 
     await waitFor(() => {
       expect(screen.getByText('Edit Birthing Assistant')).toBeInTheDocument();
@@ -292,12 +305,17 @@ describe('AdminBirthingAssistantsPage', () => {
       expect(basicTrainingCheckbox).toBeChecked();
       expect(advancedTrainingCheckbox).toBeChecked();
     });
+
+    // Selected associations are also listed as removable chips
+    expect(screen.getByRole('button', { name: 'Remove community Community A' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove training Basic Training' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove training Advanced Training' })).toBeInTheDocument();
   });
 
-  it('should update birthing assistant successfully', async () => {
+  it('should update birthing assistant, sending only changed fields', async () => {
     const user = userEvent.setup();
     vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
-    vi.mocked(birthingAssistantsApi.updateBirthingAssistant).mockResolvedValue(mockBirthingAssistants[0]);
+    vi.mocked(birthingAssistantsApi.updateBirthingAssistant).mockResolvedValue(mockBirthingAssistants[0]!);
 
     renderWithProviders(<AdminBirthingAssistantsPage />);
 
@@ -307,7 +325,7 @@ describe('AdminBirthingAssistantsPage', () => {
 
     // Edit first birthing assistant
     const editButtons = screen.getAllByText('Edit');
-    fireEvent.click(editButtons[0]);
+    fireEvent.click(editButtons[0]!);
 
     await waitFor(() => {
       expect(screen.getByText('Edit Birthing Assistant')).toBeInTheDocument();
@@ -326,21 +344,18 @@ describe('AdminBirthingAssistantsPage', () => {
     fireEvent.click(screen.getByText('Update'));
 
     await waitFor(() => {
+      // trainingIds were untouched, so they are not resent (the server drops and
+      // recreates every junction row it receives)
       expect(birthingAssistantsApi.updateBirthingAssistant).toHaveBeenCalledWith(1, {
         name: 'Updated Name',
         communityIds: [1, 2], // A was already selected, B was toggled on
-        trainingIds: [1, 2], // Both trainings were pre-selected
       });
     });
   });
 
-  it('should delete birthing assistant when delete button clicked and confirmed', async () => {
-    // Mock window.confirm
-    const mockConfirm = vi.fn().mockReturnValue(true);
-    Object.defineProperty(window, 'confirm', { value: mockConfirm, writable: true, configurable: true });
-
+  it('should remove an individual association from the chip list', async () => {
     vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
-    vi.mocked(birthingAssistantsApi.deleteBirthingAssistant).mockResolvedValue(undefined as any);
+    vi.mocked(birthingAssistantsApi.updateBirthingAssistant).mockResolvedValue(mockBirthingAssistants[0]!);
 
     renderWithProviders(<AdminBirthingAssistantsPage />);
 
@@ -348,14 +363,187 @@ describe('AdminBirthingAssistantsPage', () => {
       expect(screen.getByText('Birthing Assistants (2)')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByText('Delete');
-    fireEvent.click(deleteButtons[0]);
-
-    expect(mockConfirm).toHaveBeenCalledWith('Are you sure you want to delete "Maria Santos"?');
+    fireEvent.click(screen.getAllByText('Edit')[0]!); // Maria Santos
 
     await waitFor(() => {
-      expect(birthingAssistantsApi.deleteBirthingAssistant).toHaveBeenCalledWith(1, expect.anything());
+      expect(screen.getByText('Selected: 2 trainings')).toBeInTheDocument();
     });
+
+    // Remove one training association, keep the other
+    fireEvent.click(screen.getByRole('button', { name: 'Remove training Basic Training' }));
+
+    expect(screen.getByText('Selected: 1 trainings')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Basic Training/ })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Advanced Training/ })).toBeChecked();
+
+    // Remove the only community association
+    fireEvent.click(screen.getByRole('button', { name: 'Remove community Community A' }));
+    expect(screen.getByText('Selected: 0 communities')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Update'));
+
+    await waitFor(() => {
+      expect(birthingAssistantsApi.updateBirthingAssistant).toHaveBeenCalledWith(1, {
+        communityIds: [],
+        trainingIds: [2],
+      });
+    });
+  });
+
+  it('should still allow removing an association whose lookup row was deleted', async () => {
+    // Community 2 no longer exists in the lookup list (soft-deleted), but the
+    // record still references it — it must remain visible and removable.
+    vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
+    vi.mocked(adminApi.fetchCommunities).mockResolvedValue([mockCommunities[0]!]);
+    vi.mocked(birthingAssistantsApi.updateBirthingAssistant).mockResolvedValue(mockBirthingAssistants[1]!);
+
+    renderWithProviders(<AdminBirthingAssistantsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Birthing Assistants (2)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByText('Edit')[1]!); // Ana Rodriguez, communities [1, 2]
+
+    await waitFor(() => {
+      expect(screen.getByText('Selected: 2 communities')).toBeInTheDocument();
+    });
+
+    const removeButton = screen.getByRole('button', { name: 'Remove community Community B' });
+    fireEvent.click(removeButton);
+
+    expect(screen.getByText('Selected: 1 communities')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Update'));
+
+    await waitFor(() => {
+      expect(birthingAssistantsApi.updateBirthingAssistant).toHaveBeenCalledWith(2, {
+        communityIds: [1],
+      });
+    });
+  });
+
+  it('should delete birthing assistant through the confirm dialog', async () => {
+    vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
+    vi.mocked(birthingAssistantsApi.deleteBirthingAssistant).mockResolvedValue(undefined);
+
+    renderWithProviders(<AdminBirthingAssistantsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Birthing Assistants (2)')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.click(getRowDeleteButtons()[0]!);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Delete birthing assistant')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Maria Santos/)).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(birthingAssistantsApi.deleteBirthingAssistant).toHaveBeenCalledWith(1);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should not delete when the confirm dialog is cancelled', async () => {
+    vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
+    vi.mocked(birthingAssistantsApi.deleteBirthingAssistant).mockResolvedValue(undefined);
+
+    renderWithProviders(<AdminBirthingAssistantsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Birthing Assistants (2)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getRowDeleteButtons()[0]!);
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(birthingAssistantsApi.deleteBirthingAssistant).not.toHaveBeenCalled();
+  });
+
+  it('should never call window.confirm', async () => {
+    const confirmSpy = vi.fn().mockReturnValue(true);
+    Object.defineProperty(window, 'confirm', {
+      value: confirmSpy,
+      writable: true,
+      configurable: true,
+    });
+
+    vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
+    vi.mocked(birthingAssistantsApi.deleteBirthingAssistant).mockResolvedValue(undefined);
+
+    renderWithProviders(<AdminBirthingAssistantsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Birthing Assistants (2)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getRowDeleteButtons()[0]!);
+    await screen.findByRole('dialog');
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it('should surface the server message when a delete is rejected', async () => {
+    vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
+    vi.mocked(birthingAssistantsApi.deleteBirthingAssistant).mockRejectedValue(
+      apiError('Birthing assistant not found')
+    );
+
+    renderWithProviders(<AdminBirthingAssistantsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Birthing Assistants (2)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getRowDeleteButtons()[0]!);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Birthing assistant not found')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('should surface the server message when an update is rejected', async () => {
+    const user = userEvent.setup();
+    vi.mocked(birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
+    vi.mocked(birthingAssistantsApi.updateBirthingAssistant).mockRejectedValue(
+      apiError('One or more communities not found')
+    );
+
+    renderWithProviders(<AdminBirthingAssistantsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Birthing Assistants (2)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByText('Edit')[0]!);
+    const nameInput = screen.getByDisplayValue('Maria Santos');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Another Name');
+    fireEvent.click(screen.getByText('Update'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Failed to update birthing assistant: One or more communities not found'
+        )
+      ).toBeInTheDocument();
+    });
+    // The form stays open so the edit is not lost
+    expect(screen.getByText('Edit Birthing Assistant')).toBeInTheDocument();
   });
 
   it('should cancel form when cancel button clicked', async () => {

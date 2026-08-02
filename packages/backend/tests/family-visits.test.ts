@@ -73,18 +73,46 @@ const testClient = {
     });
     return app.request(request);
   },
+
+  delete: async (path: string, accessToken?: string) => {
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    const request = new Request(`http://localhost${path}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return app.request(request);
+  },
 };
 
 describe('Family Visit Routes', () => {
   let user: any;
+  let supervisorUser: any;
+  let adminUser: any;
   let family: any;
   let accessToken: string;
+  let supervisorToken: string;
+  let adminToken: string;
 
   beforeEach(async () => {
-    // Create test user and family for each test
+    // Create test users and family for each test
     user = await createTestUser();
+    supervisorUser = await createTestUser({
+      login: 'supervisor',
+      email: 'supervisor@example.com',
+      role: 'SUPERVISOR',
+    });
+    adminUser = await createTestUser({
+      login: 'admin',
+      email: 'admin@example.com',
+      role: 'ADMIN',
+    });
     family = await createTestFamily({ familyName: 'Test Family' });
     accessToken = createTokens(user.id, user.role);
+    supervisorToken = createTokens(supervisorUser.id, supervisorUser.role);
+    adminToken = createTokens(adminUser.id, adminUser.role);
   });
 
   describe('GET /families/:familyId/visits', () => {
@@ -454,6 +482,239 @@ describe('Family Visit Routes', () => {
 
       const response = await testClient.put(`/families/${family.id}/visits/${visit.id}`, invalidData, accessToken);
       expect(response.status).toBe(400); // Zod validation error
+    });
+
+    // Regression: these columns were reachable through the schema but had no coverage,
+    // so nothing proved the service actually wrote them.
+    it('should update every mutable field in a single request', async () => {
+      const visit = await createTestFamilyVisit(family.id);
+      const updateData = {
+        visitDate: '2024-07-04T09:15:00.000Z',
+        trainingsReceived: [{ id: 1, title: 'Nutrition basics' }],
+        resourcesReceived: [
+          { id: 2, title: 'Water filter' },
+          { id: 3, title: 'Mosquito net' },
+        ],
+        questions: [{ questionId: 9, question: 'Clean water?', answer: 'Yes' }],
+        photos: [31, 32],
+        notes: 'Everything updated',
+        localId: '994c2844-264f-85b8-eb5a-88aa99884444',
+      };
+
+      const response = await testClient.put(`/families/${family.id}/visits/${visit.id}`, updateData, accessToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result).toMatchObject(updateData);
+
+      // Verify every field actually persisted, not just echoed back
+      const dbVisit = await testDb.familyVisit.findUnique({ where: { id: visit.id } });
+      expect(dbVisit?.visitDate.toISOString()).toBe(updateData.visitDate);
+      expect(dbVisit?.trainingsReceived).toEqual(updateData.trainingsReceived);
+      expect(dbVisit?.resourcesReceived).toEqual(updateData.resourcesReceived);
+      expect(dbVisit?.questions).toEqual(updateData.questions);
+      expect(dbVisit?.photos).toEqual(updateData.photos);
+      expect(dbVisit?.notes).toBe(updateData.notes);
+      expect(dbVisit?.localId).toBe(updateData.localId);
+    });
+
+    it('should clear the trainings, resources, questions and photos arrays', async () => {
+      const visit = await createTestFamilyVisit(family.id, {
+        trainingsReceived: [{ id: 1, title: 'Nutrition basics' }],
+        resourcesReceived: [{ id: 2, title: 'Water filter' }],
+        questions: [{ questionId: 9, question: 'Clean water?', answer: 'Yes' }],
+        photos: [31],
+      });
+
+      const updateData = {
+        trainingsReceived: [],
+        resourcesReceived: [],
+        questions: [],
+        photos: [],
+        notes: null,
+      };
+
+      const response = await testClient.put(`/families/${family.id}/visits/${visit.id}`, updateData, accessToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.trainingsReceived).toEqual([]);
+      expect(result.resourcesReceived).toEqual([]);
+      expect(result.questions).toEqual([]);
+      expect(result.photos).toEqual([]);
+      expect(result.notes).toBeNull();
+    });
+
+    it('should not reset untouched fields that have schema defaults', async () => {
+      const visit = await createTestFamilyVisit(family.id, {
+        trainingsReceived: [{ id: 1, title: 'Kept training' }],
+        resourcesReceived: [{ id: 2, title: 'Kept resource' }],
+        questions: [{ questionId: 9, question: 'Kept?', answer: 'Yes' }],
+        photos: [77],
+      });
+
+      const response = await testClient.put(`/families/${family.id}/visits/${visit.id}`, { notes: 'Only notes' }, accessToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.notes).toBe('Only notes');
+      expect(result.trainingsReceived).toEqual([{ id: 1, title: 'Kept training' }]);
+      expect(result.resourcesReceived).toEqual([{ id: 2, title: 'Kept resource' }]);
+      expect(result.questions).toEqual([{ questionId: 9, question: 'Kept?', answer: 'Yes' }]);
+      expect(result.photos).toEqual([77]);
+    });
+
+    it('should return 404 when updating a soft-deleted visit', async () => {
+      const visit = await createTestFamilyVisit(family.id);
+      await testDb.familyVisit.update({
+        where: { id: visit.id },
+        data: { deletedAt: new Date() },
+      });
+
+      const response = await testClient.put(`/families/${family.id}/visits/${visit.id}`, { notes: 'Nope' }, accessToken);
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('DELETE /families/:familyId/visits/:id', () => {
+    it('should soft delete visit for supervisor', async () => {
+      const visit = await createTestFamilyVisit(family.id);
+
+      const response = await testClient.delete(`/families/${family.id}/visits/${visit.id}`, supervisorToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.message).toContain('deleted successfully');
+
+      const dbVisit = await testDb.familyVisit.findUnique({
+        where: { id: visit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit?.deletedAt).toBeTruthy();
+    });
+
+    it('should soft delete visit for admin', async () => {
+      const visit = await createTestFamilyVisit(family.id);
+
+      const response = await testClient.delete(`/families/${family.id}/visits/${visit.id}`, adminToken);
+
+      expect(response.status).toBe(200);
+
+      const dbVisit = await testDb.familyVisit.findUnique({
+        where: { id: visit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit?.deletedAt).toBeTruthy();
+    });
+
+    it('should never hard delete the row', async () => {
+      const visit = await createTestFamilyVisit(family.id, { notes: 'Preserved notes' });
+
+      await testClient.delete(`/families/${family.id}/visits/${visit.id}`, supervisorToken);
+
+      const dbVisit = await testDb.familyVisit.findUnique({
+        where: { id: visit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit).not.toBeNull();
+      expect(dbVisit?.notes).toBe('Preserved notes');
+    });
+
+    it('should return 403 for caseworker users', async () => {
+      const visit = await createTestFamilyVisit(family.id);
+
+      const response = await testClient.delete(`/families/${family.id}/visits/${visit.id}`, accessToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(result.message).toContain('Access denied');
+
+      const dbVisit = await testDb.familyVisit.findUnique({
+        where: { id: visit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit?.deletedAt).toBeNull();
+    });
+
+    it('should return 401 without auth token', async () => {
+      const visit = await createTestFamilyVisit(family.id);
+
+      const response = await testClient.delete(`/families/${family.id}/visits/${visit.id}`);
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 404 for non-existent family visit', async () => {
+      const response = await testClient.delete(`/families/${family.id}/visits/99999`, supervisorToken);
+      const error = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(error.message).toBe('Family visit not found');
+    });
+
+    it('should return 404 on re-delete of an already deleted visit', async () => {
+      const visit = await createTestFamilyVisit(family.id);
+
+      const first = await testClient.delete(`/families/${family.id}/visits/${visit.id}`, supervisorToken);
+      expect(first.status).toBe(200);
+
+      const second = await testClient.delete(`/families/${family.id}/visits/${visit.id}`, supervisorToken);
+      const error = await second.json();
+
+      expect(second.status).toBe(404);
+      expect(error.message).toBe('Family visit not found');
+    });
+
+    it('should return 404 for a visit from a different family', async () => {
+      const otherFamily = await createTestFamily({ familyName: 'Other Family' });
+      const visit = await createTestFamilyVisit(otherFamily.id);
+
+      const response = await testClient.delete(`/families/${family.id}/visits/${visit.id}`, supervisorToken);
+
+      expect(response.status).toBe(404);
+
+      const dbVisit = await testDb.familyVisit.findUnique({
+        where: { id: visit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit?.deletedAt).toBeNull();
+    });
+
+    it('should return 404 for non-existent family', async () => {
+      const response = await testClient.delete('/families/99999/visits/1', supervisorToken);
+      const error = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(error.message).toBe('Family not found');
+    });
+
+    it('should exclude the deleted visit from the list', async () => {
+      const deletedVisit = await createTestFamilyVisit(family.id, {
+        visitDate: new Date('2024-01-15T10:00:00.000Z'),
+      });
+      const keptVisit = await createTestFamilyVisit(family.id, {
+        visitDate: new Date('2024-02-15T10:00:00.000Z'),
+      });
+
+      await testClient.delete(`/families/${family.id}/visits/${deletedVisit.id}`, supervisorToken);
+
+      const listResponse = await testClient.get(`/families/${family.id}/visits`, accessToken);
+      const visits = await listResponse.json();
+
+      expect(listResponse.status).toBe(200);
+      expect(visits).toHaveLength(1);
+      expect(visits[0].id).toBe(keptVisit.id);
+    });
+
+    it('should make the deleted visit unfetchable by id', async () => {
+      const visit = await createTestFamilyVisit(family.id);
+
+      await testClient.delete(`/families/${family.id}/visits/${visit.id}`, supervisorToken);
+
+      const response = await testClient.get(`/families/${family.id}/visits/${visit.id}`, accessToken);
+
+      expect(response.status).toBe(404);
     });
   });
 });

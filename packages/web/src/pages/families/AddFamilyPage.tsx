@@ -20,6 +20,7 @@ export const AddFamilyPage: React.FC = () => {
     communityId: null,
     siteId: null,
     birthingAssistantId: null,
+    photos: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 

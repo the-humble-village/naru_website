@@ -1,10 +1,11 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import ParentDetailPage from '../parents/ParentDetailPage';
 import { parentsApi } from '../../api/parents';
+import { visitsApi } from '../../api/visits';
 import { ParentRead } from '@naru/shared';
 
 // Mock the API module
@@ -12,7 +13,30 @@ vi.mock('../../api/parents', () => ({
   parentsApi: {
     fetchParent: vi.fn(),
     updateParent: vi.fn(),
+    deleteParent: vi.fn(),
   },
+}));
+
+vi.mock('../../api/visits', () => ({
+  visitsApi: {
+    listParentVisits: vi.fn(),
+  },
+}));
+
+const auth = vi.hoisted(() => ({
+  user: {
+    id: 1,
+    login: 'supervisor',
+    email: 'sup@test.com',
+    firstName: 'Sam',
+    lastName: 'Supervisor',
+    role: 'SUPERVISOR' as 'ADMIN' | 'SUPERVISOR' | 'CASEWORKER',
+    lang: 'en',
+  },
+}));
+
+vi.mock('../../store/auth', () => ({
+  useAuthStore: () => ({ user: auth.user }),
 }));
 
 const mockParent: ParentRead = {
@@ -45,6 +69,7 @@ const renderWithProviders = (component: React.ReactElement = <ParentDetailPage /
         <Routes>
           <Route path="/families/:id/parents/:pid" element={component} />
           <Route path="/families/invalid/parents/invalid" element={component} />
+          <Route path="/families/:id" element={<div>Family Detail Page</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -54,6 +79,13 @@ const renderWithProviders = (component: React.ReactElement = <ParentDetailPage /
 describe('ParentDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    auth.user.role = 'SUPERVISOR';
+    vi.mocked(visitsApi.listParentVisits).mockResolvedValue({
+      visits: [],
+      total: 0,
+      skip: 0,
+      limit: 50,
+    });
   });
 
   describe('Loading and Error States', () => {
@@ -368,6 +400,94 @@ describe('ParentDetailPage', () => {
       await waitFor(() => {
         const backLink = screen.getByText('← Back to Family');
         expect(backLink.closest('a')).toHaveAttribute('href', '/families/123');
+      });
+    });
+  });
+
+  describe('Delete Functionality', () => {
+    beforeEach(() => {
+      vi.mocked(parentsApi.fetchParent).mockResolvedValue(mockParent);
+    });
+
+    const openDialog = async () => {
+      renderWithProviders();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+      return screen.getByRole('dialog');
+    };
+
+    it('should show a Delete button for a supervisor', async () => {
+      renderWithProviders();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+      });
+    });
+
+    it('should hide the Delete button from a caseworker', async () => {
+      auth.user.role = 'CASEWORKER';
+
+      renderWithProviders();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Maria Rodriguez' })).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    });
+
+    it('should open the confirm dialog instead of deleting immediately', async () => {
+      const dialog = await openDialog();
+
+      expect(within(dialog).getByText('Delete parent')).toBeInTheDocument();
+      expect(parentsApi.deleteParent).not.toHaveBeenCalled();
+    });
+
+    it('should not use window.confirm', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      await openDialog();
+
+      expect(confirmSpy).not.toHaveBeenCalled();
+      confirmSpy.mockRestore();
+    });
+
+    it('should close the dialog without deleting when Cancel is clicked', async () => {
+      const dialog = await openDialog();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(parentsApi.deleteParent).not.toHaveBeenCalled();
+    });
+
+    it('should delete the parent and navigate back to the family page on confirm', async () => {
+      vi.mocked(parentsApi.deleteParent).mockResolvedValue(undefined);
+
+      const dialog = await openDialog();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() => {
+        expect(parentsApi.deleteParent).toHaveBeenCalledWith(123, 1);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Family Detail Page')).toBeInTheDocument();
+      });
+    });
+
+    it('should show an error message when the delete fails', async () => {
+      vi.mocked(parentsApi.deleteParent).mockRejectedValue(new Error('Delete failed'));
+
+      const dialog = await openDialog();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Error deleting parent: Delete failed/)).toBeInTheDocument();
       });
     });
   });

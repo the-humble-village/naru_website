@@ -31,7 +31,13 @@ export const FamilyVisitCreateSchema = z.object({
   localId: z.string().uuid().optional(), // Set by client for offline-created records
 });
 
-// Family visit update schema (partial fields for updates)
+// Family visit update schema (partial fields for updates).
+//
+// Derived from the create schema so it stays exhaustive: every mutable FamilyVisit column
+// is updatable, including the inline `trainingsReceived`, `resourcesReceived`, `questions`
+// answer and `photos` arrays. `.partial()` wraps each field in ZodOptional *around* its
+// ZodDefault, so an omitted field parses to `undefined` rather than to its default — a
+// partial update never silently resets untouched columns. Routes omit familyId.
 export const FamilyVisitUpdateSchema = FamilyVisitCreateSchema.partial();
 
 // Family visit read schema (what's returned from API - never includes deletedAt)

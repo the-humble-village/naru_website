@@ -1,9 +1,21 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { promises as fs } from 'fs';
+import path from 'path';
 import jwt from 'jsonwebtoken';
-import { testDb, createTestUser, generateTokens } from './setup';
+import {
+  testDb,
+  createTestUser,
+  createTestFamily,
+  createTestParent,
+  createTestChild,
+  createTestChildVisit,
+  createTestFamilyVisit,
+  generateTokens,
+} from './setup';
 import { appConfig } from '../src/config';
+import { LocalStorage, LOCAL_STORAGE_DIR, writeLocalFile } from '../src/storage/local';
 
 // Mock the storage driver before importing routes/services so tests exercise
 // the file flow without touching S3 or the local filesystem.
@@ -59,6 +71,17 @@ const testClient = {
       method: 'POST',
       headers,
       body: body ? JSON.stringify(body) : undefined,
+    });
+    return app.request(request);
+  },
+  delete: async (path: string, accessToken?: string) => {
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    const request = new Request(`http://localhost${path}`, {
+      method: 'DELETE',
+      headers,
     });
     return app.request(request);
   },
@@ -368,6 +391,230 @@ describe('File Routes', () => {
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.message).toBe('Invalid file ID');
+    });
+  });
+
+  describe('DELETE /files/:id', () => {
+    it('should soft-delete the row rather than removing it', async () => {
+      const file = await createTestFile();
+
+      const response = await testClient.delete(`/files/${file.id}`, testToken);
+      expect(response.status).toBe(200);
+
+      // `includeDeleted` opts out of the soft-delete extension — the whole point
+      // of this assertion is that the row survived the delete.
+      const dbFile = await testDb.file.findUnique({
+        where: { id: file.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbFile).toBeTruthy();
+      expect(dbFile?.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it('should remove the object from the backing store', async () => {
+      const file = await createTestFile();
+
+      await testClient.delete(`/files/${file.id}`, testToken);
+
+      expect(mockStorage.delete).toHaveBeenCalledWith(file.s3Key);
+    });
+
+    it('should hide a deleted file from GET /:id and presign-download', async () => {
+      const file = await createTestFile();
+
+      await testClient.delete(`/files/${file.id}`, testToken);
+
+      const getResponse = await testClient.get(`/files/${file.id}`, testToken);
+      expect(getResponse.status).toBe(404);
+
+      const downloadResponse = await testClient.post('/files/presign-download', {
+        fileIds: [file.id],
+      }, testToken);
+      expect(downloadResponse.status).toBe(200);
+      expect((await downloadResponse.json()).urls).toHaveLength(0);
+    });
+
+    it('should detach the file from every referencing record', async () => {
+      const file = await createTestFile();
+      const other = await createTestFile();
+
+      const family = await createTestFamily({ photos: [file.id, other.id] });
+      const parent = await createTestParent(family.id, 'Photo Parent', 'mother', {
+        photos: [file.id],
+      });
+      const child = await createTestChild(family.id, 'Photo Child', {
+        photos: [other.id, file.id],
+      });
+      const childVisit = await createTestChildVisit(family.id, child.id, {
+        photos: [file.id],
+      });
+      const familyVisit = await createTestFamilyVisit(family.id, { photos: [file.id] });
+      const parentVisit = await testDb.parentVisit.create({
+        data: {
+          familyId: family.id,
+          parentId: parent.id,
+          visitDate: new Date('2024-02-01T10:00:00.000Z'),
+          photos: [file.id],
+        },
+      });
+
+      const response = await testClient.delete(`/files/${file.id}`, testToken);
+      expect(response.status).toBe(200);
+
+      // The deleted id is gone everywhere; unrelated ids survive.
+      expect((await testDb.family.findUnique({ where: { id: family.id } }))?.photos)
+        .toEqual([other.id]);
+      expect((await testDb.parent.findUnique({ where: { id: parent.id } }))?.photos)
+        .toEqual([]);
+      expect((await testDb.child.findUnique({ where: { id: child.id } }))?.photos)
+        .toEqual([other.id]);
+      expect((await testDb.childVisit.findUnique({ where: { id: childVisit.id } }))?.photos)
+        .toEqual([]);
+      expect((await testDb.familyVisit.findUnique({ where: { id: familyVisit.id } }))?.photos)
+        .toEqual([]);
+      expect((await testDb.parentVisit.findUnique({ where: { id: parentVisit.id } }))?.photos)
+        .toEqual([]);
+
+      // The other file is untouched.
+      const otherFile = await testDb.file.findUnique({ where: { id: other.id } });
+      expect(otherFile?.deletedAt).toBeNull();
+    });
+
+    it('should leave records that never referenced the file alone', async () => {
+      const file = await createTestFile();
+      const other = await createTestFile();
+      const family = await createTestFamily({ photos: [other.id] });
+
+      await testClient.delete(`/files/${file.id}`, testToken);
+
+      expect((await testDb.family.findUnique({ where: { id: family.id } }))?.photos)
+        .toEqual([other.id]);
+    });
+
+    it('should succeed when the storage object is already gone', async () => {
+      const file = await createTestFile();
+
+      // Both plausible shapes of "already gone": a silent no-op...
+      mockStorage.delete.mockResolvedValueOnce(undefined);
+
+      const response = await testClient.delete(`/files/${file.id}`, testToken);
+      expect(response.status).toBe(200);
+      expect((await testDb.file.findUnique({
+        where: { id: file.id },
+        includeDeleted: true,
+      } as any))?.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it('should still soft-delete the row when the storage delete throws', async () => {
+      const file = await createTestFile();
+
+      // ...and a driver that surfaces the failure. Neither may 500 the request.
+      mockStorage.delete.mockRejectedValueOnce(new Error('S3 is down'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const response = await testClient.delete(`/files/${file.id}`, testToken);
+      expect(response.status).toBe(200);
+
+      const dbFile = await testDb.file.findUnique({
+        where: { id: file.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbFile?.deletedAt).toBeInstanceOf(Date);
+      expect(consoleError).toHaveBeenCalled();
+
+      consoleError.mockRestore();
+    });
+
+    it('should return 404 for a non-existent file', async () => {
+      const response = await testClient.delete('/files/99999', testToken);
+
+      expect(response.status).toBe(404);
+      expect((await response.json()).message).toBe('File not found');
+      expect(mockStorage.delete).not.toHaveBeenCalled();
+    });
+
+    it('should return 404 when deleting an already-deleted file', async () => {
+      const file = await createTestFile();
+
+      expect((await testClient.delete(`/files/${file.id}`, testToken)).status).toBe(200);
+      expect((await testClient.delete(`/files/${file.id}`, testToken)).status).toBe(404);
+    });
+
+    it('should return 400 for an invalid file ID', async () => {
+      const response = await testClient.delete('/files/invalid', testToken);
+
+      expect(response.status).toBe(400);
+      expect((await response.json()).message).toBe('Invalid file ID');
+    });
+
+    it('should return 401 without an auth token', async () => {
+      const file = await createTestFile();
+
+      const response = await testClient.delete(`/files/${file.id}`);
+      expect(response.status).toBe(401);
+
+      const dbFile = await testDb.file.findUnique({ where: { id: file.id } });
+      expect(dbFile?.deletedAt).toBeNull();
+    });
+
+    it('should be allowed for supervisors and admins as well as caseworkers', async () => {
+      for (const role of ['SUPERVISOR', 'ADMIN'] as const) {
+        const user = await createTestUser({
+          login: `${role.toLowerCase()}-deleter`,
+          email: `${role.toLowerCase()}@example.com`,
+          role,
+        });
+        const file = await createTestFile();
+
+        const response = await testClient.delete(
+          `/files/${file.id}`,
+          generateTokens(user).accessToken
+        );
+        expect(response.status).toBe(200);
+      }
+    });
+  });
+
+  // Exercises the real LocalStorage driver (the mock above is bypassed) to prove the
+  // bytes actually leave the disk, not just that delete() was called.
+  describe('DELETE /files/:id — real local storage', () => {
+    const localStorage = new LocalStorage();
+
+    afterAll(async () => {
+      await fs.rm(path.join(LOCAL_STORAGE_DIR, 'uploads/2026/08/01'), {
+        recursive: true,
+        force: true,
+      });
+    });
+
+    beforeEach(() => {
+      mockStorage.delete.mockImplementation((key: string) => localStorage.delete(key));
+    });
+
+    it('should remove the file from disk', async () => {
+      const s3Key = `uploads/2026/08/01/delete-me-${Date.now()}.jpg`;
+      await writeLocalFile(s3Key, Buffer.from('photo-bytes'));
+      expect(await localStorage.exists(s3Key)).toBe(true);
+
+      const file = await createTestFile({ s3Key });
+
+      const response = await testClient.delete(`/files/${file.id}`, testToken);
+      expect(response.status).toBe(200);
+      expect(await localStorage.exists(s3Key)).toBe(false);
+    });
+
+    it('should succeed when the file is already missing from disk', async () => {
+      const s3Key = `uploads/2026/08/01/never-written-${Date.now()}.jpg`;
+      expect(await localStorage.exists(s3Key)).toBe(false);
+
+      const file = await createTestFile({ s3Key });
+
+      const response = await testClient.delete(`/files/${file.id}`, testToken);
+      expect(response.status).toBe(200);
+      expect((await testDb.file.findUnique({
+        where: { id: file.id },
+        includeDeleted: true,
+      } as any))?.deletedAt).toBeInstanceOf(Date);
     });
   });
 });

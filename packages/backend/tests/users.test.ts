@@ -4,6 +4,8 @@ import { HTTPException } from 'hono/http-exception';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import userRoutes from '../src/routes/users';
+import * as userService from '../src/services/user.service';
+import * as authService from '../src/services/auth.service';
 import { testDb } from './setup';
 import { appConfig } from '../src/config';
 
@@ -87,7 +89,23 @@ const testClient = {
     });
     return app.request(request);
   },
+  delete: async (path: string, token?: string) => {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const request = new Request(`http://localhost${path}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return app.request(request);
+  },
 };
+
+// Reads a user row bypassing the soft-delete extension, so tests can assert the
+// row still exists and only carries a deletedAt stamp.
+const findRowIncludingDeleted = async (id: number) =>
+  testDb.user.findFirst({ where: { id }, includeDeleted: true });
 
 describe('User Routes', () => {
   let adminUser: any;
@@ -430,6 +448,313 @@ describe('User Routes', () => {
         password: 'password123',
       }, caseworkerToken);
       expect(response.status).toBe(403);
+    });
+
+    it('should return 400 when the login belongs to a soft-deleted user', async () => {
+      await testClient.delete(`/users/${caseworkerUser.id}`, adminToken);
+
+      const response = await testClient.post('/users', {
+        login: 'caseworker',
+        password: 'password123',
+      }, adminToken);
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('PUT /users/:id — role editing and password reset', () => {
+    it('should let an admin edit every mutable field including role', async () => {
+      const updateData = {
+        login: 'promoted',
+        email: 'promoted@example.com',
+        firstName: 'Pro',
+        lastName: 'Moted',
+        role: 'ADMIN',
+        lang: 'es',
+      };
+
+      const response = await testClient.put(`/users/${caseworkerUser.id}`, updateData, adminToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result).toMatchObject(updateData);
+      expect(result.passwordHash).toBeUndefined();
+      expect(result.deletedAt).toBeUndefined();
+    });
+
+    it('should reset a password via PUT and never echo it back', async () => {
+      const response = await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { password: 'brand-new-password' },
+        adminToken
+      );
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.passwordHash).toBeUndefined();
+      expect(result.password).toBeUndefined();
+      expect(result.deletedAt).toBeUndefined();
+
+      const dbUser = await testDb.user.findUnique({ where: { id: caseworkerUser.id } });
+      expect(await bcrypt.compare('brand-new-password', dbUser!.passwordHash)).toBe(true);
+      expect(await bcrypt.compare('password123', dbUser!.passwordHash)).toBe(false);
+    });
+
+    it('should reject a password shorter than 6 characters', async () => {
+      const response = await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { password: '12345' },
+        adminToken
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 when an admin demotes themselves out of ADMIN', async () => {
+      // A second admin exists, so this can only be blocked by the self-guard
+      await testDb.user.create({
+        data: {
+          login: 'admin2',
+          passwordHash: await bcrypt.hash('password123', 10),
+          role: 'ADMIN',
+          lang: 'en',
+        },
+      });
+
+      const response = await testClient.put(
+        `/users/${adminUser.id}`,
+        { role: 'CASEWORKER' },
+        adminToken
+      );
+      const result = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(result.message).toMatch(/own role/i);
+
+      const dbUser = await testDb.user.findUnique({ where: { id: adminUser.id } });
+      expect(dbUser?.role).toBe('ADMIN');
+    });
+
+    it('should allow an admin to update their own non-role fields', async () => {
+      const response = await testClient.put(
+        `/users/${adminUser.id}`,
+        { firstName: 'Still', role: 'ADMIN' },
+        adminToken
+      );
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.firstName).toBe('Still');
+      expect(result.role).toBe('ADMIN');
+    });
+
+    it('should let one admin demote another admin while admins remain', async () => {
+      const admin2 = await testDb.user.create({
+        data: {
+          login: 'admin2',
+          passwordHash: await bcrypt.hash('password123', 10),
+          role: 'ADMIN',
+          lang: 'en',
+        },
+      });
+
+      const response = await testClient.put(`/users/${admin2.id}`, { role: 'SUPERVISOR' }, adminToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.role).toBe('SUPERVISOR');
+    });
+
+    it('should refuse to demote the last remaining admin', async () => {
+      // Guarded at the service layer: through the route the acting admin is
+      // always an active admin, so the target can never be the last one.
+      await expect(
+        userService.updateUser(adminUser.id, { role: 'CASEWORKER' }, caseworkerUser.id)
+      ).rejects.toMatchObject({ status: 400 });
+
+      const dbUser = await testDb.user.findUnique({ where: { id: adminUser.id } });
+      expect(dbUser?.role).toBe('ADMIN');
+    });
+
+    it('should return 404 when updating a soft-deleted user', async () => {
+      await testClient.delete(`/users/${caseworkerUser.id}`, adminToken);
+
+      const response = await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { firstName: 'Resurrected' },
+        adminToken
+      );
+      expect(response.status).toBe(404);
+
+      const row = await findRowIncludingDeleted(caseworkerUser.id);
+      expect(row?.firstName).toBe('Case');
+    });
+  });
+
+  describe('POST /users/:id/password', () => {
+    it('should reset another user password for admin', async () => {
+      const response = await testClient.post(
+        `/users/${caseworkerUser.id}/password`,
+        { password: 'reset-password-1' },
+        adminToken
+      );
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.id).toBe(caseworkerUser.id);
+      expect(result.passwordHash).toBeUndefined();
+      expect(result.deletedAt).toBeUndefined();
+
+      const dbUser = await testDb.user.findUnique({ where: { id: caseworkerUser.id } });
+      expect(await bcrypt.compare('reset-password-1', dbUser!.passwordHash)).toBe(true);
+
+      // The new password actually works for login
+      const authResult = await authService.login({
+        login: 'caseworker',
+        password: 'reset-password-1',
+      });
+      expect(authResult.user.id).toBe(caseworkerUser.id);
+    });
+
+    it('should validate the minimum password length', async () => {
+      const response = await testClient.post(
+        `/users/${caseworkerUser.id}/password`,
+        { password: 'abc' },
+        adminToken
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 404 for a non-existent user', async () => {
+      const response = await testClient.post('/users/99999/password', { password: 'password123' }, adminToken);
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 403 for non-admin users', async () => {
+      const response = await testClient.post(
+        `/users/${caseworkerUser.id}/password`,
+        { password: 'password123' },
+        supervisorToken
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 401 for unauthenticated requests', async () => {
+      const response = await testClient.post(`/users/${caseworkerUser.id}/password`, {
+        password: 'password123',
+      });
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('DELETE /users/:id', () => {
+    it('should soft-delete a user for admin', async () => {
+      const response = await testClient.delete(`/users/${caseworkerUser.id}`, adminToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.message).toBeDefined();
+      expect(result.passwordHash).toBeUndefined();
+      expect(result.deletedAt).toBeUndefined();
+
+      // Row is still present, just stamped — never hard-deleted
+      const row = await findRowIncludingDeleted(caseworkerUser.id);
+      expect(row).toBeTruthy();
+      expect(row?.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it('should exclude a soft-deleted user from GET /users and GET /users/:id', async () => {
+      await testClient.delete(`/users/${caseworkerUser.id}`, adminToken);
+
+      const listResponse = await testClient.get('/users', adminToken);
+      const list = await listResponse.json();
+      expect(list.users.some((u: any) => u.id === caseworkerUser.id)).toBe(false);
+      expect(list.users.some((u: any) => u.login === 'caseworker')).toBe(false);
+      expect(list.total).toBe(2);
+
+      const getResponse = await testClient.get(`/users/${caseworkerUser.id}`, adminToken);
+      expect(getResponse.status).toBe(404);
+    });
+
+    it('should prevent a soft-deleted user from logging in', async () => {
+      // Sanity check: login works before the delete
+      const before = await authService.login({ login: 'caseworker', password: 'password123' });
+      expect(before.user.id).toBe(caseworkerUser.id);
+
+      await testClient.delete(`/users/${caseworkerUser.id}`, adminToken);
+
+      await expect(
+        authService.login({ login: 'caseworker', password: 'password123' })
+      ).rejects.toMatchObject({ status: 401 });
+    });
+
+    it('should reject an admin deleting their own account', async () => {
+      const response = await testClient.delete(`/users/${adminUser.id}`, adminToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(result.message).toMatch(/own account/i);
+
+      const row = await findRowIncludingDeleted(adminUser.id);
+      expect(row?.deletedAt).toBeNull();
+    });
+
+    it('should refuse to delete the last remaining admin', async () => {
+      // Guarded at the service layer: through the route the acting admin is
+      // always an active admin, so the target can never be the last one.
+      await expect(
+        userService.deleteUser(adminUser.id, caseworkerUser.id)
+      ).rejects.toMatchObject({ status: 400 });
+
+      const row = await findRowIncludingDeleted(adminUser.id);
+      expect(row?.deletedAt).toBeNull();
+    });
+
+    it('should allow deleting an admin while another admin remains', async () => {
+      const admin2 = await testDb.user.create({
+        data: {
+          login: 'admin2',
+          passwordHash: await bcrypt.hash('password123', 10),
+          role: 'ADMIN',
+          lang: 'en',
+        },
+      });
+
+      const response = await testClient.delete(`/users/${admin2.id}`, adminToken);
+      expect(response.status).toBe(200);
+
+      const row = await findRowIncludingDeleted(admin2.id);
+      expect(row?.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it('should return 404 for a non-existent user', async () => {
+      const response = await testClient.delete('/users/99999', adminToken);
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 for an already-deleted user', async () => {
+      const first = await testClient.delete(`/users/${caseworkerUser.id}`, adminToken);
+      expect(first.status).toBe(200);
+
+      const second = await testClient.delete(`/users/${caseworkerUser.id}`, adminToken);
+      expect(second.status).toBe(404);
+    });
+
+    it('should return 403 for supervisor users', async () => {
+      const response = await testClient.delete(`/users/${caseworkerUser.id}`, supervisorToken);
+      expect(response.status).toBe(403);
+
+      const row = await findRowIncludingDeleted(caseworkerUser.id);
+      expect(row?.deletedAt).toBeNull();
+    });
+
+    it('should return 403 for caseworker users', async () => {
+      const response = await testClient.delete(`/users/${supervisorUser.id}`, caseworkerToken);
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 401 for unauthenticated requests', async () => {
+      const response = await testClient.delete(`/users/${caseworkerUser.id}`);
+      expect(response.status).toBe(401);
     });
   });
 });

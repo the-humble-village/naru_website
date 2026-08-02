@@ -105,4 +105,25 @@ app.get('/:id', auth, async (c) => {
   return c.json(file);
 });
 
+/**
+ * DELETE /files/:id
+ * Soft-delete a file, detach it from every record that references it, and remove
+ * the underlying storage object.
+ *
+ * Gating is `auth` only, deliberately mirroring POST /presign-upload: photo upload
+ * is open to every authenticated role, so photo removal is too (SUPERVISOR/ADMIN
+ * are included by the hierarchy). Tightening this would strand caseworkers with
+ * photos they can attach but never remove.
+ */
+app.delete('/:id', auth, async (c) => {
+  const id = parseInt(c.req.param('id') || '');
+
+  if (isNaN(id)) {
+    throw new HTTPException(400, { message: 'Invalid file ID' });
+  }
+
+  await fileService.deleteFile(id);
+  return c.json({ message: 'File deleted successfully' });
+});
+
 export default app;

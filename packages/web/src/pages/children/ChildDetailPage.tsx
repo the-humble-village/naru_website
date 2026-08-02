@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
@@ -8,8 +8,9 @@ import { childrenApi } from '../../api/children';
 import { visitsApi } from '../../api/visits';
 import { ChildRead, ChildVisitRead, ChildUpdate, Sex } from '@naru/shared';
 import ZScoreBadge from '../../components/ZScoreBadge';
-import { PhotoGallery } from '../../components';
-import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { PhotoGallery, PhotoUpload, ConfirmDialog, RoleGate } from '../../components';
+import { usePendingPhotoDeletions } from '../../hooks';
+import { Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 
 interface ChildEditForm {
   name: string;
@@ -20,6 +21,7 @@ interface ChildEditForm {
   nutritionalState: string;
   reasonEnrollment: string;
   observations: string;
+  photos: number[];
 }
 
 interface ChildWithZScores extends ChildRead {
@@ -31,6 +33,7 @@ interface ChildWithZScores extends ChildRead {
 
 export const ChildDetailPage: React.FC = () => {
   const { id: familyId, cid: childId } = useParams<{ id: string; cid: string }>();
+  const navigate = useNavigate();
 
   const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
   const childIdNum  = childId  ? parseInt(childId,  10) : 0;
@@ -45,7 +48,7 @@ export const ChildDetailPage: React.FC = () => {
     queryKey: ['child-visits', familyIdNum, childIdNum],
     queryFn: async () => {
       const res = await visitsApi.listChildVisits(familyIdNum, childIdNum, { limit: 50 });
-      return Array.isArray(res) ? res : (res as any).visits ?? [];
+      return res?.visits ?? [];
     },
     enabled: familyIdNum > 0 && childIdNum > 0,
   });
@@ -53,8 +56,12 @@ export const ChildDetailPage: React.FC = () => {
   const [expandedVisitId, setExpandedVisitId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<ChildEditForm | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const queryClient = useQueryClient();
+  // Photo removals are staged until save so Cancel can undo them.
+  const photoDeletions = usePendingPhotoDeletions();
+
   const updateChildMutation = useMutation({
     mutationFn: (data: ChildUpdate) => childrenApi.updateChild(familyIdNum, childIdNum, data),
     onSuccess: () => {
@@ -62,6 +69,22 @@ export const ChildDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['children', familyIdNum] });
       setIsEditing(false);
       setEditData(null);
+      // The record saved without these photos, so it is now safe to delete the
+      // files. Staged until here so cancelling the edit could undo the removal.
+      void photoDeletions.commit();
+    },
+  });
+
+  const deleteChildMutation = useMutation({
+    mutationFn: () => childrenApi.deleteChild(familyIdNum, childIdNum),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['children', familyIdNum] });
+      queryClient.invalidateQueries({ queryKey: ['family', familyIdNum] });
+      queryClient.invalidateQueries({ queryKey: ['child-visits', familyIdNum, childIdNum] });
+      queryClient.removeQueries({ queryKey: ['child', familyIdNum, childIdNum] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      setConfirmDeleteOpen(false);
+      navigate(`/families/${familyIdNum}`);
     },
   });
 
@@ -71,16 +94,18 @@ export const ChildDetailPage: React.FC = () => {
       name: child.name || '',
       sex: child.sex,
       weight: child.weight ?? 0,
-      birthDate: child.birthDate ? child.birthDate.split('T')[0] : '',
-      dateEntered: child.dateEntered ? child.dateEntered.split('T')[0] : '',
+      birthDate: child.birthDate?.split('T')[0] ?? '',
+      dateEntered: child.dateEntered?.split('T')[0] ?? '',
       nutritionalState: child.nutritionalState || '',
       reasonEnrollment: child.reasonEnrollment || '',
       observations: child.observations || '',
+      photos: child.photos ?? [],
     });
     setIsEditing(true);
   };
 
   const handleCancel = () => {
+    photoDeletions.discard();
     setIsEditing(false);
     setEditData(null);
   };
@@ -110,6 +135,11 @@ export const ChildDetailPage: React.FC = () => {
     }
     if (editData.observations !== (child.observations || '')) {
       dataToSave.observations = editData.observations || null;
+    }
+
+    const currentPhotos = child.photos ?? [];
+    if (JSON.stringify(editData.photos) !== JSON.stringify(currentPhotos)) {
+      dataToSave.photos = editData.photos;
     }
 
     updateChildMutation.mutate(dataToSave);
@@ -180,8 +210,40 @@ export const ChildDetailPage: React.FC = () => {
             <Plus size={14} />
             Add Visit
           </Link>
+          <RoleGate requiredRole="SUPERVISOR">
+            <button
+              onClick={() => setConfirmDeleteOpen(true)}
+              disabled={deleteChildMutation.isPending}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-red-200 rounded-md text-hv-crisis hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={13} />
+              Delete
+            </button>
+          </RoleGate>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete child"
+        message={`Delete ${child.name || 'this child'}? This also hides their visit history from the app.`}
+        warning={
+          sortedVisits.length > 0
+            ? `This child has ${sortedVisits.length} recorded visit${sortedVisits.length !== 1 ? 's' : ''}.`
+            : undefined
+        }
+        busy={deleteChildMutation.isPending}
+        onConfirm={() => deleteChildMutation.mutate()}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
+
+      {deleteChildMutation.isError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5">
+          <p className="text-hv-crisis text-sm">
+            Error deleting child: {deleteChildMutation.error instanceof Error ? deleteChildMutation.error.message : 'Unknown error'}
+          </p>
+        </div>
+      )}
 
       {/* Edit form */}
       {isEditing && editData ? (
@@ -290,6 +352,12 @@ export const ChildDetailPage: React.FC = () => {
               />
             </div>
 
+            <PhotoUpload
+              photos={editData.photos}
+              onChange={(photos) => setEditData({ ...editData, photos })}
+              pendingDeletions={photoDeletions}
+            />
+
             <div className="flex gap-2 pt-2">
               <button
                 onClick={handleSave}
@@ -367,8 +435,8 @@ export const ChildDetailPage: React.FC = () => {
       </div>
       )}
 
-      {/* Photos */}
-      {child.photos && child.photos.length > 0 && (
+      {/* Photos (read-only; while editing they are managed by PhotoUpload above) */}
+      {!isEditing && child.photos && child.photos.length > 0 && (
         <div className="bg-white rounded-xl border border-hv-border p-4 mb-5">
           <PhotoGallery photos={child.photos} />
         </div>
@@ -408,7 +476,7 @@ export const ChildDetailPage: React.FC = () => {
                         <YAxis tick={{ fontSize: 9, fill: '#7A8B76' }} axisLine={false} tickLine={false} />
                         <Tooltip
                           contentStyle={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 11 }}
-                          formatter={(val: number) => [val, label]}
+                          formatter={(val) => [String(val), label]}
                         />
                         {refLine && (
                           <ReferenceLine y={refLine} stroke="#c0392b" strokeDasharray="4 2"
@@ -440,10 +508,12 @@ export const ChildDetailPage: React.FC = () => {
                     const extras: { label: string; value: React.ReactNode }[] = [
                       { label: 'INCAP',             value: visit.incap            ? 'Yes' : 'No' },
                       { label: 'Leche',             value: visit.leche            ? 'Yes' : 'No' },
-                      { label: 'Bags Given',        value: visit.bagsGiven ?? '—' },
-                      { label: 'Received Medicine', value: visit.recvAnyMedicine  ? 'Yes' : 'No' },
-                      { label: 'Left Program',      value: visit.leftFromProg     ? 'Yes' : 'No' },
-                      { label: 'Passed Away',       value: visit.passedAway       ? 'Yes' : 'No' },
+                      // bagsGiven / recvAnyMedicine / leftFromProg / passedAway are free-text
+                      // columns, not booleans — render the recorded text.
+                      { label: 'Bags Given',        value: visit.bagsGiven        || '—' },
+                      { label: 'Received Medicine', value: visit.recvAnyMedicine  || '—' },
+                      { label: 'Left Program',      value: visit.leftFromProg     || '—' },
+                      { label: 'Passed Away',       value: visit.passedAway       || '—' },
                     ];
                     return (
                       <React.Fragment key={visit.id}>
@@ -475,11 +545,17 @@ export const ChildDetailPage: React.FC = () => {
                                 ))}
                               </div>
                               {visit.notes && (
-                                <div>
+                                <div className="mb-3">
                                   <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Notes</div>
                                   <div className="text-sm text-hv-charcoal">{visit.notes}</div>
                                 </div>
                               )}
+                              <Link
+                                to={`/families/${familyId}/children/${childId}/visits/${visit.id}`}
+                                className="text-xs text-hv-terracotta hover:underline transition-colors"
+                              >
+                                Open visit →
+                              </Link>
                             </td>
                           </tr>
                         )}

@@ -4,6 +4,8 @@ import {
   type SyncResponse,
   type SyncResult,
   type SyncChange,
+  type SyncTombstone,
+  type SyncDeletableEntity,
   type UserRead,
   type FamilyCreate,
   type ParentCreate,
@@ -327,6 +329,70 @@ async function createRecord(entity: string, data: any, tx: any): Promise<number>
 }
 
 /**
+ * Every model a client caches locally that can be soft-deleted on the server.
+ *
+ * `hasLocalId` marks the models a client can create offline; for those, the
+ * tombstone carries the localId so a client can match a record it has not yet
+ * learned the server id for.
+ */
+const TOMBSTONE_SOURCES: ReadonlyArray<{
+  entity: SyncDeletableEntity;
+  delegate: { findMany: (args: unknown) => Promise<unknown[]> };
+  hasLocalId: boolean;
+}> = [
+  { entity: 'family', delegate: prisma.family, hasLocalId: true },
+  { entity: 'parent', delegate: prisma.parent, hasLocalId: true },
+  { entity: 'child', delegate: prisma.child, hasLocalId: true },
+  { entity: 'childVisit', delegate: prisma.childVisit, hasLocalId: true },
+  { entity: 'familyVisit', delegate: prisma.familyVisit, hasLocalId: true },
+  { entity: 'birthingAssistant', delegate: prisma.birthingAssistant, hasLocalId: true },
+  { entity: 'community', delegate: prisma.community, hasLocalId: false },
+  { entity: 'site', delegate: prisma.site, hasLocalId: false },
+  { entity: 'resource', delegate: prisma.resource, hasLocalId: false },
+  { entity: 'training', delegate: prisma.training, hasLocalId: false },
+  { entity: 'childVisitQuestion', delegate: prisma.childVisitQuestion, hasLocalId: false },
+  { entity: 'parentVisitQuestion', delegate: prisma.parentVisitQuestion, hasLocalId: false },
+  { entity: 'familyVisitQuestion', delegate: prisma.familyVisitQuestion, hasLocalId: false },
+];
+
+/**
+ * Collect tombstones for records soft-deleted since the client's last sync.
+ *
+ * Soft-deleted rows are filtered out of every array in serverChanges (the
+ * soft-delete extension injects `deletedAt: null`), so a deletion is invisible
+ * to a client that only ever sees the delta — it would keep the record forever.
+ */
+async function getTombstones(lastSyncedAt: string | null): Promise<SyncTombstone[]> {
+  // First sync: the client's local database is empty, so there is nothing to
+  // delete. Returning tombstones here would also be unbounded — it would cover
+  // every deletion in the system's history.
+  if (!lastSyncedAt) return [];
+
+  const since = new Date(lastSyncedAt);
+
+  const perEntity = await Promise.all(
+    TOMBSTONE_SOURCES.map(async ({ entity, delegate, hasLocalId }) => {
+      const rows = (await delegate.findMany({
+        // Tombstones are the one query that deliberately wants deleted rows, so
+        // opt out of the soft-delete extension's `deletedAt: null` filter.
+        includeDeleted: true,
+        where: { deletedAt: { gt: since } },
+        select: { id: true, deletedAt: true, ...(hasLocalId ? { localId: true } : {}) },
+      })) as Array<{ id: number; deletedAt: Date; localId?: string | null }>;
+
+      return rows.map((row) => ({
+        entity,
+        id: row.id,
+        localId: row.localId ?? null,
+        deletedAt: row.deletedAt.toISOString(),
+      }));
+    })
+  );
+
+  return perEntity.flat();
+}
+
+/**
  * Get server changes since last sync (scoped to user's access)
  */
 async function getServerChanges(lastSyncedAt: string | null, user: UserRead): Promise<any> {
@@ -502,12 +568,15 @@ async function getServerChanges(lastSyncedAt: string | null, user: UserRead): Pr
       updatedAt: record.updatedAt.toISOString(),
     }));
 
+  const deleted = await getTombstones(lastSyncedAt);
+
   return {
     families: transformDates(families),
     parents: transformDates(parents),
     children: transformDates(children),
     childVisits: transformDates(childVisits),
     familyVisits: transformDates(familyVisits),
+    deleted,
     lookups: {
       communities: transformDates(communities),
       sites: transformDates(sites),

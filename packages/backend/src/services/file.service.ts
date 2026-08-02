@@ -17,7 +17,31 @@ function buildS3Key(extension: string): string {
   return `uploads/${yyyy}/${mm}/${dd}/${randomUUID()}.${extension}`;
 }
 
-function toFileRead(file: {
+/**
+ * Every model that stores photo references. `photos` is an untyped Json array of
+ * File ids with no FK, so detaching a deleted file means rewriting each array by
+ * hand — there is no cascade to lean on.
+ */
+const PHOTO_OWNER_MODELS = [
+  'family',
+  'parent',
+  'child',
+  'childVisit',
+  'familyVisit',
+  'parentVisit',
+] as const;
+
+/**
+ * The slice of a Prisma model delegate this service needs. Declared structurally
+ * so the six photo-owning delegates can be iterated over uniformly without `any`
+ * (`src/db.ts` exports the extended client as `any`, so nothing is inferred here).
+ */
+interface PhotoOwnerDelegate {
+  findMany(args: unknown): Promise<Array<{ id: number; photos: unknown }>>;
+  update(args: unknown): Promise<unknown>;
+}
+
+interface FileRow {
   id: number;
   hash: string | null;
   extension: string;
@@ -26,7 +50,18 @@ function toFileRead(file: {
   size: number;
   confirmed: boolean;
   createdAt: Date;
-}): FileRead {
+}
+
+/** The subset of the transaction client `deleteFile` touches. */
+type DeleteFileTx = Record<(typeof PHOTO_OWNER_MODELS)[number], PhotoOwnerDelegate> & {
+  file: { update(args: { where: { id: number }; data: { deletedAt: Date } }): Promise<FileRow> };
+};
+
+function toIdArray(photos: unknown): number[] {
+  return Array.isArray(photos) ? photos.filter((p): p is number => typeof p === 'number') : [];
+}
+
+function toFileRead(file: FileRow): FileRead {
   return {
     id: file.id,
     hash: file.hash,
@@ -77,7 +112,9 @@ export async function presignUpload(params: {
  * Verifies the object exists via HeadObject before marking confirmed.
  */
 export async function confirmUpload(fileId: number): Promise<FileRead> {
-  const file = await prisma.file.findUnique({ where: { id: fileId } });
+  // NOTE: `File` is deliberately NOT registered in softDeleteExtension, so every
+  // read in this service filters `deletedAt: null` explicitly.
+  const file = await prisma.file.findFirst({ where: { id: fileId, deletedAt: null } });
 
   if (!file) {
     throw new HTTPException(404, { message: 'File not found' });
@@ -108,7 +145,7 @@ export async function presignDownload(
   fileIds: number[]
 ): Promise<Array<{ fileId: number; url: string }>> {
   const files = await prisma.file.findMany({
-    where: { id: { in: fileIds }, confirmed: true },
+    where: { id: { in: fileIds }, confirmed: true, deletedAt: null },
   });
 
   const storage = getStorage();
@@ -126,7 +163,7 @@ export async function presignDownload(
  * Get file metadata by ID.
  */
 export async function getFileById(id: number): Promise<FileRead> {
-  const file = await prisma.file.findUnique({ where: { id } });
+  const file = await prisma.file.findFirst({ where: { id, deletedAt: null } });
 
   if (!file) {
     throw new HTTPException(404, { message: 'File not found' });
@@ -136,18 +173,53 @@ export async function getFileById(id: number): Promise<FileRead> {
 }
 
 /**
- * Delete a file by ID (hard delete).
- * Removes from both S3 and database.
+ * Soft-delete a file and detach it from every record that references it.
+ *
+ * Three things happen, in this order:
+ *  1. The `photos` Json array of every Family/Parent/Child/*Visit that holds this
+ *     id is rewritten without it, so no read view renders a dangling photo.
+ *  2. The File row is stamped with `deletedAt` (never hard-deleted — see the
+ *     soft-delete invariant). Steps 1 and 2 share one transaction.
+ *  3. The underlying storage object is removed. This is best-effort: a storage
+ *     failure (or an object that was already gone) is logged and swallowed, never
+ *     surfaced as a 500, because the DB is already consistent by then.
  */
-export async function deleteFile(id: number): Promise<void> {
-  const file = await prisma.file.findUnique({ where: { id } });
+export async function deleteFile(id: number): Promise<FileRead> {
+  const file = await prisma.file.findFirst({ where: { id, deletedAt: null } });
 
   if (!file) {
     throw new HTTPException(404, { message: 'File not found' });
   }
 
-  // Delete from the backing store (best-effort; never blocks the DB cleanup)
-  await getStorage().delete(file.s3Key);
+  const deleted = await prisma.$transaction(async (tx: DeleteFileTx) => {
+    for (const model of PHOTO_OWNER_MODELS) {
+      const delegate = tx[model];
+      // Postgres jsonb containment: '[1,2,3]' @> '2'. There is no updateMany that
+      // can compute a per-row array, so read the referencing rows and rewrite each.
+      const owners = await delegate.findMany({
+        where: { photos: { array_contains: id } },
+        select: { id: true, photos: true },
+      });
 
-  await prisma.file.delete({ where: { id } });
+      for (const owner of owners) {
+        await delegate.update({
+          where: { id: owner.id },
+          data: { photos: toIdArray(owner.photos).filter((photoId) => photoId !== id) },
+        });
+      }
+    }
+
+    return tx.file.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  });
+
+  try {
+    await getStorage().delete(file.s3Key);
+  } catch (error) {
+    console.error(`Failed to delete storage object ${file.s3Key} for file ${id}:`, error);
+  }
+
+  return toFileRead(deleted);
 }

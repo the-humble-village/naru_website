@@ -19,6 +19,7 @@ export { default as ParentDetailPage } from './parents/ParentDetailPage';
 export { default as AddChildVisitPage } from './visits/AddChildVisitPage';
 export { default as AddFamilyVisitPage } from './visits/AddFamilyVisitPage';
 export { default as AddParentVisitPage } from './visits/AddParentVisitPage';
+export { default as FamilyVisitsPage } from './visits/FamilyVisitsPage';
 export { default as FamilyVisitDetailPage } from './visits/FamilyVisitDetailPage';
 export { default as ChildVisitDetailPage } from './visits/ChildVisitDetailPage';
 export { default as ParentVisitDetailPage } from './visits/ParentVisitDetailPage';

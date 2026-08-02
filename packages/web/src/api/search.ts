@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { SearchQuery, SearchResponse } from '@naru/shared';
+import { SearchResponse } from '@naru/shared';
 
 /**
  * Search across families, parents, children by name

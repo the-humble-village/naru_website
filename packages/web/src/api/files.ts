@@ -22,6 +22,14 @@ export const filesApi = {
     return response.data;
   },
 
+  /**
+   * Delete a file (soft delete). The backend also detaches the file id from any
+   * record that references it, so callers do not need to splice `photos` first.
+   */
+  deleteFile: async (fileId: number): Promise<void> => {
+    await apiClient.delete(`/files/${fileId}`);
+  },
+
   uploadFileToS3: (
     uploadUrl: string,
     file: File,

@@ -47,7 +47,15 @@ function formatSet(set: any): QuestionSetRead {
   };
 }
 
-const WITH_ITEMS = { items: { include: { question: true } } };
+// The soft-delete extension only filters top-level `where` clauses, so an item
+// pointing at a soft-deleted question would still be included (and render as a
+// blank row, since formatSet falls back to ''). Filter it out here.
+const WITH_ITEMS = {
+  items: {
+    where: { question: { deletedAt: null } },
+    include: { question: true },
+  },
+};
 
 export async function listQuestionSets(visitType: VisitType): Promise<QuestionSetRead[]> {
   const { setModel } = getModels(visitType);

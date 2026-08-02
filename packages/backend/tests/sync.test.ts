@@ -353,6 +353,118 @@ describe('Sync Routes', () => {
       expect(result.serverChanges.families[0].familyName).toBe('New Family');
     });
 
+    describe('tombstones for soft-deleted records', () => {
+      // A soft-deleted row drops out of every other serverChanges array (the
+      // soft-delete extension filters it), so without a tombstone an offline
+      // client would keep the record forever.
+
+      it('should report a family soft-deleted since lastSyncedAt', async () => {
+        const family = await createTestFamily({ familyName: 'Deleted Family' });
+        await testDb.family.update({
+          where: { id: family.id },
+          data: { deletedAt: new Date('2024-03-01T10:00:00Z') },
+        });
+
+        const response = await testClient.post(
+          '/sync',
+          { lastSyncedAt: '2024-02-01T00:00:00Z', changes: [] },
+          accessToken
+        );
+        expect(response.status).toBe(200);
+
+        const result = await response.json();
+        const tombstone = result.serverChanges.deleted.find(
+          (t: any) => t.entity === 'family' && t.id === family.id
+        );
+        expect(tombstone).toBeDefined();
+        expect(tombstone.localId).toBe(family.localId ?? null);
+        expect(new Date(tombstone.deletedAt).toISOString())
+          .toBe(new Date('2024-03-01T10:00:00Z').toISOString());
+
+        // ...and it is absent from the live array, which is the whole problem
+        // the tombstone exists to solve.
+        expect(result.serverChanges.families.map((f: any) => f.id)).not.toContain(family.id);
+      });
+
+      it('should omit records deleted before lastSyncedAt', async () => {
+        const family = await createTestFamily({ familyName: 'Long Gone' });
+        await testDb.family.update({
+          where: { id: family.id },
+          data: { deletedAt: new Date('2024-01-01T10:00:00Z') },
+        });
+
+        const response = await testClient.post(
+          '/sync',
+          { lastSyncedAt: '2024-02-01T00:00:00Z', changes: [] },
+          accessToken
+        );
+
+        const result = await response.json();
+        expect(result.serverChanges.deleted.some((t: any) => t.id === family.id)).toBe(false);
+      });
+
+      it('should return no tombstones on a first sync', async () => {
+        const family = await createTestFamily({ familyName: 'Deleted Family' });
+        await testDb.family.update({
+          where: { id: family.id },
+          data: { deletedAt: new Date('2024-03-01T10:00:00Z') },
+        });
+
+        const response = await testClient.post(
+          '/sync',
+          { lastSyncedAt: null, changes: [] },
+          accessToken
+        );
+
+        // A client with an empty local database has nothing to delete, and the
+        // unbounded history of every deletion would be pure noise.
+        const result = await response.json();
+        expect(result.serverChanges.deleted).toEqual([]);
+      });
+
+      it('should report soft-deleted lookup rows, which clients cache', async () => {
+        const doomed = await createTestCommunity({ title: 'Closed Community' });
+        await testDb.community.update({
+          where: { id: doomed.id },
+          data: { deletedAt: new Date('2024-03-01T10:00:00Z') },
+        });
+
+        const response = await testClient.post(
+          '/sync',
+          { lastSyncedAt: '2024-02-01T00:00:00Z', changes: [] },
+          accessToken
+        );
+
+        const result = await response.json();
+        expect(result.serverChanges.deleted).toContainEqual(
+          expect.objectContaining({ entity: 'community', id: doomed.id, localId: null })
+        );
+        expect(result.serverChanges.lookups.communities.map((c: any) => c.id))
+          .not.toContain(doomed.id);
+      });
+
+      it('should cover child records deleted by a family cascade', async () => {
+        const family = await createTestFamily({ familyName: 'Cascade Family' });
+        const child = await createTestChild(family.id, 'Ana');
+        const parent = await createTestParent(family.id, 'Rosa');
+
+        const deletedAt = new Date('2024-03-01T10:00:00Z');
+        await testDb.child.update({ where: { id: child.id }, data: { deletedAt } });
+        await testDb.parent.update({ where: { id: parent.id }, data: { deletedAt } });
+
+        const response = await testClient.post(
+          '/sync',
+          { lastSyncedAt: '2024-02-01T00:00:00Z', changes: [] },
+          accessToken
+        );
+
+        const result = await response.json();
+        const entities = result.serverChanges.deleted.map((t: any) => `${t.entity}:${t.id}`);
+        expect(entities).toContain(`child:${child.id}`);
+        expect(entities).toContain(`parent:${parent.id}`);
+      });
+    });
+
     it('should handle birthing assistant with communities and trainings', async () => {
       const syncRequest = {
         lastSyncedAt: null,

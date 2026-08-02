@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   UserCreateSchema,
   UserUpdateSchema,
+  UserPasswordResetSchema,
   type UserRead,
   type TokenPayload,
 } from '@naru/shared';
@@ -16,6 +17,10 @@ type Variables = {
   user: UserRead;
   tokenPayload: TokenPayload;
 };
+
+const IdParamSchema = z.object({
+  id: z.string().regex(/^\d+$/).transform(val => parseInt(val, 10)),
+});
 
 const app = new Hono<{ Variables: Variables }>();
 
@@ -46,9 +51,7 @@ app.get('/me', auth, async (c) => {
  * GET /users/:id
  * Get user by ID (admin only)
  */
-app.get('/:id', auth, requireAdmin, zValidator('param', z.object({
-  id: z.string().transform(val => parseInt(val, 10)),
-})), async (c) => {
+app.get('/:id', auth, requireAdmin, zValidator('param', IdParamSchema), async (c) => {
   const { id } = c.req.valid('param');
   const user = await userService.getUserById(id);
   return c.json(user);
@@ -56,18 +59,47 @@ app.get('/:id', auth, requireAdmin, zValidator('param', z.object({
 
 /**
  * PUT /users/:id
- * Update user by ID (admin only)
+ * Update user by ID (admin only). Accepts every mutable field including `role`
+ * and an optional `password` reset.
  */
 app.put('/:id', auth, requireAdmin,
-  zValidator('param', z.object({
-    id: z.string().transform(val => parseInt(val, 10)),
-  })),
+  zValidator('param', IdParamSchema),
   zValidator('json', UserUpdateSchema),
   async (c) => {
     const { id } = c.req.valid('param');
     const data = c.req.valid('json');
-    const user = await userService.updateUser(id, data);
+    const actingUser = c.get('user') as UserRead;
+    const user = await userService.updateUser(id, data, actingUser.id);
     return c.json(user);
+  }
+);
+
+/**
+ * POST /users/:id/password
+ * Reset a user's password (admin only)
+ */
+app.post('/:id/password', auth, requireAdmin,
+  zValidator('param', IdParamSchema),
+  zValidator('json', UserPasswordResetSchema),
+  async (c) => {
+    const { id } = c.req.valid('param');
+    const { password } = c.req.valid('json');
+    const user = await userService.resetUserPassword(id, password);
+    return c.json(user);
+  }
+);
+
+/**
+ * DELETE /users/:id
+ * Soft-delete a user by ID (admin only)
+ */
+app.delete('/:id', auth, requireAdmin,
+  zValidator('param', IdParamSchema),
+  async (c) => {
+    const { id } = c.req.valid('param');
+    const actingUser = c.get('user') as UserRead;
+    await userService.deleteUser(id, actingUser.id);
+    return c.json({ message: 'User deleted successfully' });
   }
 );
 

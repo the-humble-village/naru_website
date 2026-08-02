@@ -1,48 +1,57 @@
 import React, { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { UserRead } from '@naru/shared';
+import { usersApi } from '../api/users';
 import { useAuthStore } from '../store/auth';
 import { useTranslation } from '../hooks/useTranslation';
 
 /**
- * LanguagePage - Language selection and preference setting
+ * LanguagePage - Language selection and preference setting.
+ *
+ * The selected language is persisted through PATCH /users/me/language and
+ * applied optimistically to the auth store, rolling back if the request fails.
  */
 export const LanguagePage: React.FC = () => {
   const { lang, setLanguage, user } = useAuthStore();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [selectedLang, setSelectedLang] = useState(lang);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
+
+  const updateLanguageMutation = useMutation<UserRead, Error, string, { previous: string }>({
+    mutationFn: (newLang: string) => usersApi.updateLanguage(newLang),
+    onMutate: (newLang) => {
+      const previous = lang;
+      // Apply immediately so the UI switches without waiting on the round trip.
+      setLanguage(newLang);
+      return { previous };
+    },
+    onSuccess: (updated) => {
+      setLanguage(updated.lang);
+      setSelectedLang(updated.lang);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (_error, _newLang, context) => {
+      // Roll the store back to what the server still believes.
+      const previous = context?.previous ?? lang;
+      setLanguage(previous);
+      setSelectedLang(previous);
+    },
+  });
 
   const handleLanguageChange = (newLang: string) => {
+    updateLanguageMutation.reset();
     setSelectedLang(newLang);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (selectedLang === lang) {
       return; // No change needed
     }
-
-    setIsSaving(true);
-    setSaveMessage('');
-
-    try {
-      // Update local state immediately for better UX
-      setLanguage(selectedLang);
-
-      // TODO: Make API call to save language preference to backend
-      // This would be implemented when the user language update endpoint is available
-      // await api.updateUserLanguage(selectedLang);
-
-      setSaveMessage(t('lang.saved'));
-    } catch (error) {
-      console.error('Failed to save language preference:', error);
-      // Revert local change on error
-      setLanguage(lang);
-      setSelectedLang(lang);
-      setSaveMessage('Failed to save language preference. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
+    updateLanguageMutation.mutate(selectedLang);
   };
+
+  const isSaving = updateLanguageMutation.isPending;
 
   return (
     <div>
@@ -57,6 +66,7 @@ export const LanguagePage: React.FC = () => {
               type="radio"
               name="language"
               value="en"
+              disabled={isSaving}
               className="mr-3 text-hv-terracotta focus:ring-hv-terracotta"
               checked={selectedLang === 'en'}
               onChange={() => handleLanguageChange('en')}
@@ -69,6 +79,7 @@ export const LanguagePage: React.FC = () => {
               type="radio"
               name="language"
               value="es"
+              disabled={isSaving}
               className="mr-3 text-hv-terracotta focus:ring-hv-terracotta"
               checked={selectedLang === 'es'}
               onChange={() => handleLanguageChange('es')}
@@ -86,8 +97,14 @@ export const LanguagePage: React.FC = () => {
             {isSaving ? 'Saving...' : t('lang.button')}
           </button>
 
-          {saveMessage && (
-            <p className="text-sm mt-2 text-green-600">{saveMessage}</p>
+          {updateLanguageMutation.isSuccess && (
+            <p className="text-sm mt-2 text-green-600">{t('lang.saved')}</p>
+          )}
+
+          {updateLanguageMutation.isError && (
+            <p className="text-sm mt-2 text-hv-crisis">
+              Failed to save language preference. Please try again.
+            </p>
           )}
         </div>
 

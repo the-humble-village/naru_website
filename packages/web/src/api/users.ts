@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { UserRead, UserCreate, UserUpdate } from '@naru/shared';
+import { UserRead, UserCreate, UserUpdate, UserPasswordReset } from '@naru/shared';
 
 /**
  * Fetch all users (admin only)
@@ -35,10 +35,28 @@ export const createUser = async (data: UserCreate): Promise<UserRead> => {
 
 /**
  * Update an existing user (admin only)
+ *
+ * Accepts every mutable field via `UserUpdate`, including `role` and an optional
+ * `password` reset. The response never contains `passwordHash`.
  */
 export const updateUser = async (id: number, data: UserUpdate): Promise<UserRead> => {
   const response = await apiClient.put<UserRead>(`/users/${id}`, data);
   return response.data;
+};
+
+/**
+ * Reset an existing user's password (admin only)
+ */
+export const resetUserPassword = async (id: number, data: UserPasswordReset): Promise<UserRead> => {
+  const response = await apiClient.post<UserRead>(`/users/${id}/password`, data);
+  return response.data;
+};
+
+/**
+ * Delete a user (soft delete, admin only)
+ */
+export const deleteUser = async (id: number): Promise<void> => {
+  await apiClient.delete(`/users/${id}`);
 };
 
 /**
@@ -55,5 +73,7 @@ export const usersApi = {
   fetchUser,
   createUser,
   updateUser,
+  resetUserPassword,
+  deleteUser,
   updateLanguage,
 };

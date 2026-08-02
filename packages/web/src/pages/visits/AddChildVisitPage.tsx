@@ -9,6 +9,7 @@ import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoUpload } from '../../components';
+import { toDateTimeLocal, fromDateTimeLocal, nowDateTimeLocal } from '../../utils/datetime';
 
 export const AddChildVisitPage: React.FC = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export const AddChildVisitPage: React.FC = () => {
   const [formData, setFormData] = useState<ChildVisitCreate>({
     familyId: familyIdNum,
     childId: childIdNum,
-    visitDate: new Date().toISOString().slice(0, 16), // Format for datetime-local input
+    visitDate: nowDateTimeLocal(),
     weight: 0,
     armCircumference: 0,
     height: 0,
@@ -114,7 +115,7 @@ export const AddChildVisitPage: React.FC = () => {
     try {
       ChildVisitCreateSchema.parse({
         ...formData,
-        visitDate: new Date(formData.visitDate).toISOString(),
+        visitDate: fromDateTimeLocal(formData.visitDate),
         weight: Number(formData.weight),
         armCircumference: Number(formData.armCircumference),
         height: Number(formData.height),
@@ -145,7 +146,7 @@ export const AddChildVisitPage: React.FC = () => {
 
     const submitData: ChildVisitCreate = {
       ...formData,
-      visitDate: new Date(formData.visitDate).toISOString(),
+      visitDate: fromDateTimeLocal(formData.visitDate),
       weight: Number(formData.weight),
       armCircumference: Number(formData.armCircumference),
       height: Number(formData.height),
@@ -217,7 +218,7 @@ export const AddChildVisitPage: React.FC = () => {
                 min="0"
                 step="0.1"
                 value={formData.weight}
-                onChange={(e) => handleInputChange('weight', e.target.value)}
+                onChange={(e) => handleInputChange('weight', e.target.value as unknown as number)}
                 onFocus={(e) => { if (Number(e.target.value) === 0) handleInputChange('weight', '' as unknown as number); }}
                 onBlur={(e) => { if (e.target.value === '') handleInputChange('weight', 0); }}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-green ${
@@ -238,7 +239,7 @@ export const AddChildVisitPage: React.FC = () => {
                 id="armCircumference"
                 min="0"
                 value={formData.armCircumference}
-                onChange={(e) => handleInputChange('armCircumference', e.target.value)}
+                onChange={(e) => handleInputChange('armCircumference', e.target.value as unknown as number)}
                 onFocus={(e) => { if (Number(e.target.value) === 0) handleInputChange('armCircumference', '' as unknown as number); }}
                 onBlur={(e) => { if (e.target.value === '') handleInputChange('armCircumference', 0); }}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-green ${
@@ -259,7 +260,7 @@ export const AddChildVisitPage: React.FC = () => {
                 id="height"
                 min="0"
                 value={formData.height}
-                onChange={(e) => handleInputChange('height', e.target.value)}
+                onChange={(e) => handleInputChange('height', e.target.value as unknown as number)}
                 onFocus={(e) => { if (Number(e.target.value) === 0) handleInputChange('height', '' as unknown as number); }}
                 onBlur={(e) => { if (e.target.value === '') handleInputChange('height', 0); }}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-green ${

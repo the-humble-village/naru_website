@@ -73,6 +73,17 @@ const testClient = {
     });
     return app.request(request);
   },
+  delete: async (path: string, accessToken?: string) => {
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    const request = new Request(`http://localhost${path}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return app.request(request);
+  },
 };
 
 describe('Child Visits Routes', () => {
@@ -609,6 +620,266 @@ describe('Child Visits Routes', () => {
       };
 
       const response = await testClient.put(`/families/${testFamily.id}/children/99999/visits/${testVisit.id}`, updateData, caseworkerToken);
+
+      expect(response.status).toBe(404);
+    });
+
+    // Regression: these columns were reachable through the schema but had no coverage,
+    // so nothing proved the service actually wrote them.
+    it('should update every mutable field in a single request', async () => {
+      const updateData = {
+        visitDate: '2024-06-01T08:30:00.000Z',
+        weight: 19.25,
+        armCircumference: 155,
+        height: 1150,
+        incap: true,
+        leche: true,
+        bagsGiven: '3 bags',
+        recvAnyMedicine: 'Amoxicillin',
+        leftFromProg: 'Moved away',
+        passedAway: 'No',
+        questions: [{ questionId: 7, question: 'Eating well?', answer: 'Yes' }],
+        photos: [11, 22],
+        notes: 'Everything updated',
+        localId: '883b1733-153e-74a7-da49-779988773333',
+      };
+
+      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, updateData, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result).toMatchObject(updateData);
+
+      // Verify every field actually persisted, not just echoed back
+      const dbVisit = await testDb.childVisit.findUnique({ where: { id: testVisit.id } });
+      expect(dbVisit?.visitDate.toISOString()).toBe(updateData.visitDate);
+      expect(dbVisit?.weight).toBe(updateData.weight);
+      expect(dbVisit?.armCircumference).toBe(updateData.armCircumference);
+      expect(dbVisit?.height).toBe(updateData.height);
+      expect(dbVisit?.incap).toBe(true);
+      expect(dbVisit?.leche).toBe(true);
+      expect(dbVisit?.bagsGiven).toBe(updateData.bagsGiven);
+      expect(dbVisit?.recvAnyMedicine).toBe(updateData.recvAnyMedicine);
+      expect(dbVisit?.leftFromProg).toBe(updateData.leftFromProg);
+      expect(dbVisit?.passedAway).toBe(updateData.passedAway);
+      expect(dbVisit?.questions).toEqual(updateData.questions);
+      expect(dbVisit?.photos).toEqual(updateData.photos);
+      expect(dbVisit?.notes).toBe(updateData.notes);
+      expect(dbVisit?.localId).toBe(updateData.localId);
+    });
+
+    it('should clear nullable text fields when explicitly set to null', async () => {
+      await testDb.childVisit.update({
+        where: { id: testVisit.id },
+        data: {
+          bagsGiven: '2 bags',
+          recvAnyMedicine: 'Some medicine',
+          leftFromProg: 'Yes',
+          passedAway: 'No',
+        },
+      });
+
+      const updateData = {
+        bagsGiven: null,
+        recvAnyMedicine: null,
+        leftFromProg: null,
+        passedAway: null,
+        notes: null,
+      };
+
+      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, updateData, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.bagsGiven).toBeNull();
+      expect(result.recvAnyMedicine).toBeNull();
+      expect(result.leftFromProg).toBeNull();
+      expect(result.passedAway).toBeNull();
+      expect(result.notes).toBeNull();
+    });
+
+    it('should replace the photos array and allow clearing it', async () => {
+      const setResponse = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, { photos: [5, 6, 7] }, caseworkerToken);
+      expect((await setResponse.json()).photos).toEqual([5, 6, 7]);
+
+      const clearResponse = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, { photos: [] }, caseworkerToken);
+      expect((await clearResponse.json()).photos).toEqual([]);
+    });
+
+    it('should clear the questions array when passed an empty array', async () => {
+      await testDb.childVisit.update({
+        where: { id: testVisit.id },
+        data: { questions: [{ questionId: 1, question: 'Old?', answer: 'Old' }] },
+      });
+
+      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, { questions: [] }, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.questions).toEqual([]);
+    });
+
+    it('should not reset untouched fields that have schema defaults', async () => {
+      await testDb.childVisit.update({
+        where: { id: testVisit.id },
+        data: {
+          incap: true,
+          leche: true,
+          questions: [{ questionId: 1, question: 'Kept?', answer: 'Yes' }],
+          photos: [42],
+        },
+      });
+
+      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, { notes: 'Only notes' }, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.notes).toBe('Only notes');
+      expect(result.incap).toBe(true);
+      expect(result.leche).toBe(true);
+      expect(result.questions).toEqual([{ questionId: 1, question: 'Kept?', answer: 'Yes' }]);
+      expect(result.photos).toEqual([42]);
+    });
+
+    it('should return 404 when updating a soft-deleted visit', async () => {
+      await testDb.childVisit.update({
+        where: { id: testVisit.id },
+        data: { deletedAt: new Date() },
+      });
+
+      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, { weight: 20 }, caseworkerToken);
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('DELETE /families/:fid/children/:cid/visits/:id', () => {
+    let testVisit: any;
+
+    beforeEach(async () => {
+      testVisit = await createTestChildVisit(testFamily.id, testChild.id);
+    });
+
+    it('should soft delete visit for supervisor', async () => {
+      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, supervisorToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.message).toContain('deleted successfully');
+
+      const dbVisit = await testDb.childVisit.findUnique({
+        where: { id: testVisit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit?.deletedAt).toBeTruthy();
+    });
+
+    it('should soft delete visit for admin', async () => {
+      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, adminToken);
+
+      expect(response.status).toBe(200);
+
+      const dbVisit = await testDb.childVisit.findUnique({
+        where: { id: testVisit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit?.deletedAt).toBeTruthy();
+    });
+
+    it('should never hard delete the row', async () => {
+      await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, supervisorToken);
+
+      const dbVisit = await testDb.childVisit.findUnique({
+        where: { id: testVisit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit).not.toBeNull();
+      expect(dbVisit?.weight).toBe(testVisit.weight);
+    });
+
+    it('should return 403 for caseworker users', async () => {
+      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(result.message).toContain('Access denied');
+
+      const dbVisit = await testDb.childVisit.findUnique({
+        where: { id: testVisit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit?.deletedAt).toBeNull();
+    });
+
+    it('should return 401 for unauthenticated requests', async () => {
+      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`);
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 404 for non-existent visit', async () => {
+      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/99999`, supervisorToken);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 on re-delete of an already deleted visit', async () => {
+      const first = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, supervisorToken);
+      expect(first.status).toBe(200);
+
+      const second = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, supervisorToken);
+      const result = await second.json();
+
+      expect(second.status).toBe(404);
+      expect(result.message).toBe('Child visit not found');
+    });
+
+    it('should return 404 for a visit belonging to a different child', async () => {
+      const otherChild = await createTestChild(testFamily.id, 'Other Child');
+      const otherVisit = await createTestChildVisit(testFamily.id, otherChild.id);
+
+      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${otherVisit.id}`, supervisorToken);
+
+      expect(response.status).toBe(404);
+
+      const dbVisit = await testDb.childVisit.findUnique({
+        where: { id: otherVisit.id },
+        includeDeleted: true,
+      } as any);
+      expect(dbVisit?.deletedAt).toBeNull();
+    });
+
+    it('should return 404 for non-existent family', async () => {
+      const response = await testClient.delete(`/families/99999/children/${testChild.id}/visits/${testVisit.id}`, supervisorToken);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 for non-existent child', async () => {
+      const response = await testClient.delete(`/families/${testFamily.id}/children/99999/visits/${testVisit.id}`, supervisorToken);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should exclude the deleted visit from the list', async () => {
+      const keptVisit = await createTestChildVisit(testFamily.id, testChild.id, {
+        visitDate: new Date('2024-03-15T10:00:00.000Z'),
+      });
+
+      await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, supervisorToken);
+
+      const listResponse = await testClient.get(`/families/${testFamily.id}/children/${testChild.id}/visits`, caseworkerToken);
+      const visits = await listResponse.json();
+
+      expect(listResponse.status).toBe(200);
+      expect(visits).toHaveLength(1);
+      expect(visits[0].id).toBe(keptVisit.id);
+    });
+
+    it('should make the deleted visit unfetchable by id', async () => {
+      await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, supervisorToken);
+
+      const response = await testClient.get(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, caseworkerToken);
 
       expect(response.status).toBe(404);
     });

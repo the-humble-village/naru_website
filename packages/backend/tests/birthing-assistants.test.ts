@@ -151,6 +151,40 @@ describe('Birthing Assistant Routes', () => {
       });
     });
 
+    it('should omit soft-deleted communities and trainings from the associations', async () => {
+      // The soft-delete extension only rewrites top-level `where` clauses, so
+      // these nested relations used to keep serving deleted lookup rows.
+      const keptCommunity = await createTestCommunity({ title: 'Kept Community' });
+      const doomedCommunity = await createTestCommunity({ title: 'Doomed Community' });
+      const keptTraining = await createTestTraining('Kept Training');
+      const doomedTraining = await createTestTraining('Doomed Training');
+
+      const created = await testClient.post('/birthing-assistants', {
+        name: 'Association BA',
+        communityIds: [keptCommunity.id, doomedCommunity.id],
+        trainingIds: [keptTraining.id, doomedTraining.id],
+      }, supervisorToken);
+      const { id } = await created.json();
+
+      await testDb.community.update({
+        where: { id: doomedCommunity.id },
+        data: { deletedAt: new Date() },
+      });
+      await testDb.training.update({
+        where: { id: doomedTraining.id },
+        data: { deletedAt: new Date() },
+      });
+
+      const listed = await (await testClient.get('/birthing-assistants', caseworkerToken)).json();
+      const fromList = listed.find((ba: any) => ba.id === id);
+      expect(fromList.servedCommunities).toEqual([{ id: keptCommunity.id, title: 'Kept Community' }]);
+      expect(fromList.trainingsReceived).toEqual([{ id: keptTraining.id, title: 'Kept Training' }]);
+
+      const fetched = await (await testClient.get(`/birthing-assistants/${id}`, caseworkerToken)).json();
+      expect(fetched.servedCommunities).toEqual([{ id: keptCommunity.id, title: 'Kept Community' }]);
+      expect(fetched.trainingsReceived).toEqual([{ id: keptTraining.id, title: 'Kept Training' }]);
+    });
+
     it('should return 401 without auth token', async () => {
       const response = await testClient.get('/birthing-assistants');
       expect(response.status).toBe(401);

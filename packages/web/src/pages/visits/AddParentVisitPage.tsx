@@ -9,6 +9,7 @@ import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoUpload } from '../../components';
+import { toDateTimeLocal, fromDateTimeLocal, nowDateTimeLocal } from '../../utils/datetime';
 
 export const AddParentVisitPage: React.FC = () => {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ export const AddParentVisitPage: React.FC = () => {
   const [formData, setFormData] = useState<ParentVisitCreate>({
     familyId: familyIdNum,
     parentId: parentIdNum,
-    visitDate: new Date().toISOString().slice(0, 16),
+    visitDate: nowDateTimeLocal(),
     weight: 0,
     trainingsReceived: [],
     resourcesReceived: [],
@@ -150,7 +151,7 @@ export const AddParentVisitPage: React.FC = () => {
     try {
       ParentVisitCreateSchema.parse({
         ...formData,
-        visitDate: new Date(formData.visitDate).toISOString(),
+        visitDate: fromDateTimeLocal(formData.visitDate),
         weight: Number(formData.weight) || 0,
       });
     } catch (error: unknown) {
@@ -174,7 +175,7 @@ export const AddParentVisitPage: React.FC = () => {
 
     const submitData: ParentVisitCreate = {
       ...formData,
-      visitDate: new Date(formData.visitDate).toISOString(),
+      visitDate: fromDateTimeLocal(formData.visitDate),
       weight: Number(formData.weight) || 0,
       questions: formData.questions.filter(q => q.answer.trim() !== ''),
     };

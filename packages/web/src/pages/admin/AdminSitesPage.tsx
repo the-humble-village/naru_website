@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sitesApi } from '../../api/sites';
 import { type SiteRead } from '@naru/shared';
-import { MapPicker, type MapPickerValue } from '../../components/MapPicker';
+import { MapPicker, RoleGate, ConfirmDialog, type MapPickerValue } from '../../components';
 
 interface SiteFormProps {
   initial?: SiteRead;
@@ -11,15 +11,13 @@ interface SiteFormProps {
   onCancel: () => void;
 }
 
-const emptyMap: MapPickerValue = { lat: null, lng: null, boundary: null };
-
 const SiteForm: React.FC<SiteFormProps> = ({ initial, onSave, onCancel }) => {
   const qc = useQueryClient();
   const [title, setTitle] = useState(initial?.title ?? '');
   const [mapVal, setMapVal] = useState<MapPickerValue>({
     lat: initial?.lat ?? null,
     lng: initial?.lng ?? null,
-    boundary: (initial?.boundary as [number, number][] | null) ?? null,
+    boundary: initial?.boundary ?? null,
   });
   const [error, setError] = useState('');
 
@@ -91,6 +89,7 @@ export const AdminSitesPage: React.FC = () => {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SiteRead | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SiteRead | null>(null);
 
   const { data: sites = [], isLoading } = useQuery({
     queryKey: ['sites'],
@@ -99,12 +98,22 @@ export const AdminSitesPage: React.FC = () => {
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => sitesApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sites'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sites'] });
+      // Sites also show up in the generic lookup admin screen.
+      qc.invalidateQueries({ queryKey: ['admin', 'sites'] });
+      setDeleteTarget(null);
+    },
   });
 
   const handleSaved = () => { setShowForm(false); setEditing(null); };
 
+  const askDelete = (site: SiteRead) => { deleteMut.reset(); setDeleteTarget(site); };
+  const cancelDelete = () => { setDeleteTarget(null); deleteMut.reset(); };
+  const confirmDelete = () => { if (deleteTarget) deleteMut.mutate(deleteTarget.id); };
+
   return (
+    <RoleGate requiredRole="ADMIN">
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Sites</h1>
@@ -171,8 +180,9 @@ export const AdminSitesPage: React.FC = () => {
                       Edit
                     </button>
                     <button
-                      onClick={() => { if (confirm(`Delete "${site.title}"?`)) deleteMut.mutate(site.id); }}
-                      className="text-hv-crisis hover:text-red-700 transition-colors"
+                      onClick={() => askDelete(site)}
+                      disabled={deleteMut.isPending}
+                      className="text-hv-crisis hover:text-red-700 disabled:opacity-50 transition-colors"
                     >
                       Delete
                     </button>
@@ -183,7 +193,28 @@ export const AdminSitesPage: React.FC = () => {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Site"
+        message={
+          <>
+            <p>
+              Delete <span className="font-medium text-hv-charcoal">&ldquo;{deleteTarget?.title}&rdquo;</span>? Its pin
+              and boundary will be removed from the map and it will no longer be selectable for families.
+            </p>
+            {deleteMut.error && (
+              <p className="mt-2 text-hv-crisis">Failed to delete site: {deleteMut.error.message}</p>
+            )}
+          </>
+        }
+        warning="Families already assigned to this site keep their current value — they are not changed or removed."
+        busy={deleteMut.isPending}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </div>
+    </RoleGate>
   );
 };
 

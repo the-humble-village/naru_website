@@ -9,13 +9,15 @@ import { parentsApi } from '../../api/parents';
 import { childrenApi } from '../../api/children';
 import { visitsApi } from '../../api/visits';
 import { adminApi } from '../../api/admin';
+import { sitesApi } from '../../api/sites';
 import { birthingAssistantsApi } from '../../api/birthing-assistants';
 import { FamilyUpdate, SiteRead } from '@naru/shared';
-import { PhotoUpload, PhotoGallery } from '../../components';
+import { PhotoUpload, PhotoGallery, ConfirmDialog, RoleGate } from '../../components';
+import { usePendingPhotoDeletions } from '../../hooks';
 import { AlertTriangle, Users, Baby, CalendarCheck, Pencil, Trash2, Plus, ChevronRight, UserRound, PersonStanding, Heart, MapPin, X } from 'lucide-react';
 
 // Fix Leaflet default marker icons broken by bundlers
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -53,6 +55,7 @@ export const FamilyDetailPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<FamilyUpdate>({});
   const [mapSite, setMapSite] = useState<SiteRead | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const familyId = id ? parseInt(id, 10) : 0;
 
@@ -85,9 +88,11 @@ export const FamilyDetailPage: React.FC = () => {
     queryFn: adminApi.fetchCommunities,
   });
 
+  // /sites (not /admin/sites) is used here because only that endpoint returns the
+  // lat/lng/boundary columns the map preview needs.
   const sitesQuery = useQuery({
     queryKey: ['sites'],
-    queryFn: adminApi.fetchSites,
+    queryFn: sitesApi.list,
   });
 
   const birthingAssistantsQuery = useQuery({
@@ -95,18 +100,30 @@ export const FamilyDetailPage: React.FC = () => {
     queryFn: birthingAssistantsApi.fetchBirthingAssistants,
   });
 
+  // Photo removals are staged until save so Cancel can undo them.
+  const photoDeletions = usePendingPhotoDeletions();
+
   const updateFamilyMutation = useMutation({
     mutationFn: (data: FamilyUpdate) => familiesApi.updateFamily(familyId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['family', familyId] });
+      queryClient.invalidateQueries({ queryKey: ['families'] });
       setIsEditing(false);
       setEditData({});
+      // The record saved without these photos, so it is now safe to delete the
+      // files. Staged until here so cancelling the edit could undo the removal.
+      void photoDeletions.commit();
     },
   });
 
   const deleteFamilyMutation = useMutation({
     mutationFn: () => familiesApi.deleteFamily(familyId),
-    onSuccess: () => navigate('/'),
+    onSuccess: () => {
+      setConfirmDeleteOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['families'] });
+      queryClient.removeQueries({ queryKey: ['family', familyId] });
+      navigate('/');
+    },
   });
 
   if (!familyId) return <div className="text-red-500">Invalid family ID</div>;
@@ -121,18 +138,32 @@ export const FamilyDetailPage: React.FC = () => {
   const sites = sitesQuery.data || [];
   const birthingAssistants = birthingAssistantsQuery.data || [];
 
-  const communityName = communities.find(c => c.id === family.communityId)?.title;
+  // A soft-deleted lookup row is filtered out of its list endpoint but the FK on the
+  // family still points at it, so fall back to a visible placeholder instead of "None".
+  const missingLabel = (id: number) => `Unavailable (#${id})`;
+  const lookupLabel = (id: number | null, title: string | undefined) =>
+    id === null ? null : title ?? missingLabel(id);
+
+  const communityName = lookupLabel(
+    family.communityId,
+    communities.find(c => c.id === family.communityId)?.title
+  );
   const site = sites.find(s => s.id === family.siteId) ?? null;
-  const siteName = site?.title;
-  const baName = birthingAssistants.find(ba => ba.id === family.birthingAssistantId)?.name;
+  const siteName = lookupLabel(family.siteId, site?.title);
+  const baName = lookupLabel(
+    family.birthingAssistantId,
+    birthingAssistants.find(ba => ba.id === family.birthingAssistantId)?.name
+  );
 
   const handleEdit = () => {
     setIsEditing(true);
+    // Every mutable FamilyRead column is represented here except localId, which must
+    // never be surfaced in an edit form (it drives sync duplicate detection).
     setEditData({
-      familyName: family.familyName,
+      familyName: family.familyName ?? '',
       childrenEditable: family.childrenEditable,
       inCrisis: family.inCrisis,
-      notes: family.notes,
+      notes: family.notes ?? '',
       communityId: family.communityId,
       siteId: family.siteId,
       birthingAssistantId: family.birthingAssistantId,
@@ -140,16 +171,57 @@ export const FamilyDetailPage: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateFamilyMutation.mutate(editData);
+  const handleCancel = () => {
+    photoDeletions.discard();
+    setIsEditing(false);
+    setEditData({});
   };
 
-  const handleDelete = () => {
-    if (window.confirm('Delete this family? This cannot be undone.')) {
-      deleteFamilyMutation.mutate();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Only send changed fields.
+    const dataToSave: FamilyUpdate = {};
+
+    if (editData.familyName !== undefined && editData.familyName !== (family.familyName ?? '')) {
+      dataToSave.familyName = editData.familyName || null;
     }
+    if (editData.notes !== undefined && editData.notes !== (family.notes ?? '')) {
+      dataToSave.notes = editData.notes || null;
+    }
+    if (editData.childrenEditable !== undefined && editData.childrenEditable !== family.childrenEditable) {
+      dataToSave.childrenEditable = editData.childrenEditable;
+    }
+    if (editData.inCrisis !== undefined && editData.inCrisis !== family.inCrisis) {
+      dataToSave.inCrisis = editData.inCrisis;
+    }
+    if (editData.communityId !== undefined && (editData.communityId ?? null) !== family.communityId) {
+      dataToSave.communityId = editData.communityId ?? null;
+    }
+    if (editData.siteId !== undefined && (editData.siteId ?? null) !== family.siteId) {
+      dataToSave.siteId = editData.siteId ?? null;
+    }
+    if (editData.birthingAssistantId !== undefined && (editData.birthingAssistantId ?? null) !== family.birthingAssistantId) {
+      dataToSave.birthingAssistantId = editData.birthingAssistantId ?? null;
+    }
+    if (editData.photos !== undefined && JSON.stringify(editData.photos) !== JSON.stringify(family.photos ?? [])) {
+      dataToSave.photos = editData.photos;
+    }
+
+    updateFamilyMutation.mutate(dataToSave);
   };
+
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+  const totalVisits = visitsQuery.data?.total ?? visits.length;
+
+  // The backend cascades the delete to every parent, child and visit belonging to
+  // this family, so spell that out rather than a vague "cannot be undone".
+  const deleteMessage =
+    `Delete ${family.familyName || 'this family'}? This also removes ` +
+    `${plural(parents.length, 'parent', 'parents')}, ` +
+    `${plural(children.length, 'child', 'children')} and their visits ` +
+    `(${plural(totalVisits, 'family visit', 'family visits')}). This cannot be undone.`;
 
   return (
     <div>
@@ -181,14 +253,16 @@ export const FamilyDetailPage: React.FC = () => {
               Edit
             </button>
           )}
-          <button
-            onClick={handleDelete}
-            disabled={deleteFamilyMutation.isPending}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm border border-red-200 rounded-md text-hv-crisis hover:bg-red-50 transition-colors disabled:opacity-50"
-          >
-            <Trash2 size={13} />
-            Delete
-          </button>
+          <RoleGate requiredRole="SUPERVISOR">
+            <button
+              onClick={() => setConfirmDeleteOpen(true)}
+              disabled={deleteFamilyMutation.isPending}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-red-200 rounded-md text-hv-crisis hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={13} />
+              Delete
+            </button>
+          </RoleGate>
         </div>
       </div>
 
@@ -217,28 +291,39 @@ export const FamilyDetailPage: React.FC = () => {
                   className="w-full px-3 py-2 text-sm border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                 >
                   <option value="">None</option>
+                  {editData.communityId != null && !communities.some(c => c.id === editData.communityId) && (
+                    <option value={editData.communityId}>{missingLabel(editData.communityId)}</option>
+                  )}
                   {communities.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-hv-charcoal mb-1">Site</label>
+                <label htmlFor="siteId" className="block text-xs font-medium text-hv-charcoal mb-1">Site</label>
                 <select
+                  id="siteId"
                   value={editData.siteId || ''}
                   onChange={(e) => setEditData({ ...editData, siteId: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-3 py-2 text-sm border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                 >
                   <option value="">None</option>
+                  {editData.siteId != null && !sites.some(s => s.id === editData.siteId) && (
+                    <option value={editData.siteId}>{missingLabel(editData.siteId)}</option>
+                  )}
                   {sites.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-hv-charcoal mb-1">Birthing Assistant</label>
+                <label htmlFor="birthingAssistantId" className="block text-xs font-medium text-hv-charcoal mb-1">Birthing Assistant</label>
                 <select
+                  id="birthingAssistantId"
                   value={editData.birthingAssistantId || ''}
                   onChange={(e) => setEditData({ ...editData, birthingAssistantId: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-3 py-2 text-sm border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                 >
                   <option value="">None</option>
+                  {editData.birthingAssistantId != null && !birthingAssistants.some(ba => ba.id === editData.birthingAssistantId) && (
+                    <option value={editData.birthingAssistantId}>{missingLabel(editData.birthingAssistantId)}</option>
+                  )}
                   {birthingAssistants.map(ba => <option key={ba.id} value={ba.id}>{ba.name}</option>)}
                 </select>
               </div>
@@ -276,8 +361,9 @@ export const FamilyDetailPage: React.FC = () => {
               </div>
             </div>
             <div className="mb-4">
-              <label className="block text-xs font-medium text-hv-charcoal mb-1">Notes</label>
+              <label htmlFor="notes" className="block text-xs font-medium text-hv-charcoal mb-1">Notes</label>
               <textarea
+                id="notes"
                 value={editData.notes || ''}
                 onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
                 rows={3}
@@ -288,6 +374,7 @@ export const FamilyDetailPage: React.FC = () => {
               <PhotoUpload
                 photos={(editData.photos as number[]) ?? []}
                 onChange={(photos) => setEditData({ ...editData, photos })}
+                pendingDeletions={photoDeletions}
               />
             </div>
             <div className="flex gap-2">
@@ -300,12 +387,19 @@ export const FamilyDetailPage: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => { setIsEditing(false); setEditData({}); }}
+                onClick={handleCancel}
                 className="px-4 py-2 text-sm border border-hv-border rounded-md text-hv-charcoal hover:bg-hv-page transition-colors"
               >
                 Cancel
               </button>
             </div>
+            {updateFamilyMutation.isError && (
+              <div className="mt-4 bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-hv-crisis text-sm">
+                  Error saving family: {updateFamilyMutation.error instanceof Error ? updateFamilyMutation.error.message : 'Unknown error'}
+                </p>
+              </div>
+            )}
           </form>
         </div>
       ) : (
@@ -525,6 +619,21 @@ export const FamilyDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── Delete confirmation ── */}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete family"
+        message={deleteMessage}
+        warning={
+          deleteFamilyMutation.isError
+            ? 'Failed to delete this family. Please try again.'
+            : undefined
+        }
+        busy={deleteFamilyMutation.isPending}
+        onConfirm={() => deleteFamilyMutation.mutate()}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
 
       {/* ── Site map modal ── */}
       {mapSite && mapSite.lat && mapSite.lng && (

@@ -224,6 +224,7 @@ describe('AddChildVisitPage', () => {
         leftFromProg: null,
         passedAway: null,
         questions: [],
+        photos: [],
         notes: null,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',

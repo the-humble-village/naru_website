@@ -33,7 +33,7 @@ vi.mock('react-router-dom', async () => {
 // Mock translation hook
 vi.mock('../../hooks/useTranslation', () => ({
   useTranslation: () => ({
-    t: (key: string, params?: any) => {
+    t: (key: string, params?: Record<string, string | number>) => {
       const translations: Record<string, string> = {
         'search.placeholder': 'Search families, parents, children...',
         'search.searching': 'Searching',
@@ -70,7 +70,10 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 describe('SearchBar', () => {
-  let mockAuthStore: any;
+  let mockAuthStore: {
+    user: { id: number; role: string; lang: string };
+    isAuthenticated: boolean;
+  };
   let mockSearchApi: Mock;
 
   beforeEach(() => {
@@ -80,7 +83,7 @@ describe('SearchBar', () => {
       user: { id: 1, role: 'CASEWORKER', lang: 'en' },
       isAuthenticated: true
     };
-    (useAuthStore as Mock).mockReturnValue(mockAuthStore);
+    (useAuthStore as unknown as Mock).mockReturnValue(mockAuthStore);
 
     mockSearchApi = searchApi.searchByName as Mock;
     mockSearchApi.mockResolvedValue({

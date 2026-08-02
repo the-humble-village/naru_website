@@ -336,8 +336,12 @@ export async function updateChildVisit(
     updatedAt: new Date(),
   };
 
-  // Only include fields that are provided in the update
-  if (data.visitDate !== undefined) updateData.visitDate = data.visitDate ? new Date(data.visitDate) : null;
+  // Only include fields that are provided in the update.
+  // Every mutable column on ChildVisit is represented here — measurements (weight,
+  // armCircumference, height), the questions answer array and the photos array
+  // included. Answers live inline as JSON on the row (there are no answer rows with
+  // their own deletedAt), so the create path's whole-array replace strategy applies.
+  if (data.visitDate !== undefined) updateData.visitDate = new Date(data.visitDate);
   if (data.weight !== undefined) updateData.weight = data.weight;
   if (data.armCircumference !== undefined) updateData.armCircumference = data.armCircumference;
   if (data.height !== undefined) updateData.height = data.height;
@@ -391,4 +395,64 @@ export async function updateChildVisit(
   };
 
   return childVisitRead;
+}
+/**
+ * Delete child visit by ID (soft delete)
+ * Only supervisors and admins can delete child visits
+ */
+export async function deleteChildVisit(
+  familyId: number,
+  childId: number,
+  visitId: number,
+  user: UserRead
+): Promise<void> {
+  // First check if the family exists
+  const family = await prisma.family.findUnique({
+    where: { id: familyId },
+    select: { id: true },
+  });
+
+  if (!family) {
+    throw new HTTPException(404, { message: 'Family not found' });
+  }
+
+  // Check if the child exists and belongs to the family
+  const child = await prisma.child.findFirst({
+    where: {
+      id: childId,
+      familyId: familyId,
+    },
+    select: { id: true },
+  });
+
+  if (!child) {
+    throw new HTTPException(404, { message: 'Child not found' });
+  }
+
+  // Check if child visit exists (the soft-delete extension filters out already-deleted
+  // rows, so a second delete of the same visit returns 404)
+  const existingVisit = await prisma.childVisit.findFirst({
+    where: {
+      id: visitId,
+      familyId: familyId,
+      childId: childId,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  if (!existingVisit) {
+    throw new HTTPException(404, { message: 'Child visit not found' });
+  }
+
+  // TODO: When we implement user assignment/scoping, add access control here
+
+  // Soft delete the visit. Measurements, question answers and photos all live inline
+  // on this row as JSON, so there is nothing to cascade.
+  await prisma.childVisit.update({
+    where: { id: visitId },
+    data: {
+      deletedAt: new Date(),
+    },
+  });
 }

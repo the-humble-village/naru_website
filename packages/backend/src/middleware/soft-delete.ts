@@ -3,6 +3,11 @@ import { Prisma } from '@prisma/client';
 /**
  * Prisma extension that automatically filters out soft-deleted records
  * for models that have a `deletedAt` field.
+ *
+ * Scope: this only rewrites the TOP-LEVEL `where` of a query. Relations pulled
+ * in through `include`/`select` are NOT filtered, so a soft-deleted row can
+ * still surface as a nested object. Those call sites must filter explicitly,
+ * e.g. `include: { items: { where: { question: { deletedAt: null } } } }`.
  */
 export const softDeleteExtension = Prisma.defineExtension((client) => {
   return client.$extends({
@@ -17,6 +22,8 @@ export const softDeleteExtension = Prisma.defineExtension((client) => {
             'Child',
             'ChildVisit',
             'FamilyVisit',
+            'ParentVisit',
+            'File',
             'BirthingAssistant',
             'Community',
             'Site',
@@ -25,6 +32,9 @@ export const softDeleteExtension = Prisma.defineExtension((client) => {
             'ChildVisitQuestion',
             'ParentVisitQuestion',
             'FamilyVisitQuestion',
+            'ChildVisitQuestionSet',
+            'ParentVisitQuestionSet',
+            'FamilyVisitQuestionSet',
           ]);
 
           if (!model || !softDeleteModels.has(model)) {

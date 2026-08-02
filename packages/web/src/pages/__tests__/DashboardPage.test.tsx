@@ -62,6 +62,7 @@ const mockDashboardData: DashboardResponse = {
         leftFromProg: null,
         passedAway: null,
         questions: [],
+        photos: [],
         notes: null,
         createdAt: '2024-03-15T10:00:00Z',
         updatedAt: '2024-03-15T10:00:00Z',
@@ -81,6 +82,7 @@ const mockDashboardData: DashboardResponse = {
         trainingsReceived: [],
         resourcesReceived: [],
         questions: [],
+        photos: [],
         notes: null,
         createdAt: '2024-03-14T15:00:00Z',
         updatedAt: '2024-03-14T15:00:00Z',
@@ -131,6 +133,7 @@ const mockDashboardData: DashboardResponse = {
       communityId: 1,
       siteId: 1,
       birthingAssistantId: null,
+      photos: [],
       createdAt: '2024-03-01T10:00:00Z',
       updatedAt: '2024-03-15T10:00:00Z',
       childrenCount: 2,
@@ -143,6 +146,18 @@ const mockDashboardData: DashboardResponse = {
     familiesInCrisis: 3,
     visitsThisMonth: 12,
   },
+  visitsPerMonth: [
+    { month: 'Oct', count: 4 },
+    { month: 'Nov', count: 7 },
+    { month: 'Dec', count: 5 },
+    { month: 'Jan', count: 9 },
+    { month: 'Feb', count: 11 },
+    { month: 'Mar', count: 12 },
+  ],
+  communityBreakdown: [
+    { communityId: 1, families: 15, children: 30 },
+    { communityId: 2, families: 10, children: 15 },
+  ],
 };
 
 const createTestQueryClient = () => {
@@ -244,6 +259,8 @@ describe('DashboardPage', () => {
         familiesInCrisis: 0,
         visitsThisMonth: 0,
       },
+      visitsPerMonth: [],
+      communityBreakdown: [],
     };
 
     vi.mocked(dashboardApi.fetchDashboardData).mockResolvedValue(emptyData);

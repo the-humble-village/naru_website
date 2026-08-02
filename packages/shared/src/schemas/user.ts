@@ -16,6 +16,8 @@ export const UserCreateSchema = z.object({
 });
 
 // User update schema (partial fields for updates)
+// `password` is the admin password-reset path: when present the plain password is
+// hashed server-side and replaces passwordHash. It is never echoed back.
 export const UserUpdateSchema = z.object({
   login: z.string().min(1).max(255).optional(),
   email: z.string().email().optional().nullable(),
@@ -23,7 +25,13 @@ export const UserUpdateSchema = z.object({
   lastName: z.string().max(255).optional().nullable(),
   role: RoleSchema.optional(),
   lang: z.string().max(5).optional(),
+  password: z.string().min(6).optional(),
 }).partial();
+
+// Dedicated password reset payload (admin resetting another user's password)
+export const UserPasswordResetSchema = z.object({
+  password: z.string().min(6),
+});
 
 // User read schema (what's returned from API - never includes passwordHash)
 export const UserReadSchema = z.object({
@@ -76,6 +84,7 @@ export const AuthResponseSchema = z.object({
 export type Role = z.infer<typeof RoleSchema>;
 export type UserCreate = z.infer<typeof UserCreateSchema>;
 export type UserUpdate = z.infer<typeof UserUpdateSchema>;
+export type UserPasswordReset = z.infer<typeof UserPasswordResetSchema>;
 export type UserRead = z.infer<typeof UserReadSchema>;
 export type Login = z.infer<typeof LoginSchema>;
 export type Register = z.infer<typeof RegisterSchema>;

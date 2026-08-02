@@ -8,6 +8,7 @@ import {
   type TokenPayload,
 } from '@naru/shared';
 import { auth } from '../middleware/auth.js';
+import { requireSupervisor } from '../middleware/role.js';
 import * as parentVisitService from '../services/parent-visit.service.js';
 
 type Variables = {
@@ -98,6 +99,25 @@ app.put('/:id', auth,
 
     const parentVisit = await parentVisitService.updateParentVisit(familyId, parentId, id, data, user);
     return c.json(parentVisit);
+  }
+);
+
+/**
+ * DELETE /families/:familyId/parents/:pid/visits/:id
+ * Soft delete parent visit (supervisor+ only)
+ */
+app.delete('/:id', auth, requireSupervisor,
+  zValidator('param', z.object({
+    familyId: z.string().transform(val => parseInt(val, 10)),
+    pid: z.string().transform(val => parseInt(val, 10)),
+    id: z.string().transform(val => parseInt(val, 10)),
+  })),
+  async (c) => {
+    const { familyId, pid: parentId, id } = c.req.valid('param');
+    const user = c.get('user') as UserRead;
+
+    await parentVisitService.deleteParentVisit(familyId, parentId, id, user);
+    return c.json({ message: 'Parent visit deleted successfully' });
   }
 );
 

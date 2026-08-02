@@ -1,14 +1,18 @@
-import React from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Trash2 } from 'lucide-react';
 import { visitsApi } from '../../api/visits';
-import { PhotoGallery } from '../../components';
+import { PhotoGallery, RoleGate, ConfirmDialog } from '../../components';
 
 /**
  * ParentVisitDetailPage - Shows full details of a single parent visit
  */
 export const ParentVisitDetailPage: React.FC = () => {
   const { id: familyId, pid: parentId, vid: visitId } = useParams<{ id: string; pid: string; vid: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
   const parentIdNum = parentId ? parseInt(parentId, 10) : 0;
@@ -18,6 +22,18 @@ export const ParentVisitDetailPage: React.FC = () => {
     queryKey: ['parentVisit', familyIdNum, parentIdNum, visitIdNum],
     queryFn: () => visitsApi.fetchParentVisit(familyIdNum, parentIdNum, visitIdNum),
     enabled: familyIdNum > 0 && parentIdNum > 0 && visitIdNum > 0,
+  });
+
+  // Delete visit mutation (soft delete on the backend)
+  const deleteVisitMutation = useMutation({
+    mutationFn: () => visitsApi.deleteParentVisit(familyIdNum, parentIdNum, visitIdNum),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parentVisits', familyIdNum, parentIdNum] });
+      queryClient.invalidateQueries({ queryKey: ['parent', familyIdNum, parentIdNum] });
+      queryClient.removeQueries({ queryKey: ['parentVisit', familyIdNum, parentIdNum, visitIdNum] });
+      setConfirmDeleteOpen(false);
+      navigate(`/families/${familyIdNum}/parents/${parentIdNum}`);
+    },
   });
 
   if (isLoading) return <div className="text-hv-gray">Loading visit...</div>;
@@ -42,6 +58,16 @@ export const ParentVisitDetailPage: React.FC = () => {
           >
             Edit
           </Link>
+          <RoleGate requiredRole="SUPERVISOR">
+            <button
+              onClick={() => setConfirmDeleteOpen(true)}
+              disabled={deleteVisitMutation.isPending}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-red-200 rounded-md text-hv-crisis hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={13} />
+              Delete
+            </button>
+          </RoleGate>
           <Link
             to={`/families/${familyId}/parents/${parentId}`}
             className="text-hv-terracotta hover:underline transition-colors"
@@ -50,6 +76,27 @@ export const ParentVisitDetailPage: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {deleteVisitMutation.isError && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3">
+          <p className="text-hv-crisis text-sm">
+            Error deleting visit:{' '}
+            {deleteVisitMutation.error instanceof Error
+              ? deleteVisitMutation.error.message
+              : 'Unknown error'}
+          </p>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete parent visit"
+        message={`Delete the visit recorded on ${new Date(visit.visitDate).toLocaleDateString()}?`}
+        warning="Measurements, trainings, resources, question answers and photos recorded on this visit will be removed too."
+        busy={deleteVisitMutation.isPending}
+        onConfirm={() => deleteVisitMutation.mutate()}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
 
       <div className="space-y-5">
         {/* Visit info strip */}

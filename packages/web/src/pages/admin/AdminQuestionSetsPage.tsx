@@ -3,7 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionSetsApi } from '../../api/question-sets';
 import { adminApi, type LookupTableName } from '../../api/admin';
-import { type QuestionSetRead, type LookupRead } from '@naru/shared';
+import { type QuestionSetRead, type QuestionSetItemRead, type LookupRead } from '@naru/shared';
+import { RoleGate } from '../../components/RoleGate';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 type VisitType = 'child' | 'parent' | 'family';
 
@@ -32,18 +34,26 @@ function isValidType(t: string | undefined): t is VisitType {
 // ─── Questions Panel ──────────────────────────────────────────────────────────
 
 interface QuestionsPanelProps {
+  visitType: VisitType;
   config: typeof CONFIG[VisitType];
 }
 
-const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ config }) => {
+const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ visitType, config }) => {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LookupRead | null>(null);
   const [title, setTitle] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<LookupRead | null>(null);
 
   const { data: questions = [], isLoading } = useQuery({
     queryKey: ['admin', config.questionTable],
     queryFn: config.fetchFn,
+  });
+
+  // Already loaded by the sets panel; reused here purely to count references.
+  const { data: sets = [] } = useQuery({
+    queryKey: ['question-sets', visitType],
+    queryFn: () => questionSetsApi.list(visitType),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', config.questionTable] });
@@ -61,8 +71,21 @@ const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ config }) => {
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => adminApi.deleteLookupEntry(config.questionTable, id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      // A deleted question disappears from the sets that include it.
+      qc.invalidateQueries({ queryKey: ['question-sets', visitType] });
+      setDeleteTarget(null);
+    },
   });
+
+  const setsUsingTarget = deleteTarget
+    ? sets.filter((s) => s.items.some((i) => i.questionId === deleteTarget.id))
+    : [];
+
+  const askDelete = (q: LookupRead) => { deleteMut.reset(); setDeleteTarget(q); };
+  const cancelDelete = () => { setDeleteTarget(null); deleteMut.reset(); };
+  const confirmDelete = () => { if (deleteTarget) deleteMut.mutate(deleteTarget.id); };
 
   const resetForm = () => { setTitle(''); setShowForm(false); setEditing(null); };
   const startEdit = (q: LookupRead) => { setEditing(q); setTitle(q.title); setShowForm(true); };
@@ -127,7 +150,7 @@ const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ config }) => {
                 <td className="px-4 py-3 text-right text-sm space-x-3 whitespace-nowrap">
                   <button onClick={() => startEdit(q)} className="text-hv-accent hover:text-hv-green transition-colors">Edit</button>
                   <button
-                    onClick={() => { if (confirm(`Delete "${q.title}"?`)) deleteMut.mutate(q.id); }}
+                    onClick={() => askDelete(q)}
                     disabled={deleteMut.isPending}
                     className="text-hv-crisis hover:text-red-700 disabled:opacity-50 transition-colors"
                   >
@@ -139,6 +162,34 @@ const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ config }) => {
           </tbody>
         </table>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Question"
+        message={
+          <>
+            <p>
+              Delete <span className="font-medium text-hv-charcoal">&ldquo;{deleteTarget?.title}&rdquo;</span>? It will
+              no longer be available when recording a visit.
+            </p>
+            {deleteMut.error && (
+              <p className="mt-2 text-hv-crisis">Failed to delete question: {deleteMut.error.message}</p>
+            )}
+          </>
+        }
+        warning={
+          setsUsingTarget.length > 0
+            ? `${setsUsingTarget.length} question ${
+                setsUsingTarget.length === 1 ? 'set references' : 'sets reference'
+              } this question (${setsUsingTarget
+                .map((s) => s.name)
+                .join(', ')}). Answers already recorded on visits keep their text.`
+            : 'Answers already recorded on visits keep their text — they are not changed or removed.'
+        }
+        busy={deleteMut.isPending}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 };
@@ -180,7 +231,11 @@ const SetForm: React.FC<SetFormProps> = ({ visitType, availableQuestions, initia
     if (index === 0) return;
     setSelectedIds((prev) => {
       const next = [...prev];
-      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      const current = next[index];
+      const other = next[index - 1];
+      if (current === undefined || other === undefined) return prev;
+      next[index - 1] = current;
+      next[index] = other;
       return next;
     });
   };
@@ -189,7 +244,11 @@ const SetForm: React.FC<SetFormProps> = ({ visitType, availableQuestions, initia
     setSelectedIds((prev) => {
       if (index === prev.length - 1) return prev;
       const next = [...prev];
-      [next[index + 1], next[index]] = [next[index], next[index + 1]];
+      const current = next[index];
+      const other = next[index + 1];
+      if (current === undefined || other === undefined) return prev;
+      next[index + 1] = current;
+      next[index] = other;
       return next;
     });
   };
@@ -211,6 +270,7 @@ const SetForm: React.FC<SetFormProps> = ({ visitType, availableQuestions, initia
     setSelectedIds((prev) => {
       const next = [...prev];
       const [removed] = next.splice(dragIndex, 1);
+      if (removed === undefined) return prev;
       next.splice(index, 0, removed);
       return next;
     });
@@ -331,6 +391,8 @@ export const AdminQuestionSetsPage: React.FC = () => {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingSet, setEditingSet] = useState<QuestionSetRead | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<QuestionSetRead | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ set: QuestionSetRead; item: QuestionSetItemRead } | null>(null);
 
   if (!isValidType(visitType)) return <p className="text-red-500">Invalid visit type.</p>;
 
@@ -348,12 +410,42 @@ export const AdminQuestionSetsPage: React.FC = () => {
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => questionSetsApi.delete(visitType, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['question-sets', visitType] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['question-sets', visitType] });
+      setDeleteTarget(null);
+    },
+  });
+
+  // Removing a single question from a set = replacing the set's ordered questionIds.
+  const removeItemMut = useMutation({
+    mutationFn: ({ set, item }: { set: QuestionSetRead; item: QuestionSetItemRead }) =>
+      questionSetsApi.update(visitType, set.id, {
+        questionIds: [...set.items]
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .filter((i) => i.id !== item.id)
+          .map((i) => i.questionId),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['question-sets', visitType] });
+      setRemoveTarget(null);
+    },
   });
 
   const handleSaved = () => { setShowForm(false); setEditingSet(null); };
 
+  const askDeleteSet = (set: QuestionSetRead) => { deleteMut.reset(); setDeleteTarget(set); };
+  const cancelDeleteSet = () => { setDeleteTarget(null); deleteMut.reset(); };
+  const confirmDeleteSet = () => { if (deleteTarget) deleteMut.mutate(deleteTarget.id); };
+
+  const askRemoveItem = (set: QuestionSetRead, item: QuestionSetItemRead) => {
+    removeItemMut.reset();
+    setRemoveTarget({ set, item });
+  };
+  const cancelRemoveItem = () => { setRemoveTarget(null); removeItemMut.reset(); };
+  const confirmRemoveItem = () => { if (removeTarget) removeItemMut.mutate(removeTarget); };
+
   return (
+    <RoleGate requiredRole="ADMIN">
     <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
         <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{config.pageTitle}</h1>
@@ -361,7 +453,7 @@ export const AdminQuestionSetsPage: React.FC = () => {
       </div>
 
       {/* Questions section */}
-      <QuestionsPanel config={config} />
+      <QuestionsPanel visitType={visitType} config={config} />
 
       {/* Sets section */}
       <div className="flex justify-between items-center mb-3">
@@ -412,8 +504,9 @@ export const AdminQuestionSetsPage: React.FC = () => {
                     Edit
                   </button>
                   <button
-                    onClick={() => { if (confirm(`Delete "${set.name}"?`)) deleteMut.mutate(set.id); }}
-                    className="text-hv-crisis hover:text-red-700 text-sm transition-colors"
+                    onClick={() => askDeleteSet(set)}
+                    disabled={deleteMut.isPending}
+                    className="text-hv-crisis hover:text-red-700 text-sm disabled:opacity-50 transition-colors"
                   >
                     Delete
                   </button>
@@ -422,9 +515,17 @@ export const AdminQuestionSetsPage: React.FC = () => {
               {set.items.length > 0 && (
                 <ul className="mt-3 space-y-1">
                   {set.items.map((item, i) => (
-                    <li key={item.id} className="text-sm text-hv-gray flex gap-2">
+                    <li key={item.id} className="text-sm text-hv-gray flex gap-2 items-start">
                       <span className="text-hv-sage w-5 shrink-0">{i + 1}.</span>
-                      {item.questionTitle}
+                      <span className="flex-1">{item.questionTitle}</span>
+                      <button
+                        onClick={() => askRemoveItem(set, item)}
+                        disabled={removeItemMut.isPending}
+                        className="text-hv-crisis hover:text-red-700 text-xs shrink-0 disabled:opacity-50 transition-colors"
+                        aria-label={`Remove "${item.questionTitle}" from ${set.name}`}
+                      >
+                        Remove
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -433,7 +534,50 @@ export const AdminQuestionSetsPage: React.FC = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Question Set"
+        message={
+          <>
+            <p>
+              Delete <span className="font-medium text-hv-charcoal">&ldquo;{deleteTarget?.name}&rdquo;</span>? The
+              questions themselves are not deleted, only this grouping of them.
+            </p>
+            {deleteMut.error && (
+              <p className="mt-2 text-hv-crisis">Failed to delete set: {deleteMut.error.message}</p>
+            )}
+          </>
+        }
+        warning="Visits already recorded using this set keep their answers — they are not changed or removed."
+        busy={deleteMut.isPending}
+        onConfirm={confirmDeleteSet}
+        onCancel={cancelDeleteSet}
+      />
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        title="Remove Question From Set"
+        confirmLabel="Remove"
+        message={
+          <>
+            <p>
+              Remove{' '}
+              <span className="font-medium text-hv-charcoal">&ldquo;{removeTarget?.item.questionTitle}&rdquo;</span>{' '}
+              from <span className="font-medium text-hv-charcoal">&ldquo;{removeTarget?.set.name}&rdquo;</span>? The
+              question itself is kept and stays available for other sets.
+            </p>
+            {removeItemMut.error && (
+              <p className="mt-2 text-hv-crisis">Failed to remove question: {removeItemMut.error.message}</p>
+            )}
+          </>
+        }
+        busy={removeItemMut.isPending}
+        onConfirm={confirmRemoveItem}
+        onCancel={cancelRemoveItem}
+      />
     </div>
+    </RoleGate>
   );
 };
 

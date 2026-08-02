@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguagePage } from '../LanguagePage';
 
 // Mock the auth store
@@ -10,6 +11,24 @@ const mockUseAuthStore = vi.fn();
 vi.mock('../../store/auth', () => ({
   useAuthStore: () => mockUseAuthStore(),
 }));
+
+// LanguagePage persists the choice through PATCH /users/me/language.
+vi.mock('../../api/users', () => ({
+  usersApi: {
+    updateLanguage: vi.fn(),
+  },
+}));
+
+const renderPage = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <LanguagePage />
+    </QueryClientProvider>
+  );
+};
 
 // Mock the translation hook
 vi.mock('../../hooks/useTranslation', () => ({
@@ -51,12 +70,12 @@ describe('LanguagePage', () => {
   });
 
   it('should render the page heading', () => {
-    render(<LanguagePage />);
+    renderPage();
     expect(screen.getByText('Language Settings')).toBeInTheDocument();
   });
 
   it('should render radio buttons for English and Spanish', () => {
-    render(<LanguagePage />);
+    renderPage();
     const radios = screen.getAllByRole('radio');
     expect(radios).toHaveLength(2);
     expect(screen.getByText('English')).toBeInTheDocument();
@@ -64,7 +83,7 @@ describe('LanguagePage', () => {
   });
 
   it('should have English selected by default when lang is en', () => {
-    render(<LanguagePage />);
+    renderPage();
     const enRadio = screen.getByDisplayValue('en');
     const esRadio = screen.getByDisplayValue('es');
     expect(enRadio).toBeChecked();
@@ -72,13 +91,13 @@ describe('LanguagePage', () => {
   });
 
   it('should have save button disabled when no language change is made', () => {
-    render(<LanguagePage />);
+    renderPage();
     const saveButton = screen.getByRole('button', { name: 'Save' });
     expect(saveButton).toBeDisabled();
   });
 
   it('should enable save button when a different language is selected', () => {
-    render(<LanguagePage />);
+    renderPage();
     const esRadio = screen.getByDisplayValue('es');
     fireEvent.click(esRadio);
 

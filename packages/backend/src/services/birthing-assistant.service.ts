@@ -13,7 +13,11 @@ import prisma from '../db.js';
 export async function listBirthingAssistants(): Promise<BirthingAssistantRead[]> {
   const birthingAssistants = await prisma.birthingAssistant.findMany({
     include: {
+      // The soft-delete extension only filters top-level `where` clauses, so a
+      // junction row pointing at a soft-deleted community/training would still
+      // come back. Filter on the related row explicitly.
       servedCommunities: {
+        where: { community: { deletedAt: null } },
         include: {
           community: {
             select: {
@@ -24,6 +28,7 @@ export async function listBirthingAssistants(): Promise<BirthingAssistantRead[]>
         },
       },
       trainingsReceived: {
+        where: { training: { deletedAt: null } },
         include: {
           training: {
             select: {
@@ -113,7 +118,11 @@ export async function createBirthingAssistant(data: BirthingAssistantCreate): Pr
       },
     },
     include: {
+      // The soft-delete extension only filters top-level `where` clauses, so a
+      // junction row pointing at a soft-deleted community/training would still
+      // come back. Filter on the related row explicitly.
       servedCommunities: {
+        where: { community: { deletedAt: null } },
         include: {
           community: {
             select: {
@@ -124,6 +133,7 @@ export async function createBirthingAssistant(data: BirthingAssistantCreate): Pr
         },
       },
       trainingsReceived: {
+        where: { training: { deletedAt: null } },
         include: {
           training: {
             select: {
@@ -160,7 +170,11 @@ export async function getBirthingAssistantById(id: number): Promise<BirthingAssi
   const birthingAssistant = await prisma.birthingAssistant.findUnique({
     where: { id },
     include: {
+      // The soft-delete extension only filters top-level `where` clauses, so a
+      // junction row pointing at a soft-deleted community/training would still
+      // come back. Filter on the related row explicitly.
       servedCommunities: {
+        where: { community: { deletedAt: null } },
         include: {
           community: {
             select: {
@@ -171,6 +185,7 @@ export async function getBirthingAssistantById(id: number): Promise<BirthingAssi
         },
       },
       trainingsReceived: {
+        where: { training: { deletedAt: null } },
         include: {
           training: {
             select: {
@@ -280,7 +295,11 @@ export async function updateBirthingAssistant(id: number, data: BirthingAssistan
       } : undefined,
     },
     include: {
+      // The soft-delete extension only filters top-level `where` clauses, so a
+      // junction row pointing at a soft-deleted community/training would still
+      // come back. Filter on the related row explicitly.
       servedCommunities: {
+        where: { community: { deletedAt: null } },
         include: {
           community: {
             select: {
@@ -291,6 +310,7 @@ export async function updateBirthingAssistant(id: number, data: BirthingAssistan
         },
       },
       trainingsReceived: {
+        where: { training: { deletedAt: null } },
         include: {
           training: {
             select: {

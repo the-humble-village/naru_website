@@ -15,6 +15,7 @@ import {
   AddParentPage,
   AddChildVisitPage,
   AddFamilyVisitPage,
+  FamilyVisitsPage,
   FamilyVisitDetailPage,
   ChildVisitDetailPage,
   AdminPage,
@@ -118,6 +119,10 @@ const router = createBrowserRouter([
           {
             path: ':id/children/:cid/visits/:vid',
             element: <ChildVisitDetailPage />,
+          },
+          {
+            path: ':id/visits',
+            element: <FamilyVisitsPage />,
           },
           {
             path: ':id/visits/new',

@@ -1,16 +1,19 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import ChildDetailPage from '../children/ChildDetailPage';
 import * as childrenApi from '../../api/children';
 import * as visitsApi from '../../api/visits';
+import { useAuthStore } from '../../store/auth';
 
 // Mock the API modules
 vi.mock('../../api/children', () => ({
   childrenApi: {
     fetchChild: vi.fn(),
+    updateChild: vi.fn(),
+    deleteChild: vi.fn(),
   },
 }));
 
@@ -20,17 +23,42 @@ vi.mock('../../api/visits', () => ({
   },
 }));
 
+vi.mock('../../api/files', () => ({
+  filesApi: {
+    getPresignedDownloadUrls: vi.fn().mockResolvedValue({ urls: [] }),
+    requestPresignedUpload: vi.fn(),
+    uploadFileToS3: vi.fn(),
+    confirmUpload: vi.fn(),
+  },
+}));
+
+vi.mock('../../store/auth', () => ({
+  useAuthStore: vi.fn(),
+}));
+
+const mockNavigate = vi.fn();
+
 // Mock useParams to return specific values
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
     useParams: vi.fn(),
+    useNavigate: () => mockNavigate,
   };
 });
 
 const mockFetchChild = childrenApi.childrenApi.fetchChild as ReturnType<typeof vi.fn>;
+const mockUpdateChild = childrenApi.childrenApi.updateChild as ReturnType<typeof vi.fn>;
+const mockDeleteChild = childrenApi.childrenApi.deleteChild as ReturnType<typeof vi.fn>;
 const mockListChildVisits = visitsApi.visitsApi.listChildVisits as ReturnType<typeof vi.fn>;
+const mockUseAuthStore = useAuthStore as unknown as ReturnType<typeof vi.fn>;
+
+const setRole = (role: 'ADMIN' | 'SUPERVISOR' | 'CASEWORKER') => {
+  mockUseAuthStore.mockReturnValue({
+    user: { id: 1, login: 'u', email: null, firstName: 'A', lastName: 'B', role, lang: 'en' },
+  });
+};
 
 // Test utilities
 const createTestWrapper = () => {
@@ -95,6 +123,7 @@ const mockVisitsResponse = {
       leftFromProg: null,
       passedAway: null,
       questions: [],
+      photos: [],
       notes: 'Normal development',
       createdAt: '2023-03-01T10:00:00.000Z',
       updatedAt: '2023-03-01T10:00:00.000Z',
@@ -115,6 +144,7 @@ const mockVisitsResponse = {
       leftFromProg: null,
       passedAway: null,
       questions: [],
+      photos: [],
       notes: null,
       createdAt: '2023-02-01T10:00:00.000Z',
       updatedAt: '2023-02-01T10:00:00.000Z',
@@ -128,6 +158,7 @@ const mockVisitsResponse = {
 describe('ChildDetailPage', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    setRole('SUPERVISOR');
     // Mock useParams to return expected route parameters
     const { useParams } = await import('react-router-dom');
     (useParams as any).mockReturnValue({ id: '1', cid: '2' });
@@ -370,6 +401,145 @@ describe('ChildDetailPage', () => {
 
       const addVisitLink = screen.getByText('Add Visit');
       expect(addVisitLink.closest('a')).toHaveAttribute('href', '/families/1/children/2/visits/new');
+    });
+  });
+
+  describe('Inline edit form', () => {
+    const openEditForm = async () => {
+      mockFetchChild.mockResolvedValue(mockChild);
+      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
+
+      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      await screen.findByText('Edit Child Information');
+    };
+
+    it('exposes every editable child field, including photos', async () => {
+      await openEditForm();
+
+      expect(screen.getByLabelText('Name')).toHaveValue('Maria Garcia');
+      expect(screen.getByLabelText('Sex')).toHaveValue('FEMALE');
+      expect(screen.getByLabelText('Birth Date')).toHaveValue('2023-01-15');
+      expect(screen.getByLabelText('Date Entered')).toHaveValue('2023-02-01');
+      expect(screen.getByLabelText('Weight (kg)')).toHaveValue(12.5);
+      expect(screen.getByLabelText('Nutritional State')).toHaveValue('Good');
+      expect(screen.getByLabelText('Reason for Enrollment')).toHaveValue('Regular checkup');
+      expect(screen.getByLabelText('Observations')).toHaveValue('Healthy development');
+      // PhotoUpload renders a "Photos" label plus an add control
+      expect(screen.getByText('Photos')).toBeInTheDocument();
+      expect(screen.getByText('Add Photo')).toBeInTheDocument();
+    });
+
+    it('only sends changed fields on save', async () => {
+      mockUpdateChild.mockResolvedValue({ ...mockChild, nutritionalState: 'Improving' });
+      await openEditForm();
+
+      fireEvent.change(screen.getByLabelText('Nutritional State'), { target: { value: 'Improving' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(mockUpdateChild).toHaveBeenCalledWith(1, 2, { nutritionalState: 'Improving' });
+      });
+    });
+
+    it('resets the form on cancel', async () => {
+      await openEditForm();
+
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Changed' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Edit Child Information')).not.toBeInTheDocument();
+      });
+      expect(mockUpdateChild).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Delete', () => {
+    const renderPage = async () => {
+      mockFetchChild.mockResolvedValue(mockChild);
+      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
+
+      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
+      });
+    };
+
+    it('hides the Delete button from caseworkers', async () => {
+      setRole('CASEWORKER');
+      await renderPage();
+
+      expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument();
+    });
+
+    it('shows the Delete button to supervisors', async () => {
+      await renderPage();
+
+      expect(screen.getByRole('button', { name: /Delete/ })).toBeInTheDocument();
+    });
+
+    it('opens a confirmation dialog instead of window.confirm', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm');
+      await renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByText('Delete child')).toBeInTheDocument();
+      // Warns that the child has recorded visits, but does not block
+      expect(screen.getByText('This child has 2 recorded visits.')).toBeInTheDocument();
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(mockDeleteChild).not.toHaveBeenCalled();
+
+      confirmSpy.mockRestore();
+    });
+
+    it('cancelling the dialog does not delete', async () => {
+      await renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+      await screen.findByRole('dialog');
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(mockDeleteChild).not.toHaveBeenCalled();
+    });
+
+    it('confirming deletes the child and navigates back to the family', async () => {
+      mockDeleteChild.mockResolvedValue(undefined);
+      await renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() => {
+        expect(mockDeleteChild).toHaveBeenCalledWith(1, 2);
+      });
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/families/1');
+      });
+    });
+
+    it('surfaces a delete error', async () => {
+      mockDeleteChild.mockRejectedValue(new Error('Forbidden'));
+      await renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      expect(await screen.findByText(/Error deleting child: Forbidden/)).toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 

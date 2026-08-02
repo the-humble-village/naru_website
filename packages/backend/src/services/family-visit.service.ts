@@ -252,8 +252,12 @@ export async function updateFamilyVisit(
     updatedAt: new Date(),
   };
 
-  // Only include fields that are provided in the update
-  if (data.visitDate !== undefined) updateData.visitDate = data.visitDate ? new Date(data.visitDate) : null;
+  // Only include fields that are provided in the update.
+  // Every mutable column on FamilyVisit is represented here — the trainingsReceived /
+  // resourcesReceived lists, the questions answer array and the photos array included.
+  // All of them are inline JSON on the row (no answer rows with their own deletedAt),
+  // so the create path's whole-array replace strategy applies.
+  if (data.visitDate !== undefined) updateData.visitDate = new Date(data.visitDate);
   if (data.trainingsReceived !== undefined) updateData.trainingsReceived = data.trainingsReceived;
   if (data.resourcesReceived !== undefined) updateData.resourcesReceived = data.resourcesReceived;
   if (data.questions !== undefined) updateData.questions = data.questions;
@@ -294,4 +298,50 @@ export async function updateFamilyVisit(
   };
 
   return familyVisitRead;
+}
+
+/**
+ * Delete family visit by ID (soft delete)
+ * Only supervisors and admins can delete family visits
+ */
+export async function deleteFamilyVisit(
+  familyId: number,
+  visitId: number,
+  user: UserRead
+): Promise<void> {
+  // First check if the family exists
+  const family = await prisma.family.findUnique({
+    where: { id: familyId },
+    select: { id: true },
+  });
+
+  if (!family) {
+    throw new HTTPException(404, { message: 'Family not found' });
+  }
+
+  // Check if family visit exists (the soft-delete extension filters out already-deleted
+  // rows, so a second delete of the same visit returns 404)
+  const existingVisit = await prisma.familyVisit.findFirst({
+    where: {
+      id: visitId,
+      familyId: familyId,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  if (!existingVisit) {
+    throw new HTTPException(404, { message: 'Family visit not found' });
+  }
+
+  // TODO: When we implement user assignment/scoping, add access control here
+
+  // Soft delete the visit. Trainings, resources, question answers and photos all live
+  // inline on this row as JSON, so there is nothing to cascade.
+  await prisma.familyVisit.update({
+    where: { id: visitId },
+    data: {
+      deletedAt: new Date(),
+    },
+  });
 }

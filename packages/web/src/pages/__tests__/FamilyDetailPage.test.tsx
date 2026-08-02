@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { SiteRead } from '@naru/shared';
 import FamilyDetailPage from '../families/FamilyDetailPage';
 import { familiesApi } from '../../api/families';
 import { parentsApi } from '../../api/parents';
 import { childrenApi } from '../../api/children';
 import { visitsApi } from '../../api/visits';
 import { adminApi } from '../../api/admin';
+import { sitesApi } from '../../api/sites';
 import { birthingAssistantsApi } from '../../api/birthing-assistants';
 
 // Mock all API modules
@@ -44,10 +46,39 @@ vi.mock('../../api/admin', () => ({
   },
 }));
 
+vi.mock('../../api/sites', () => ({
+  sitesApi: {
+    list: vi.fn(),
+  },
+}));
+
 vi.mock('../../api/birthing-assistants', () => ({
   birthingAssistantsApi: {
     fetchBirthingAssistants: vi.fn(),
   },
+}));
+
+// Deleting a family is supervisor-gated in the UI (RoleGate), matching the backend route.
+const mockAuthUser: {
+  id: number;
+  login: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  role: 'ADMIN' | 'SUPERVISOR' | 'CASEWORKER';
+  lang: string;
+} = {
+  id: 1,
+  login: 'supervisor',
+  email: null,
+  firstName: null,
+  lastName: null,
+  role: 'SUPERVISOR',
+  lang: 'en',
+};
+
+vi.mock('../../store/auth', () => ({
+  useAuthStore: () => ({ user: mockAuthUser }),
 }));
 
 const mockFamiliesApi = vi.mocked(familiesApi);
@@ -55,6 +86,7 @@ const mockParentsApi = vi.mocked(parentsApi);
 const mockChildrenApi = vi.mocked(childrenApi);
 const mockVisitsApi = vi.mocked(visitsApi);
 const mockAdminApi = vi.mocked(adminApi);
+const mockSitesApi = vi.mocked(sitesApi);
 const mockBirthingAssistantsApi = vi.mocked(birthingAssistantsApi);
 
 const mockNavigate = vi.fn();
@@ -69,46 +101,47 @@ const mockFamily = {
   communityId: 1,
   siteId: 1,
   birthingAssistantId: 1,
+  photos: [],
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };
 
-const mockParents = [
-  {
-    id: 1,
-    localId: null,
-    familyId: 1,
-    name: 'Test Parent',
-    role: 'mother',
-    birthDate: '1990-01-01T00:00:00Z',
-    dateEntered: null,
-    photos: [],
-    reasonEnroll: null,
-    dueDate: null,
-    notes: null,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-];
+const mockParent = {
+  id: 1,
+  localId: null,
+  familyId: 1,
+  name: 'Test Parent',
+  role: 'mother',
+  birthDate: '1990-01-01T00:00:00Z',
+  dateEntered: null,
+  photos: [],
+  reasonEnroll: null,
+  dueDate: null,
+  notes: null,
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
+};
 
-const mockChildren = [
-  {
-    id: 1,
-    localId: null,
-    familyId: 1,
-    name: 'Test Child',
-    birthDate: '2023-01-01T00:00:00Z',
-    sex: 'MALE' as const,
-    dateEntered: null,
-    photos: [],
-    weight: 5,
-    nutritionalState: null,
-    reasonEnrollment: null,
-    observations: null,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-];
+const mockParents = [mockParent];
+
+const mockChild = {
+  id: 1,
+  localId: null,
+  familyId: 1,
+  name: 'Test Child',
+  birthDate: '2023-01-01T00:00:00Z',
+  sex: 'MALE' as const,
+  dateEntered: null,
+  photos: [],
+  weight: 5,
+  nutritionalState: null,
+  reasonEnrollment: null,
+  observations: null,
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
+};
+
+const mockChildren = [mockChild];
 
 const mockVisits = {
   visits: [
@@ -120,6 +153,7 @@ const mockVisits = {
       trainingsReceived: [],
       resourcesReceived: [],
       questions: [],
+      photos: [],
       notes: 'Test visit notes',
       createdAt: '2024-01-15T00:00:00Z',
       updatedAt: '2024-01-15T00:00:00Z',
@@ -134,8 +168,16 @@ const mockCommunities = [
   { id: 1, title: 'Test Community', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
 ];
 
-const mockSites = [
-  { id: 1, title: 'Test Site', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+const mockSites: SiteRead[] = [
+  {
+    id: 1,
+    title: 'Test Site',
+    lat: null,
+    lng: null,
+    boundary: null,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
 ];
 
 const mockBirthingAssistants = [
@@ -185,7 +227,9 @@ describe('FamilyDetailPage', () => {
     mockVisitsApi.listFamilyVisits.mockResolvedValue(mockVisits);
     mockAdminApi.fetchCommunities.mockResolvedValue(mockCommunities);
     mockAdminApi.fetchSites.mockResolvedValue(mockSites);
+    mockSitesApi.list.mockResolvedValue(mockSites);
     mockBirthingAssistantsApi.fetchBirthingAssistants.mockResolvedValue(mockBirthingAssistants);
+    mockAuthUser.role = 'SUPERVISOR';
   });
 
   describe('Family Information Display', () => {
@@ -303,6 +347,56 @@ describe('FamilyDetailPage', () => {
         }));
       });
     });
+
+    it('should expose every editable family field in the form', async () => {
+      renderWithQueryClient(<FamilyDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Family')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Edit'));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Family Name')).toBeInTheDocument();
+      });
+      expect(screen.getByLabelText('Community')).toBeInTheDocument();
+      expect(screen.getByLabelText('Site')).toBeInTheDocument();
+      expect(screen.getByLabelText('Birthing Assistant')).toBeInTheDocument();
+      expect(screen.getByLabelText('Notes')).toBeInTheDocument();
+      expect(screen.getByLabelText('Family in Crisis')).toBeInTheDocument();
+      expect(screen.getByText('Children (editable count)')).toBeInTheDocument();
+    });
+
+    it('should only send changed fields', async () => {
+      mockFamiliesApi.updateFamily.mockResolvedValue(mockFamily);
+
+      renderWithQueryClient(<FamilyDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Family')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Edit'));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Site')).toBeInTheDocument();
+      });
+      fireEvent.change(screen.getByLabelText('Site'), { target: { value: '' } });
+      fireEvent.click(screen.getByText('Save'));
+
+      await waitFor(() => {
+        expect(mockFamiliesApi.updateFamily).toHaveBeenCalledWith(1, { siteId: null });
+      });
+    });
+
+    it('should label a soft-deleted lookup reference instead of showing None', async () => {
+      mockAdminApi.fetchCommunities.mockResolvedValue([]);
+
+      renderWithQueryClient(<FamilyDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Unavailable (#1)')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Children Section', () => {
@@ -404,52 +498,93 @@ describe('FamilyDetailPage', () => {
   });
 
   describe('Delete Functionality', () => {
-    beforeEach(() => {
-      // Mock window.confirm
-      window.confirm = vi.fn();
-    });
-
-    it('should show confirmation dialog when delete is clicked', async () => {
-      (window.confirm as any).mockReturnValue(false);
-
+    /** Renders, waits for load, clicks the header Delete button and returns the dialog. */
+    const openDeleteDialog = async () => {
       renderWithQueryClient(<FamilyDetailPage />);
 
       await waitFor(() => {
-        const deleteButton = screen.getByText('Delete');
-        fireEvent.click(deleteButton);
+        expect(screen.getByText('Test Family')).toBeInTheDocument();
       });
 
-      expect(window.confirm).toHaveBeenCalledWith('Delete this family? This cannot be undone.');
-    });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+      return within(await screen.findByRole('dialog'));
+    };
 
-    it('should not delete when confirmation is cancelled', async () => {
-      (window.confirm as any).mockReturnValue(false);
+    it('should open the ConfirmDialog instead of window.confirm', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm');
 
-      renderWithQueryClient(<FamilyDetailPage />);
+      const dialog = await openDeleteDialog();
 
-      await waitFor(() => {
-        const deleteButton = screen.getByText('Delete');
-        fireEvent.click(deleteButton);
-      });
-
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(dialog.getByText('Delete family')).toBeInTheDocument();
       expect(mockFamiliesApi.deleteFamily).not.toHaveBeenCalled();
+
+      confirmSpy.mockRestore();
+    });
+
+    it('should spell out the cascade in the confirmation message', async () => {
+      const dialog = await openDeleteDialog();
+
+      expect(
+        dialog.getByText(
+          /Delete Test Family\? This also removes 1 parent, 1 child and their visits \(1 family visit\)\. This cannot be undone\./
+        )
+      ).toBeInTheDocument();
+    });
+
+    it('should pluralise the cascade counts', async () => {
+      mockParentsApi.listParents.mockResolvedValue([
+        mockParent,
+        { ...mockParent, id: 2, name: 'Second Parent' },
+      ]);
+      mockChildrenApi.listChildren.mockResolvedValue([
+        mockChild,
+        { ...mockChild, id: 2, name: 'Second Child' },
+      ]);
+      mockVisitsApi.listFamilyVisits.mockResolvedValue({ ...mockVisits, total: 3 });
+
+      const dialog = await openDeleteDialog();
+
+      expect(
+        dialog.getByText(/This also removes 2 parents, 2 children and their visits \(3 family visits\)\./)
+      ).toBeInTheDocument();
+    });
+
+    it('should not delete when the dialog is cancelled', async () => {
+      const dialog = await openDeleteDialog();
+
+      fireEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(mockFamiliesApi.deleteFamily).not.toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
 
     it('should delete family and navigate when confirmed', async () => {
-      (window.confirm as any).mockReturnValue(true);
       mockFamiliesApi.deleteFamily.mockResolvedValue();
 
-      renderWithQueryClient(<FamilyDetailPage />);
+      const dialog = await openDeleteDialog();
 
-      await waitFor(() => {
-        const deleteButton = screen.getByText('Delete');
-        fireEvent.click(deleteButton);
-      });
+      fireEvent.click(dialog.getByRole('button', { name: 'Delete' }));
 
       await waitFor(() => {
         expect(mockFamiliesApi.deleteFamily).toHaveBeenCalledWith(1);
         expect(mockNavigate).toHaveBeenCalledWith('/');
       });
+    });
+
+    it('should hide the Delete button from caseworkers', async () => {
+      mockAuthUser.role = 'CASEWORKER';
+
+      renderWithQueryClient(<FamilyDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Family')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
     });
   });
 

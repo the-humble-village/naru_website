@@ -32,6 +32,7 @@ const mockFamilies: FamilyRead[] = [
     communityId: 1,
     siteId: null,
     birthingAssistantId: null,
+    photos: [],
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-15T00:00:00Z',
   },
@@ -45,6 +46,7 @@ const mockFamilies: FamilyRead[] = [
     communityId: 2,
     siteId: null,
     birthingAssistantId: null,
+    photos: [],
     createdAt: '2024-01-02T00:00:00Z',
     updatedAt: '2024-01-16T00:00:00Z',
   },
@@ -341,8 +343,8 @@ describe('FamiliesPage', () => {
     });
 
     it('should display "None" for families without community', async () => {
-      const familyWithoutCommunity = {
-        ...mockFamilies[0],
+      const familyWithoutCommunity: FamilyRead = {
+        ...mockFamilies[0]!,
         communityId: null,
       };
 
@@ -361,8 +363,8 @@ describe('FamiliesPage', () => {
     });
 
     it('should display "Unnamed Family" for families without name', async () => {
-      const unnamedFamily = {
-        ...mockFamilies[0],
+      const unnamedFamily: FamilyRead = {
+        ...mockFamilies[0]!,
         familyName: null,
       };
 
@@ -444,7 +446,7 @@ describe('FamiliesPage', () => {
       });
 
       const nextButtons = screen.getAllByRole('button', { name: /next/i });
-      fireEvent.click(nextButtons[0]); // Click the first next button
+      fireEvent.click(nextButtons[0]!); // Click the first next button
 
       await waitFor(() => {
         expect(mockFamiliesApi.listFamilies).toHaveBeenCalledWith({

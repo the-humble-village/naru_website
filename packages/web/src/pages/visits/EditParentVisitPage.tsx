@@ -8,6 +8,8 @@ import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoUpload } from '../../components';
+import { toDateTimeLocal, fromDateTimeLocal, nowDateTimeLocal } from '../../utils/datetime';
+import { usePendingPhotoDeletions } from '../../hooks';
 
 export const EditParentVisitPage: React.FC = () => {
   const navigate = useNavigate();
@@ -45,7 +47,7 @@ export const EditParentVisitPage: React.FC = () => {
       setFormData({
         familyId: visit.familyId,
         parentId: visit.parentId,
-        visitDate: new Date(visit.visitDate).toISOString().slice(0, 16),
+        visitDate: toDateTimeLocal(visit.visitDate),
         weight: visit.weight,
         trainingsReceived: visit.trainingsReceived,
         resourcesReceived: visit.resourcesReceived,
@@ -94,10 +96,16 @@ export const EditParentVisitPage: React.FC = () => {
     }));
   };
 
+  // Photo removals are staged until save. Cancel is a plain link away from this
+  // page, so navigating off discards the staged list and the photos survive.
+  const photoDeletions = usePendingPhotoDeletions();
+
   const updateVisitMutation = useMutation({
     mutationFn: (data: ParentVisitUpdate) => visitsApi.updateParentVisit(familyIdNum, parentIdNum, visitIdNum, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parentVisit', familyIdNum, parentIdNum, visitIdNum] });
+      // The visit saved without these photos, so it is now safe to delete the files.
+      void photoDeletions.commit();
       navigate(`/families/${familyId}/parents/${parentId}/visits/${visitId}`);
     },
     onError: (error) => {
@@ -168,7 +176,7 @@ export const EditParentVisitPage: React.FC = () => {
     try {
       ParentVisitCreateSchema.parse({
         ...formData,
-        visitDate: new Date(formData.visitDate).toISOString(),
+        visitDate: fromDateTimeLocal(formData.visitDate),
         weight: Number(formData.weight) || 0,
       });
     } catch (error: unknown) {
@@ -190,12 +198,20 @@ export const EditParentVisitPage: React.FC = () => {
       return;
     }
 
+    // Keep questions that were already stored on the visit even when their answer
+    // is blank (the detail page renders them as "No answer"), so an unrelated edit
+    // never silently drops a recorded question. Newly added, unanswered questions
+    // are still discarded, matching AddParentVisitPage.
+    const storedQuestionIds = new Set((visit?.questions ?? []).map((q) => q.questionId));
+
     const submitData: ParentVisitUpdate = {
-      visitDate: new Date(formData.visitDate).toISOString(),
+      visitDate: fromDateTimeLocal(formData.visitDate),
       weight: Number(formData.weight) || 0,
       trainingsReceived: formData.trainingsReceived,
       resourcesReceived: formData.resourcesReceived,
-      questions: formData.questions.filter(q => q.answer.trim() !== ''),
+      questions: formData.questions.filter(
+        (q) => q.answer.trim() !== '' || storedQuestionIds.has(q.questionId)
+      ),
       photos: formData.photos,
       notes: formData.notes,
     };
@@ -388,6 +404,7 @@ export const EditParentVisitPage: React.FC = () => {
           <PhotoUpload
             photos={formData.photos}
             onChange={(photos) => handleInputChange('photos', photos)}
+            pendingDeletions={photoDeletions}
           />
 
           {/* Notes */}

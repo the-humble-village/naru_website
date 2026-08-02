@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Trash2 } from 'lucide-react';
 import { parentsApi } from '../../api/parents';
 import { visitsApi } from '../../api/visits';
 import { ParentUpdate, ParentRead } from '@naru/shared';
-import { PhotoUpload, PhotoGallery } from '../../components';
+import { PhotoUpload, PhotoGallery, RoleGate, ConfirmDialog } from '../../components';
+import { usePendingPhotoDeletions } from '../../hooks';
 
 /**
  * ParentDetailPage - Shows parent details with edit form
  */
 export const ParentDetailPage: React.FC = () => {
   const { id: familyId, pid: parentId } = useParams<{ id: string; pid: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<ParentUpdate>({});
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
   const parentIdNum = parentId ? parseInt(parentId, 10) : 0;
@@ -37,6 +41,9 @@ export const ParentDetailPage: React.FC = () => {
   });
 
   // Update parent mutation
+  // Photo removals are staged until save so Cancel can undo them.
+  const photoDeletions = usePendingPhotoDeletions();
+
   const updateParentMutation = useMutation({
     mutationFn: (data: ParentUpdate) => parentsApi.updateParent(familyIdNum, parentIdNum, data),
     onSuccess: () => {
@@ -44,6 +51,21 @@ export const ParentDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['parents', familyIdNum] });
       setIsEditing(false);
       setEditData({});
+      // The record saved without these photos, so it is now safe to delete the
+      // files. Staged until here so cancelling the edit could undo the removal.
+      void photoDeletions.commit();
+    },
+  });
+
+  // Delete parent mutation (soft delete on the backend)
+  const deleteParentMutation = useMutation({
+    mutationFn: () => parentsApi.deleteParent(familyIdNum, parentIdNum),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parents', familyIdNum] });
+      queryClient.invalidateQueries({ queryKey: ['family', familyIdNum] });
+      queryClient.removeQueries({ queryKey: ['parent', familyIdNum, parentIdNum] });
+      setConfirmDeleteOpen(false);
+      navigate(`/families/${familyIdNum}`);
     },
   });
 
@@ -64,6 +86,7 @@ export const ParentDetailPage: React.FC = () => {
   };
 
   const handleCancel = () => {
+    photoDeletions.discard();
     setIsEditing(false);
     setEditData({});
   };
@@ -165,13 +188,45 @@ export const ParentDetailPage: React.FC = () => {
         <h1 className="text-2xl font-serif font-bold text-hv-charcoal">
           {parent.name || 'Unnamed Parent'}
         </h1>
-        <Link
-          to={`/families/${familyId}`}
-          className="text-hv-terracotta hover:underline transition-colors"
-        >
-          ← Back to Family
-        </Link>
+        <div className="flex items-center gap-4 shrink-0">
+          <RoleGate requiredRole="SUPERVISOR">
+            <button
+              onClick={() => setConfirmDeleteOpen(true)}
+              disabled={deleteParentMutation.isPending}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-red-200 rounded-md text-hv-crisis hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={13} />
+              Delete
+            </button>
+          </RoleGate>
+          <Link
+            to={`/families/${familyId}`}
+            className="text-hv-terracotta hover:underline transition-colors"
+          >
+            ← Back to Family
+          </Link>
+        </div>
       </div>
+
+      {deleteParentMutation.isError && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3">
+          <p className="text-hv-crisis text-sm">
+            Error deleting parent:{' '}
+            {deleteParentMutation.error instanceof Error
+              ? deleteParentMutation.error.message
+              : 'Unknown error'}
+          </p>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete parent"
+        message={`Delete ${parent.name || 'this parent'}? Their visit history will be removed from the family record.`}
+        busy={deleteParentMutation.isPending}
+        onConfirm={() => deleteParentMutation.mutate()}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
 
       <div className="bg-white p-6 rounded-xl border border-hv-border">
         <div className="flex justify-between items-center mb-4">
@@ -288,6 +343,7 @@ export const ParentDetailPage: React.FC = () => {
             <PhotoUpload
               photos={(editData.photos as number[]) ?? []}
               onChange={(photos) => setEditData({ ...editData, photos })}
+              pendingDeletions={photoDeletions}
             />
 
             <div className="flex gap-2 pt-4">

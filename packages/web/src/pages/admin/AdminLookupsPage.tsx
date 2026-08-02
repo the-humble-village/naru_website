@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, LookupTableName } from '../../api/admin';
 import { LookupRead, LookupCreate, LookupUpdate } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface LookupFormData {
@@ -31,6 +32,7 @@ export const AdminLookupsPage: React.FC = () => {
   const [formData, setFormData] = useState<LookupFormData>({ title: '' });
   const [orderedItems, setOrderedItems] = useState<LookupRead[]>([]);
   const [orderDirty, setOrderDirty] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<LookupRead | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -94,6 +96,7 @@ export const AdminLookupsPage: React.FC = () => {
       lookupTable ? adminApi.deleteLookupEntry(lookupTable, id) : Promise.reject('Invalid table'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', lookupTable] });
+      setDeleteTarget(null);
     },
   });
 
@@ -147,11 +150,11 @@ export const AdminLookupsPage: React.FC = () => {
     setShowCreateForm(true);
   };
 
-  const handleDelete = async (item: LookupRead) => {
-    if (!confirm(`Are you sure you want to delete "${item.title}"?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
 
     try {
-      await deleteItemMutation.mutateAsync(item.id);
+      await deleteItemMutation.mutateAsync(deleteTarget.id);
     } catch (error) {
       console.error('Failed to delete item:', error);
     }
@@ -161,7 +164,11 @@ export const AdminLookupsPage: React.FC = () => {
     const next = [...orderedItems];
     const swapWith = direction === 'up' ? index - 1 : index + 1;
     if (swapWith < 0 || swapWith >= next.length) return;
-    [next[index], next[swapWith]] = [next[swapWith], next[index]];
+    const current = next[index];
+    const other = next[swapWith];
+    if (!current || !other) return;
+    next[index] = other;
+    next[swapWith] = current;
     setOrderedItems(next);
     setOrderDirty(true);
   };
@@ -385,7 +392,7 @@ export const AdminLookupsPage: React.FC = () => {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(item)}
+                        onClick={() => { deleteItemMutation.reset(); setDeleteTarget(item); }}
                         disabled={deleteItemMutation.isPending}
                         className="text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
                       >
@@ -404,6 +411,28 @@ export const AdminLookupsPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title={`Delete ${config!.singular}`}
+          message={
+            <>
+              <p>
+                Delete <span className="font-medium text-hv-charcoal">&ldquo;{deleteTarget?.title}&rdquo;</span>? It
+                will no longer be selectable when creating or editing records.
+              </p>
+              {deleteItemMutation.error && (
+                <p className="mt-2 text-hv-crisis">
+                  Failed to delete item: {deleteItemMutation.error.message}
+                </p>
+              )}
+            </>
+          }
+          warning={`Existing records that already reference this ${config!.singular.toLowerCase()} keep their current value — they are not changed or removed.`}
+          busy={deleteItemMutation.isPending}
+          onConfirm={confirmDelete}
+          onCancel={() => { setDeleteTarget(null); deleteItemMutation.reset(); }}
+        />
       </div>
     </RoleGate>
   );

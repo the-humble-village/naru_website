@@ -54,6 +54,13 @@ export const updateFamilyVisit = async (familyId: number, visitId: number, data:
 };
 
 /**
+ * Delete a family visit (soft delete)
+ */
+export const deleteFamilyVisit = async (familyId: number, visitId: number): Promise<void> => {
+  await apiClient.delete(`/families/${familyId}/visits/${visitId}`);
+};
+
+/**
  * Child Visit API functions
  */
 
@@ -92,6 +99,13 @@ export const createChildVisit = async (familyId: number, childId: number, data: 
 export const updateChildVisit = async (familyId: number, childId: number, visitId: number, data: ChildVisitUpdate): Promise<ChildVisitRead> => {
   const response = await apiClient.put<ChildVisitRead>(`/families/${familyId}/children/${childId}/visits/${visitId}`, data);
   return response.data;
+};
+
+/**
+ * Delete a child visit (soft delete)
+ */
+export const deleteChildVisit = async (familyId: number, childId: number, visitId: number): Promise<void> => {
+  await apiClient.delete(`/families/${familyId}/children/${childId}/visits/${visitId}`);
 };
 
 /**
@@ -135,17 +149,27 @@ export const updateParentVisit = async (familyId: number, parentId: number, visi
   return response.data;
 };
 
+/**
+ * Delete a parent visit (soft delete)
+ */
+export const deleteParentVisit = async (familyId: number, parentId: number, visitId: number): Promise<void> => {
+  await apiClient.delete(`/families/${familyId}/parents/${parentId}/visits/${visitId}`);
+};
+
 export const visitsApi = {
   listFamilyVisits,
   fetchFamilyVisit,
   createFamilyVisit,
   updateFamilyVisit,
+  deleteFamilyVisit,
   listChildVisits,
   fetchChildVisit,
   createChildVisit,
   updateChildVisit,
+  deleteChildVisit,
   listParentVisits,
   fetchParentVisit,
   createParentVisit,
   updateParentVisit,
+  deleteParentVisit,
 };

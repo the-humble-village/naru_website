@@ -56,6 +56,7 @@ const mockFamily = {
   communityId: 1,
   siteId: 1,
   birthingAssistantId: null,
+  photos: [],
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };
@@ -175,7 +176,7 @@ describe('AddFamilyVisitPage', () => {
       });
 
       // Remove the training
-      const removeButton = screen.getAllByText('Remove')[0];
+      const removeButton = screen.getAllByText('Remove')[0]!;
       fireEvent.click(removeButton);
 
       await waitFor(() => {
@@ -321,6 +322,7 @@ describe('AddFamilyVisitPage', () => {
         trainingsReceived: [],
         resourcesReceived: [],
         questions: [],
+        photos: [],
         notes: null,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -360,6 +362,7 @@ describe('AddFamilyVisitPage', () => {
         trainingsReceived: [{ id: 1, title: 'Nutrition Training' }],
         resourcesReceived: [{ id: 1, title: 'Nutrition Guide' }],
         questions: [],
+        photos: [],
         notes: null,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',

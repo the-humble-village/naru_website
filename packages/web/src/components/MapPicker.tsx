@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polygon, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -8,7 +8,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
@@ -35,13 +35,11 @@ interface Props {
 // Inner component that can use map hooks
 function MapInteraction({
   mode,
-  pin,
   setPinFn,
   drawPoints,
   setDrawPointsFn,
 }: {
   mode: Mode;
-  pin: [number, number] | null;
   setPinFn: (p: [number, number]) => void;
   drawPoints: [number, number][];
   setDrawPointsFn: (pts: [number, number][]) => void;
@@ -144,7 +142,6 @@ export const MapPicker: React.FC<Props> = ({ value, onChange }) => {
           />
           <MapInteraction
             mode={mode}
-            pin={pin}
             setPinFn={handleSetPin}
             drawPoints={drawPoints}
             setDrawPointsFn={setDrawPoints}

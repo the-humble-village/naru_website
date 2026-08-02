@@ -33,8 +33,8 @@ app.get('/', auth, zValidator('param', z.object({
   const { skip, limit } = c.req.valid('query');
   const user = c.get('user') as UserRead;
 
-  const familyVisits = await familyVisitService.listFamilyVisits(familyId, user, { skip, limit });
-  return c.json(familyVisits);
+  const result = await familyVisitService.listFamilyVisits(familyId, user, { skip, limit });
+  return c.json(result);
 });
 
 /**

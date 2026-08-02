@@ -18,7 +18,7 @@ export async function listChildVisits(
     skip?: number;
     limit?: number;
   } = {}
-): Promise<ChildVisitRead[]> {
+): Promise<{ visits: ChildVisitRead[]; total: number; skip: number; limit: number }> {
   // First check if the family exists
   const family = await prisma.family.findUnique({
     where: { id: familyId },
@@ -46,39 +46,41 @@ export async function listChildVisits(
 
   const { skip = 0, limit = 50 } = options;
 
-  const childVisits = await prisma.childVisit.findMany({
-    where: {
-      familyId,
-      childId,
-    },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      childId: true,
-      visitDate: true,
-      weight: true,
-      armCircumference: true,
-      height: true,
-      incap: true,
-      leche: true,
-      bagsGiven: true,
-      recvAnyMedicine: true,
-      leftFromProg: true,
-      passedAway: true,
-      questions: true,
-      photos: true,
-      notes: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
-    orderBy: {
-      visitDate: 'desc', // Most recent visits first
-    },
-    skip,
-    take: limit,
-  });
+  const where = { familyId, childId };
+
+  const [childVisits, total] = await Promise.all([
+    prisma.childVisit.findMany({
+      where,
+      select: {
+        id: true,
+        localId: true,
+        familyId: true,
+        childId: true,
+        visitDate: true,
+        weight: true,
+        armCircumference: true,
+        height: true,
+        incap: true,
+        leche: true,
+        bagsGiven: true,
+        recvAnyMedicine: true,
+        leftFromProg: true,
+        passedAway: true,
+        questions: true,
+        photos: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+        // Explicitly exclude deletedAt
+      },
+      orderBy: {
+        visitDate: 'desc', // Most recent visits first
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.childVisit.count({ where }),
+  ]);
 
   // Transform dates to ISO strings and cast questions
   const childVisitsRead: ChildVisitRead[] = childVisits.map((visit: any) => ({
@@ -90,7 +92,7 @@ export async function listChildVisits(
     updatedAt: visit.updatedAt.toISOString(),
   }));
 
-  return childVisitsRead;
+  return { visits: childVisitsRead, total, skip, limit };
 }
 
 /**

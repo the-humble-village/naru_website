@@ -125,13 +125,12 @@ describe('Child Visits Routes', () => {
   });
 
   describe('GET /families/:fid/children/:cid/visits', () => {
-    it('should return empty array for child with no visits', async () => {
+    it('should return an empty page for child with no visits', async () => {
       const response = await testClient.get(`/families/${testFamily.id}/children/${testChild.id}/visits`, caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(0);
+      expect(result).toEqual({ visits: [], total: 0, skip: 0, limit: 50 });
     });
 
     it('should return visits for child with visits', async () => {
@@ -149,14 +148,14 @@ describe('Child Visits Routes', () => {
       const result = await response.json();
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(2);
+      expect(result.visits).toHaveLength(2);
+      expect(result.total).toBe(2);
 
       // Visits should be ordered by visitDate descending (most recent first)
-      expect(new Date(result[0].visitDate).getTime()).toBeGreaterThan(new Date(result[1].visitDate).getTime());
+      expect(new Date(result.visits[0].visitDate).getTime()).toBeGreaterThan(new Date(result.visits[1].visitDate).getTime());
 
       // Check visit structure
-      const visit = result[0];
+      const visit = result.visits[0];
       expect(visit.id).toBeDefined();
       expect(visit.familyId).toBe(testFamily.id);
       expect(visit.childId).toBe(testChild.id);
@@ -183,8 +182,9 @@ describe('Child Visits Routes', () => {
       const result = await response.json();
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(2);
+      expect(result.visits).toHaveLength(2);
+      // total counts every matching visit, not just the returned page
+      expect(result).toMatchObject({ total: 5, skip: 2, limit: 2 });
     });
 
     it('should return 401 without auth token', async () => {
@@ -869,11 +869,13 @@ describe('Child Visits Routes', () => {
       await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}/visits/${testVisit.id}`, supervisorToken);
 
       const listResponse = await testClient.get(`/families/${testFamily.id}/children/${testChild.id}/visits`, caseworkerToken);
-      const visits = await listResponse.json();
+      const result = await listResponse.json();
 
       expect(listResponse.status).toBe(200);
-      expect(visits).toHaveLength(1);
-      expect(visits[0].id).toBe(keptVisit.id);
+      expect(result.visits).toHaveLength(1);
+      expect(result.visits[0].id).toBe(keptVisit.id);
+      // total must skip the tombstone too, or the client paginates over phantom rows
+      expect(result.total).toBe(1);
     });
 
     it('should make the deleted visit unfetchable by id', async () => {

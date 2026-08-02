@@ -10,6 +10,7 @@ import {
   createTestCommunity,
   createTestChild,
   createTestParent,
+  createTestParentVisit,
   createTestTraining
 } from './setup';
 import { appConfig } from '../src/config';
@@ -619,6 +620,288 @@ describe('Sync Routes', () => {
       expect(familyVisit?.familyId).toBe(family.id);
       expect(childVisit?.familyId).toBe(family.id);
       expect(childVisit?.childId).toBe(child.id);
+    });
+
+    describe('parent visits', () => {
+      it('should create a parent visit from an offline batch', async () => {
+        const family = await createTestFamily();
+        const parent = await createTestParent(family.id, 'Rosa');
+
+        const syncRequest = {
+          lastSyncedAt: null,
+          changes: [
+            {
+              entity: 'parentVisit',
+              operation: 'create',
+              localId: 'aa5f0733-f50d-73a6-d049-779988775555',
+              data: {
+                familyId: family.id,
+                parentId: parent.id,
+                visitDate: '2024-03-01T10:00:00Z',
+                weight: 62.5,
+                trainingsReceived: [{ id: training.id, title: 'Test Training' }],
+                resourcesReceived: [],
+                questions: [],
+                notes: 'Parent visit notes',
+              },
+              changedAt: '2024-03-01T11:30:00Z',
+            },
+          ],
+        };
+
+        const response = await testClient.post('/sync', syncRequest, accessToken);
+        expect(response.status).toBe(200);
+
+        const result = await response.json();
+        expect(result.results[0].status).toBe('created');
+
+        const parentVisit = await testDb.parentVisit.findUnique({
+          where: { localId: 'aa5f0733-f50d-73a6-d049-779988775555' },
+        });
+        expect(parentVisit).toBeTruthy();
+        expect(parentVisit?.familyId).toBe(family.id);
+        expect(parentVisit?.parentId).toBe(parent.id);
+        expect(parentVisit?.weight).toBe(62.5);
+      });
+
+      // The whole point of offline creation: none of these records has a server
+      // id yet, so the visit can only name its family and parent by localId.
+      it('should create family, parent and parent visit in one batch via localRefs', async () => {
+        const familyLocalId = 'bb5f0733-f50d-73a6-d049-779988776666';
+        const parentLocalId = 'cc5f0733-f50d-73a6-d049-779988777777';
+        const visitLocalId = 'dd5f0733-f50d-73a6-d049-779988778888';
+
+        const syncRequest = {
+          lastSyncedAt: null,
+          changes: [
+            // Deliberately out of dependency order
+            {
+              entity: 'parentVisit',
+              operation: 'create',
+              localId: visitLocalId,
+              localRefs: { familyId: familyLocalId, parentId: parentLocalId },
+              data: {
+                visitDate: '2024-03-01T10:00:00Z',
+                weight: 58,
+                notes: 'First visit',
+              },
+              changedAt: '2024-03-01T12:00:00Z',
+            },
+            {
+              entity: 'parent',
+              operation: 'create',
+              localId: parentLocalId,
+              parentLocalId: familyLocalId,
+              data: { name: 'Rosa Garcia', role: 'mother' },
+              changedAt: '2024-03-01T11:45:00Z',
+            },
+            {
+              entity: 'family',
+              operation: 'create',
+              localId: familyLocalId,
+              data: { familyName: 'Garcia Family', inCrisis: false },
+              changedAt: '2024-03-01T11:30:00Z',
+            },
+          ],
+        };
+
+        const response = await testClient.post('/sync', syncRequest, accessToken);
+        expect(response.status).toBe(200);
+
+        const result = await response.json();
+        expect(result.results.every((r: any) => r.status === 'created')).toBe(true);
+
+        const family = await testDb.family.findUnique({ where: { localId: familyLocalId } });
+        const parent = await testDb.parent.findUnique({ where: { localId: parentLocalId } });
+        const visit = await testDb.parentVisit.findUnique({ where: { localId: visitLocalId } });
+
+        expect(visit?.familyId).toBe(family!.id);
+        expect(visit?.parentId).toBe(parent!.id);
+      });
+
+      // A dropped sync response makes the client retry the whole batch. The
+      // already-created records come back as already_exists, and the records
+      // that reference them by localId must still resolve.
+      it('should resolve localRefs against records that already exist on the server', async () => {
+        const familyLocalId = 'ee5f0733-f50d-73a6-d049-779988779999';
+        const parentLocalId = 'ff5f0733-f50d-73a6-d049-77998877aaaa';
+
+        const family = await createTestFamily({ localId: familyLocalId });
+        const parent = await createTestParent(family.id, 'Rosa', 'mother', {
+          localId: parentLocalId,
+        });
+
+        const syncRequest = {
+          lastSyncedAt: null,
+          changes: [
+            {
+              entity: 'family',
+              operation: 'create',
+              localId: familyLocalId,
+              data: { familyName: 'Garcia Family', inCrisis: false },
+              changedAt: '2024-03-01T11:30:00Z',
+            },
+            {
+              entity: 'parent',
+              operation: 'create',
+              localId: parentLocalId,
+              parentLocalId: familyLocalId,
+              data: { name: 'Rosa', role: 'mother' },
+              changedAt: '2024-03-01T11:45:00Z',
+            },
+            {
+              entity: 'parentVisit',
+              operation: 'create',
+              localId: '115f0733-f50d-73a6-d049-77998877bbbb',
+              localRefs: { familyId: familyLocalId, parentId: parentLocalId },
+              data: { visitDate: '2024-03-01T10:00:00Z', weight: 58 },
+              changedAt: '2024-03-01T12:00:00Z',
+            },
+          ],
+        };
+
+        const response = await testClient.post('/sync', syncRequest, accessToken);
+        expect(response.status).toBe(200);
+
+        const result = await response.json();
+        const byLocalId = Object.fromEntries(result.results.map((r: any) => [r.localId, r]));
+        expect(byLocalId[familyLocalId].status).toBe('already_exists');
+        expect(byLocalId[parentLocalId].status).toBe('already_exists');
+        expect(byLocalId['115f0733-f50d-73a6-d049-77998877bbbb'].status).toBe('created');
+
+        const visit = await testDb.parentVisit.findUnique({
+          where: { localId: '115f0733-f50d-73a6-d049-77998877bbbb' },
+        });
+        expect(visit?.familyId).toBe(family.id);
+        expect(visit?.parentId).toBe(parent.id);
+      });
+
+      it('should return already_exists for a parent visit localId already synced', async () => {
+        const family = await createTestFamily();
+        const parent = await createTestParent(family.id, 'Rosa');
+        const existing = await createTestParentVisit(family.id, parent.id, {
+          localId: '225f0733-f50d-73a6-d049-77998877cccc',
+        });
+
+        const response = await testClient.post(
+          '/sync',
+          {
+            lastSyncedAt: null,
+            changes: [
+              {
+                entity: 'parentVisit',
+                operation: 'create',
+                localId: '225f0733-f50d-73a6-d049-77998877cccc',
+                data: {
+                  familyId: family.id,
+                  parentId: parent.id,
+                  visitDate: '2024-03-01T10:00:00Z',
+                },
+                changedAt: '2024-03-01T11:30:00Z',
+              },
+            ],
+          },
+          accessToken
+        );
+        expect(response.status).toBe(200);
+
+        const result = await response.json();
+        expect(result.results[0].status).toBe('already_exists');
+        expect(result.results[0].serverId).toBe(existing.id);
+        expect(await testDb.parentVisit.count({ where: { parentId: parent.id } })).toBe(1);
+      });
+
+      // ParentVisit.familyId has no FK of its own, so a mismatch would be stored
+      // and then be invisible to listParentVisits, which filters on both columns.
+      it('should reject a parent visit whose parent is not in the given family', async () => {
+        const family = await createTestFamily({ familyName: 'Garcia' });
+        const otherFamily = await createTestFamily({ familyName: 'Lopez' });
+        const parent = await createTestParent(otherFamily.id, 'Rosa');
+
+        const response = await testClient.post(
+          '/sync',
+          {
+            lastSyncedAt: null,
+            changes: [
+              {
+                entity: 'parentVisit',
+                operation: 'create',
+                localId: '335f0733-f50d-73a6-d049-77998877dddd',
+                data: {
+                  familyId: family.id,
+                  parentId: parent.id,
+                  visitDate: '2024-03-01T10:00:00Z',
+                },
+                changedAt: '2024-03-01T11:30:00Z',
+              },
+            ],
+          },
+          accessToken
+        );
+        expect(response.status).toBe(500);
+
+        expect(
+          await testDb.parentVisit.findUnique({
+            where: { localId: '335f0733-f50d-73a6-d049-77998877dddd' },
+          })
+        ).toBe(null);
+      });
+
+      it('should return parent visits updated since lastSyncedAt', async () => {
+        const family = await createTestFamily();
+        const parent = await createTestParent(family.id, 'Rosa');
+
+        const stale = await createTestParentVisit(family.id, parent.id, {
+          updatedAt: new Date('2024-01-01T10:00:00Z'),
+        });
+        const fresh = await createTestParentVisit(family.id, parent.id, {
+          updatedAt: new Date('2024-03-01T10:00:00Z'),
+        });
+
+        const response = await testClient.post(
+          '/sync',
+          { lastSyncedAt: '2024-02-01T00:00:00Z', changes: [] },
+          accessToken
+        );
+        expect(response.status).toBe(200);
+
+        const result = await response.json();
+        const ids = result.serverChanges.parentVisits.map((v: any) => v.id);
+        expect(ids).toContain(fresh.id);
+        expect(ids).not.toContain(stale.id);
+        expect(result.serverChanges.parentVisits[0]).not.toHaveProperty('deletedAt');
+      });
+
+      it('should report a parent visit soft-deleted since lastSyncedAt', async () => {
+        const family = await createTestFamily();
+        const parent = await createTestParent(family.id, 'Rosa');
+        const visit = await createTestParentVisit(family.id, parent.id, {
+          localId: '445f0733-f50d-73a6-d049-77998877eeee',
+        });
+
+        await testDb.parentVisit.update({
+          where: { id: visit.id },
+          data: { deletedAt: new Date('2024-03-01T10:00:00Z') },
+        });
+
+        const response = await testClient.post(
+          '/sync',
+          { lastSyncedAt: '2024-02-01T00:00:00Z', changes: [] },
+          accessToken
+        );
+        expect(response.status).toBe(200);
+
+        const result = await response.json();
+        expect(result.serverChanges.deleted).toContainEqual(
+          expect.objectContaining({
+            entity: 'parentVisit',
+            id: visit.id,
+            localId: '445f0733-f50d-73a6-d049-77998877eeee',
+          })
+        );
+        // And it must not also arrive as a live record.
+        expect(result.serverChanges.parentVisits.map((v: any) => v.id)).not.toContain(visit.id);
+      });
     });
   });
 });

@@ -17,7 +17,7 @@ export async function listFamilyVisits(
     skip?: number;
     limit?: number;
   } = {}
-): Promise<FamilyVisitRead[]> {
+): Promise<{ visits: FamilyVisitRead[]; total: number; skip: number; limit: number }> {
   // First check if the family exists
   const family = await prisma.family.findUnique({
     where: { id: familyId },
@@ -32,30 +32,33 @@ export async function listFamilyVisits(
 
   const { skip = 0, limit = 50 } = options;
 
-  const familyVisits = await prisma.familyVisit.findMany({
-    where: {
-      familyId,
-    },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      visitDate: true,
-      trainingsReceived: true,
-      resourcesReceived: true,
-      questions: true,
-      photos: true,
-      notes: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
-    orderBy: {
-      visitDate: 'desc', // Most recent visits first
-    },
-    skip,
-    take: limit,
-  });
+  const where = { familyId };
+
+  const [familyVisits, total] = await Promise.all([
+    prisma.familyVisit.findMany({
+      where,
+      select: {
+        id: true,
+        localId: true,
+        familyId: true,
+        visitDate: true,
+        trainingsReceived: true,
+        resourcesReceived: true,
+        questions: true,
+        photos: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+        // Explicitly exclude deletedAt
+      },
+      orderBy: {
+        visitDate: 'desc', // Most recent visits first
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.familyVisit.count({ where }),
+  ]);
 
   // Transform dates to ISO strings and cast JSON fields
   const familyVisitsRead: FamilyVisitRead[] = familyVisits.map((visit: any) => ({
@@ -69,7 +72,7 @@ export async function listFamilyVisits(
     updatedAt: visit.updatedAt.toISOString(),
   }));
 
-  return familyVisitsRead;
+  return { visits: familyVisitsRead, total, skip, limit };
 }
 
 /**

@@ -12,23 +12,29 @@ import {
   type ChildCreate,
   type ChildVisitCreate,
   type FamilyVisitCreate,
+  type ParentVisitCreate,
   type BirthingAssistantCreate,
   FamilyCreateSchema,
   ParentCreateSchema,
   ChildCreateSchema,
   ChildVisitCreateSchema,
   FamilyVisitCreateSchema,
+  ParentVisitCreateSchema,
   BirthingAssistantCreateSchema,
 } from '@naru/shared';
 import prisma from '../db.js';
 
-// Dependency order for processing sync changes
+// Dependency order for processing sync changes.
+// Visits come after the records they hang off, so a batch that creates a family,
+// its parent and that parent's first visit resolves cleanly regardless of the
+// order the client sent them in.
 const ENTITY_DEPENDENCY_ORDER = [
   'family',
   'parent',
   'child',
   'familyVisit',
   'childVisit',
+  'parentVisit',
   'birthingAssistant'
 ] as const;
 
@@ -95,6 +101,10 @@ async function processChange(
   // Check for duplicate localId first
   const existingRecord = await findExistingRecordByLocalId(change.entity, change.localId, tx);
   if (existingRecord) {
+    // Still record the mapping: a client retrying a batch whose earlier records
+    // already landed sends them again, and later records in the same batch
+    // reference them by localId.
+    localIdMap.set(change.localId, existingRecord.id);
     return {
       localId: change.localId,
       serverId: existingRecord.id,
@@ -103,8 +113,8 @@ async function processChange(
   }
 
   try {
-    // Resolve parentLocalId if provided
-    const resolvedData = resolveParentLocalId(change, localIdMap);
+    // Resolve any localId references (parentLocalId / localRefs) to server ids
+    const resolvedData = await resolveLocalReferences(change, localIdMap, tx);
 
     // Validate and create the record
     const serverId = await createRecord(change.entity, resolvedData, tx);
@@ -142,6 +152,8 @@ async function findExistingRecordByLocalId(
       return tx.childVisit.findUnique({ where: { localId }, select: { id: true } });
     case 'familyVisit':
       return tx.familyVisit.findUnique({ where: { localId }, select: { id: true } });
+    case 'parentVisit':
+      return tx.parentVisit.findUnique({ where: { localId }, select: { id: true } });
     case 'birthingAssistant':
       return tx.birthingAssistant.findUnique({ where: { localId }, select: { id: true } });
     default:
@@ -149,22 +161,65 @@ async function findExistingRecordByLocalId(
   }
 }
 
+// Which model each `localRefs` key points at, so an unresolved reference can be
+// looked up in the database by localId.
+const LOCAL_REF_DELEGATES = {
+  familyId: 'family',
+  parentId: 'parent',
+  childId: 'child',
+} as const;
+
+type LocalRefField = keyof typeof LOCAL_REF_DELEGATES;
+
 /**
- * Resolve parentLocalId to actual database ID
+ * Resolve one localId to a server id: from this batch first, then the database.
+ *
+ * The database fallback is what makes a retried batch safe. If the client's
+ * previous attempt committed but the response never arrived, the referenced
+ * record already exists on the server and is absent from `localIdMap` for any
+ * change the client dropped from the retry.
  */
-function resolveParentLocalId(change: SyncChange, localIdMap: LocalIdMap): any {
+async function resolveLocalId(
+  field: LocalRefField,
+  localId: string,
+  localIdMap: LocalIdMap,
+  tx: any
+): Promise<number> {
+  const fromBatch = localIdMap.get(localId);
+  if (fromBatch) return fromBatch;
+
+  const delegate = LOCAL_REF_DELEGATES[field];
+  const existing = await tx[delegate].findUnique({ where: { localId }, select: { id: true } });
+  if (!existing) {
+    throw new Error(
+      `Cannot resolve ${field} from localId ${localId}. No ${delegate} with that localId exists in this batch or on the server.`
+    );
+  }
+
+  return existing.id;
+}
+
+/**
+ * Resolve a change's localId references (`parentLocalId` and `localRefs`) into
+ * the foreign keys the create schemas expect.
+ */
+async function resolveLocalReferences(
+  change: SyncChange,
+  localIdMap: LocalIdMap,
+  tx: any
+): Promise<any> {
   const data = { ...change.data };
 
-  // If parentLocalId is provided, resolve it to familyId
+  // Legacy form: a bare parentLocalId always meant the owning family
   if (change.parentLocalId) {
-    const familyId = localIdMap.get(change.parentLocalId);
-    if (!familyId) {
-      throw new Error(
-        `Cannot resolve parentLocalId ${change.parentLocalId}. Parent record must be processed first.`
-      );
-    }
-    data.familyId = familyId;
+    data.familyId = await resolveLocalId('familyId', change.parentLocalId, localIdMap, tx);
     delete data.parentLocalId;
+  }
+
+  // Explicit per-column references (familyId, parentId, childId)
+  for (const [field, refLocalId] of Object.entries(change.localRefs ?? {})) {
+    if (!refLocalId) continue;
+    data[field] = await resolveLocalId(field as LocalRefField, refLocalId, localIdMap, tx);
   }
 
   // Add localId from the change
@@ -282,6 +337,40 @@ async function createRecord(entity: string, data: any, tx: any): Promise<number>
       return familyVisit.id;
     }
 
+    case 'parentVisit': {
+      const validatedData = ParentVisitCreateSchema.parse(data);
+
+      // ParentVisit.familyId has no foreign key of its own (only parentId does),
+      // so a mismatched familyId would be stored happily and then never show up
+      // in listParentVisits, which filters on familyId + parentId.
+      const parent = await tx.parent.findFirst({
+        where: { id: validatedData.parentId, familyId: validatedData.familyId },
+        select: { id: true },
+      });
+      if (!parent) {
+        throw new Error(
+          `Parent ${validatedData.parentId} does not exist in family ${validatedData.familyId}.`
+        );
+      }
+
+      const parentVisit = await tx.parentVisit.create({
+        data: {
+          familyId: validatedData.familyId,
+          parentId: validatedData.parentId,
+          visitDate: new Date(validatedData.visitDate),
+          weight: validatedData.weight ?? 0,
+          trainingsReceived: validatedData.trainingsReceived ?? [],
+          resourcesReceived: validatedData.resourcesReceived ?? [],
+          questions: validatedData.questions ?? [],
+          photos: validatedData.photos ?? [],
+          notes: validatedData.notes,
+          localId: validatedData.localId,
+        },
+        select: { id: true },
+      });
+      return parentVisit.id;
+    }
+
     case 'birthingAssistant': {
       const validatedData = BirthingAssistantCreateSchema.parse(data);
       const birthingAssistant = await tx.birthingAssistant.create({
@@ -345,6 +434,7 @@ const TOMBSTONE_SOURCES: ReadonlyArray<{
   { entity: 'child', delegate: prisma.child, hasLocalId: true },
   { entity: 'childVisit', delegate: prisma.childVisit, hasLocalId: true },
   { entity: 'familyVisit', delegate: prisma.familyVisit, hasLocalId: true },
+  { entity: 'parentVisit', delegate: prisma.parentVisit, hasLocalId: true },
   { entity: 'birthingAssistant', delegate: prisma.birthingAssistant, hasLocalId: true },
   { entity: 'community', delegate: prisma.community, hasLocalId: false },
   { entity: 'site', delegate: prisma.site, hasLocalId: false },
@@ -410,7 +500,7 @@ async function getServerChanges(lastSyncedAt: string | null, user: UserRead): Pr
   // }
 
   // Get all updated records
-  const [families, parents, children, childVisits, familyVisits] = await Promise.all([
+  const [families, parents, children, childVisits, familyVisits, parentVisits] = await Promise.all([
     prisma.family.findMany({
       where: familyWhere,
       select: {
@@ -521,6 +611,28 @@ async function getServerChanges(lastSyncedAt: string | null, user: UserRead): Pr
         updatedAt: true,
       },
     }),
+
+    prisma.parentVisit.findMany({
+      where: {
+        updatedAt: { gt: since },
+        // TODO: Add family access scoping
+      },
+      select: {
+        id: true,
+        localId: true,
+        familyId: true,
+        parentId: true,
+        visitDate: true,
+        weight: true,
+        trainingsReceived: true,
+        resourcesReceived: true,
+        questions: true,
+        photos: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
   ]);
 
   // Get all lookup tables (always included)
@@ -576,6 +688,7 @@ async function getServerChanges(lastSyncedAt: string | null, user: UserRead): Pr
     children: transformDates(children),
     childVisits: transformDates(childVisits),
     familyVisits: transformDates(familyVisits),
+    parentVisits: transformDates(parentVisits),
     deleted,
     lookups: {
       communities: transformDates(communities),

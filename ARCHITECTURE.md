@@ -438,16 +438,41 @@ sequenceDiagram
     Android->>Android: Create Family/Parent/Child/Visit (stored with localId)
 
     Note over Android: Connection restored
-    Android->>Backend: POST /api/sync { families[], parents[], children[], childVisits[], familyVisits[] }
+    Android->>Backend: POST /api/sync { lastSyncedAt, changes[] }
     Backend->>Backend: Begin transaction
-    Backend->>DB: Upsert Family (by localId, skip duplicates)
-    Backend->>DB: Upsert Parents (by localId)
-    Backend->>DB: Upsert Children (by localId)
-    Backend->>DB: Upsert ChildVisits (by localId)
-    Backend->>DB: Upsert FamilyVisits (by localId)
+    Backend->>DB: Create Family (by localId, skip duplicates)
+    Backend->>DB: Create Parents (by localId)
+    Backend->>DB: Create Children (by localId)
+    Backend->>DB: Create FamilyVisits / ChildVisits / ParentVisits (by localId)
     Backend->>Backend: Commit transaction
-    Backend-->>Android: { synced: { families, parents, children, ... } }
+    Backend-->>Android: { syncedAt, results[], serverChanges: { …, parentVisits[], deleted[], lookups } }
 ```
+
+### Client contract
+
+**Push** — `changes[]` carries `create` only; edits and deletes are online-only.
+Syncable entities: `family`, `parent`, `child`, `familyVisit`, `childVisit`,
+`parentVisit`, `birthingAssistant`. The server sorts a batch into dependency
+order itself, so send order doesn't matter.
+
+Records created offline have no server ids, so foreign keys are named by
+localId instead:
+
+- `parentLocalId` on the change — the owning **Family** (legacy, still honoured)
+- `localRefs: { familyId?, parentId?, childId? }` — any of those columns, by the
+  target record's localId
+
+Each reference resolves against the current batch first, then the database, so
+retrying a batch whose earlier half already committed is safe (those changes come
+back as `already_exists`).
+
+**Pull** — `serverChanges` holds every record with `updatedAt > lastSyncedAt`,
+plus all lookup tables in full, plus `deleted[]`: tombstones
+(`{ entity, id, localId, deletedAt }`) for records soft-deleted since
+`lastSyncedAt`. Soft-deleted rows are filtered out of every other array, so a
+client that ignores `deleted[]` keeps deleted records forever. `deleted[]` is
+empty on a first sync (`lastSyncedAt: null`), since there is nothing local to
+drop. Tombstones cover the lookup tables too.
 
 ---
 

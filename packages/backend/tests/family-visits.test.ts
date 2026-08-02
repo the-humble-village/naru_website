@@ -116,12 +116,12 @@ describe('Family Visit Routes', () => {
   });
 
   describe('GET /families/:familyId/visits', () => {
-    it('should return empty array for family with no visits', async () => {
+    it('should return an empty page for family with no visits', async () => {
       const response = await testClient.get(`/families/${family.id}/visits`, accessToken);
       expect(response.status).toBe(200);
 
-      const visits = await response.json();
-      expect(visits).toEqual([]);
+      const result = await response.json();
+      expect(result).toEqual({ visits: [], total: 0, skip: 0, limit: 50 });
     });
 
     it('should return visits for family with visits', async () => {
@@ -138,8 +138,9 @@ describe('Family Visit Routes', () => {
       const response = await testClient.get(`/families/${family.id}/visits`, accessToken);
       expect(response.status).toBe(200);
 
-      const visits = await response.json();
+      const { visits, total } = await response.json();
       expect(visits).toHaveLength(2);
+      expect(total).toBe(2);
 
       // Should be ordered by visitDate desc (most recent first)
       expect(visits[0].notes).toBe('Second visit');
@@ -179,17 +180,20 @@ describe('Family Visit Routes', () => {
       // Test with limit
       const response1 = await testClient.get(`/families/${family.id}/visits?limit=2`, accessToken);
       expect(response1.status).toBe(200);
-      const visits1 = await response1.json();
-      expect(visits1).toHaveLength(2);
+      const page1 = await response1.json();
+      expect(page1.visits).toHaveLength(2);
+      // total counts every matching visit, not just the returned page
+      expect(page1).toMatchObject({ total: 3, skip: 0, limit: 2 });
 
       // Test with skip
       const response2 = await testClient.get(`/families/${family.id}/visits?skip=1&limit=2`, accessToken);
       expect(response2.status).toBe(200);
-      const visits2 = await response2.json();
-      expect(visits2).toHaveLength(2);
+      const page2 = await response2.json();
+      expect(page2.visits).toHaveLength(2);
+      expect(page2).toMatchObject({ total: 3, skip: 1, limit: 2 });
 
       // Should be different visits due to skip
-      expect(visits2[0].id).not.toBe(visits1[0].id);
+      expect(page2.visits[0].id).not.toBe(page1.visits[0].id);
     });
   });
 
@@ -700,11 +704,13 @@ describe('Family Visit Routes', () => {
       await testClient.delete(`/families/${family.id}/visits/${deletedVisit.id}`, supervisorToken);
 
       const listResponse = await testClient.get(`/families/${family.id}/visits`, accessToken);
-      const visits = await listResponse.json();
+      const result = await listResponse.json();
 
       expect(listResponse.status).toBe(200);
-      expect(visits).toHaveLength(1);
-      expect(visits[0].id).toBe(keptVisit.id);
+      expect(result.visits).toHaveLength(1);
+      expect(result.visits[0].id).toBe(keptVisit.id);
+      // total must skip the tombstone too, or the client paginates over phantom rows
+      expect(result.total).toBe(1);
     });
 
     it('should make the deleted visit unfetchable by id', async () => {

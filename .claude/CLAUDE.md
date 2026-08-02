@@ -221,7 +221,13 @@ Enforced via middleware: `auth` → `requireRole('supervisor')` in route files.
 
 ## Sync (Mobile)
 
-`POST /api/sync` — offline-created records only (no edit/delete while offline). Processed in dependency order (Family → Parent → Child → Visits) in a single transaction. Duplicate detection via `localId`. See `packages/backend/src/services/sync.service.ts` and `packages/shared/src/schemas/sync.ts` for details.
+`POST /api/sync` — offline-created records only (no edit/delete while offline). Processed in dependency order (Family → Parent → Child → Visits) in a single transaction. Duplicate detection via `localId`.
+
+- Syncable entities: `family`, `parent`, `child`, `familyVisit`, `childVisit`, `parentVisit`, `birthingAssistant`
+- FKs to records created in the same offline batch are named by localId: `localRefs: { familyId?, parentId?, childId? }` (or legacy `parentLocalId` for the owning family). Resolved against the batch, then the DB, so retries are safe.
+- `serverChanges.deleted[]` carries tombstones for soft-deleted records — including lookup rows — since `lastSyncedAt`. Without honouring them a client keeps deleted records forever.
+
+See `packages/backend/src/services/sync.service.ts` and `packages/shared/src/schemas/sync.ts` for details, and ARCHITECTURE.md § Mobile Sync Flow for the client contract.
 
 ## Environment Variables
 

@@ -164,6 +164,22 @@ export const createTestFamilyVisit = async (familyId: number, overrides: any = {
   })
 }
 
+export const createTestParentVisit = async (familyId: number, parentId: number, overrides: any = {}) => {
+  return testDb.parentVisit.create({
+    data: {
+      familyId,
+      parentId,
+      visitDate: new Date('2024-01-15T10:00:00.000Z'),
+      weight: 60, // kg
+      trainingsReceived: [],
+      resourcesReceived: [],
+      questions: [],
+      notes: 'Test parent visit notes',
+      ...overrides
+    }
+  })
+}
+
 // Add missing helper functions needed by birthing assistants test
 export const setupTestUser = async (login: string, email: string, role: 'ADMIN' | 'SUPERVISOR' | 'CASEWORKER' = 'CASEWORKER') => {
   return createTestUser({

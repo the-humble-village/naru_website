@@ -283,10 +283,24 @@ jobs:
               exit 1
             fi
 
-            echo "🔍 Checking database connectivity..."
-            if ! npx prisma db pull --print > /dev/null 2>&1; then
-              echo "❌ ERROR: Cannot connect to database using DATABASE_URL in .env"
-              echo "Check if the database 'naru' exists and credentials are correct."
+            # Aurora Serverless v2 runs with MinCapacity=0, so the cluster pauses
+            # after inactivity and takes ~15-20s to resume. A single connection
+            # attempt loses that race, so retry until it wakes.
+            echo "🔍 Waking database and checking connectivity..."
+            CONNECTED=0
+            for attempt in $(seq 1 12); do
+              if echo 'SELECT 1;' | npx prisma db execute --stdin --schema prisma/schema.prisma > /tmp/naru-dbcheck.log 2>&1; then
+                echo "✅ Database reachable (attempt $attempt)"
+                CONNECTED=1
+                break
+              fi
+              echo "   attempt $attempt failed, retrying in 10s..."
+              sleep 10
+            done
+            if [ "$CONNECTED" -ne 1 ]; then
+              echo "❌ ERROR: Cannot connect to database after 12 attempts (~2 min)."
+              echo "--- last error ---"
+              cat /tmp/naru-dbcheck.log || true
               exit 1
             fi
 
@@ -299,3 +313,22 @@ jobs:
             # Restart services
             sudo systemctl restart nginx
             sudo systemctl restart naru-backend
+
+            # A green deploy that leaves the backend crash-looping is worse than a
+            # red one, so gate success on the app actually answering.
+            echo "🔍 Health check..."
+            HEALTHY=0
+            for attempt in $(seq 1 15); do
+              if curl -sf -m 5 http://127.0.0.1:3000/api/health > /dev/null 2>&1 \
+                || curl -sf -m 5 http://127.0.0.1:3000/health > /dev/null 2>&1; then
+                echo "✅ Backend healthy (attempt $attempt)"
+                HEALTHY=1
+                break
+              fi
+              sleep 4
+            done
+            if [ "$HEALTHY" -ne 1 ]; then
+              echo "❌ ERROR: Backend did not become healthy within 60s."
+              sudo journalctl -u naru-backend -n 50 --no-pager || true
+              exit 1
+            fi

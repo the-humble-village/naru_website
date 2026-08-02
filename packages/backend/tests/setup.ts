@@ -1,9 +1,15 @@
 import { beforeAll, afterAll, beforeEach } from 'vitest'
+import { assertTestDatabaseUrl } from './assert-test-database'
 
-// Override environment for tests BEFORE anything else imports src/db.
-// Do NOT import dotenv — the .env file points at the production database.
-process.env.NODE_ENV = 'test'
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/naru_test';
+// NODE_ENV and DATABASE_URL are set in vitest.config.ts (`test.env`), which is applied
+// before any module in this graph loads. Setting them here would be too late: ESM hoists
+// the `../src/db` import below above all top-level statements, and src/config.ts calls
+// dotenv on import — so .env (which points at the DEVELOPMENT database) would win.
+//
+// cleanupDatabase() TRUNCATEs every table before each test, so re-check here rather than
+// trusting that config: a wrong value destroys real data.
+assertTestDatabaseUrl(process.env.DATABASE_URL, 'the test environment')
+
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only'
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-for-testing-only'
 
@@ -190,10 +196,34 @@ export const createTestTraining = async (title: string) => {
   });
 };
 
+// Verify the *actual* connection, not just the URL we asked for — src/db.ts
+// resolves its datasource independently, so this is the last line of defence
+// before the TRUNCATE. Checked once, then cached.
+let verifiedDatabase: string | null = null
+
+const assertConnectedToTestDatabase = async () => {
+  if (verifiedDatabase) return
+
+  const [{ current_database: name }] = await testDb.$queryRaw<
+    Array<{ current_database: string }>
+  >`SELECT current_database();`
+
+  if (!name.endsWith('_test')) {
+    throw new Error(
+      `Refusing to TRUNCATE: connected to database "${name}", which is not a *_test database.\n` +
+      `Aborting before any data is destroyed.`
+    )
+  }
+
+  verifiedDatabase = name
+}
+
 // Cleanup function
 export const cleanupDatabase = async () => {
   // Clean up database before each test
   // Use a systematic TRUNCATE approach to handle all tables and foreign keys
+  await assertConnectedToTestDatabase()
+
   try {
     const tableNames = await testDb.$queryRaw<
       Array<{ tablename: string }>

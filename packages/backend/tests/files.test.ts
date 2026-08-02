@@ -5,21 +5,21 @@ import jwt from 'jsonwebtoken';
 import { testDb, createTestUser, generateTokens } from './setup';
 import { appConfig } from '../src/config';
 
-// Mock S3 before importing routes/services
-vi.mock('../src/s3', () => ({
-  s3: {
-    send: vi.fn(),
-  },
-  BUCKET: 'test-bucket',
+// Mock the storage driver before importing routes/services so tests exercise
+// the file flow without touching S3 or the local filesystem.
+const mockStorage = vi.hoisted(() => ({
+  getUploadUrl: vi.fn(),
+  exists: vi.fn(),
+  getDownloadUrl: vi.fn(),
+  delete: vi.fn(),
 }));
 
-vi.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: vi.fn().mockResolvedValue('https://s3.example.com/presigned-url'),
+vi.mock('../src/storage', () => ({
+  getStorage: () => mockStorage,
 }));
 
 // Import after mocking
 import fileRoutes from '../src/routes/files';
-import { s3 } from '../src/s3';
 
 // Create test app with file routes and error handler
 const app = new Hono();
@@ -93,8 +93,11 @@ describe('File Routes', () => {
     const tokens = generateTokens(testUser);
     testToken = tokens.accessToken;
 
-    // Reset mocks
-    vi.mocked(s3.send).mockReset();
+    // Reset storage driver mocks to sensible defaults
+    mockStorage.getUploadUrl.mockReset().mockResolvedValue('https://s3.example.com/presigned-url');
+    mockStorage.getDownloadUrl.mockReset().mockResolvedValue('https://s3.example.com/presigned-url');
+    mockStorage.exists.mockReset().mockResolvedValue(true);
+    mockStorage.delete.mockReset().mockResolvedValue(undefined);
   });
 
   describe('POST /files/presign-upload', () => {
@@ -189,8 +192,8 @@ describe('File Routes', () => {
       // Create an unconfirmed file
       const file = await createTestFile({ confirmed: false });
 
-      // Mock S3 HeadObject to succeed (file exists)
-      vi.mocked(s3.send).mockResolvedValueOnce({} as any);
+      // File exists in the store
+      mockStorage.exists.mockResolvedValueOnce(true);
 
       const response = await testClient.post('/files/confirm-upload', {
         fileId: file.id,
@@ -219,8 +222,8 @@ describe('File Routes', () => {
       const data = await response.json();
       expect(data.file.confirmed).toBe(true);
 
-      // S3 should not have been called since file is already confirmed
-      expect(s3.send).not.toHaveBeenCalled();
+      // Store should not have been checked since file is already confirmed
+      expect(mockStorage.exists).not.toHaveBeenCalled();
     });
 
     it('should return 404 for non-existent file', async () => {
@@ -236,8 +239,8 @@ describe('File Routes', () => {
     it('should return 400 if file not found in S3', async () => {
       const file = await createTestFile({ confirmed: false });
 
-      // Mock S3 HeadObject to fail (file doesn't exist)
-      vi.mocked(s3.send).mockRejectedValueOnce(new Error('Not Found'));
+      // Store reports the object is missing
+      mockStorage.exists.mockResolvedValueOnce(false);
 
       const response = await testClient.post('/files/confirm-upload', {
         fileId: file.id,

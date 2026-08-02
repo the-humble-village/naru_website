@@ -1,10 +1,8 @@
 import { randomUUID } from 'crypto';
-import { PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { HTTPException } from 'hono/http-exception';
 import type { FileRead, PresignUploadResponse } from '@naru/shared';
 import prisma from '../db.js';
-import { s3, BUCKET } from '../s3.js';
+import { getStorage } from '../storage/index.js';
 
 function getExtension(filename: string): string {
   const dot = filename.lastIndexOf('.');
@@ -64,15 +62,8 @@ export async function presignUpload(params: {
     },
   });
 
-  // Generate presigned PUT URL (15 min expiry)
-  const command = new PutObjectCommand({
-    Bucket: BUCKET,
-    Key: s3Key,
-    ContentType: params.mimeType,
-    ContentLength: params.size,
-  });
-
-  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
+  // Generate an upload URL (presigned S3 PUT, or a local endpoint in dev)
+  const uploadUrl = await getStorage().getUploadUrl(s3Key, params.mimeType, params.size);
 
   return {
     fileId: file.id,
@@ -96,10 +87,8 @@ export async function confirmUpload(fileId: number): Promise<FileRead> {
     return toFileRead(file);
   }
 
-  // Verify the file exists in S3
-  try {
-    await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: file.s3Key }));
-  } catch {
+  // Verify the file actually landed in the backing store
+  if (!(await getStorage().exists(file.s3Key))) {
     throw new HTTPException(400, { message: 'File not found in S3. Upload may have failed.' });
   }
 
@@ -122,10 +111,10 @@ export async function presignDownload(
     where: { id: { in: fileIds }, confirmed: true },
   });
 
+  const storage = getStorage();
   const urls = await Promise.all(
-    files.map(async (file: { id: number; s3Key: string }) => {
-      const command = new GetObjectCommand({ Bucket: BUCKET, Key: file.s3Key });
-      const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    files.map(async (file: { id: number; s3Key: string; mimeType: string }) => {
+      const url = await storage.getDownloadUrl(file.s3Key, file.mimeType);
       return { fileId: file.id, url };
     })
   );
@@ -157,13 +146,8 @@ export async function deleteFile(id: number): Promise<void> {
     throw new HTTPException(404, { message: 'File not found' });
   }
 
-  // Delete from S3
-  try {
-    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: file.s3Key }));
-  } catch {
-    // Log but don't fail — the DB record should still be cleaned up
-    console.error(`Failed to delete S3 object ${file.s3Key}`);
-  }
+  // Delete from the backing store (best-effort; never blocks the DB cleanup)
+  await getStorage().delete(file.s3Key);
 
   await prisma.file.delete({ where: { id } });
 }

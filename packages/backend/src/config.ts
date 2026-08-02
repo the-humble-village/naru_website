@@ -6,11 +6,14 @@ if (process.env.NODE_ENV !== 'test') {
   config();
 }
 
+type StorageDriver = 's3' | 'local';
+
 interface Config {
   DATABASE_URL: string;
   JWT_SECRET: string;
   JWT_REFRESH_SECRET: string;
   PORT: number;
+  STORAGE_DRIVER: StorageDriver;
   AWS_S3_BUCKET: string;
   AWS_S3_REGION: string;
   AWS_ACCESS_KEY_ID: string;
@@ -43,6 +46,14 @@ export const appConfig: Config = {
   },
   get PORT(): number {
     return parseInt(getOptionalEnv('PORT', '3000'), 10);
+  },
+  // Storage driver: explicit STORAGE_DRIVER wins, otherwise S3 in production
+  // and local filesystem everywhere else. The AWS_* getters below are only
+  // read by S3Storage, so they are only required when this resolves to 's3'.
+  get STORAGE_DRIVER(): StorageDriver {
+    const explicit = process.env.STORAGE_DRIVER;
+    if (explicit === 's3' || explicit === 'local') return explicit;
+    return process.env.NODE_ENV === 'production' ? 's3' : 'local';
   },
   get AWS_S3_BUCKET(): string {
     return getRequiredEnv('AWS_S3_BUCKET');

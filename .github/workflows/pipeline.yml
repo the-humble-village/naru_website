@@ -180,15 +180,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Prisma Client
-        id: cache-prisma
-        uses: actions/cache@v4
-        with:
-          path: packages/backend/node_modules/.prisma
-          key: prisma-${{ runner.os }}-${{ hashFiles('packages/backend/prisma/schema.prisma') }}
-
+      # No cache gate on the deploy path. pnpm generates the client into
+      # node_modules/.pnpm/@prisma+client@*/node_modules/.prisma, not
+      # packages/backend/node_modules/.prisma, so the cache never covered the
+      # real output — and gating on it risks shipping a stale client.
       - name: Generate Prisma Client
-        if: steps.cache-prisma.outputs.cache-hit != 'true'
         run: |
             cd packages/backend
             npx prisma generate
@@ -250,7 +246,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           port: 22
-          source: "deployment/naru-backend.service"
+          source: "deployment/naru-backend.service,deployment/check-prisma-client-drift.cjs"
           target: "/tmp"
 
       - name: Post-deployment on EC2
@@ -304,11 +300,36 @@ jobs:
               exit 1
             fi
 
+            # The deploy artifact merges into an existing node_modules, so the
+            # generated client at the path Node resolves can be older than the
+            # schema we just shipped. A stale client throws
+            # PrismaClientValidationError on every query naming a newer field
+            # (it broke Family/Child lists after the photos columns landed), so
+            # regenerate here where the resolution path is the real one.
+            echo "🔧 Regenerating Prisma client against the deployed schema..."
+            if ! npx prisma generate; then
+              echo "❌ ERROR: Prisma client generation failed."
+              exit 1
+            fi
+
             echo "🚀 Running migrations..."
             if ! npx prisma migrate deploy; then
               echo "❌ ERROR: Prisma migration failed."
               exit 1
             fi
+
+            # Fail loudly here rather than serving 500s. Compares every model in
+            # the deployed schema against the resolved client's DMMF. Must be
+            # copied into the app tree first — Node resolves @prisma/client
+            # relative to the script's own directory, not the cwd.
+            echo "🔍 Verifying client/schema agreement..."
+            cp /tmp/deployment/check-prisma-client-drift.cjs ./check-prisma-client-drift.cjs
+            if ! node ./check-prisma-client-drift.cjs prisma/schema.prisma; then
+              rm -f ./check-prisma-client-drift.cjs
+              echo "❌ ERROR: Generated Prisma client does not match the schema."
+              exit 1
+            fi
+            rm -f ./check-prisma-client-drift.cjs
 
             # Restart services
             sudo systemctl restart nginx

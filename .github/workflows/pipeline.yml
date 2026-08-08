@@ -204,12 +204,16 @@ jobs:
             sudo chown -R ec2-user:ec2-user /var/www/web
             sudo chown -R ec2-user:ec2-user /var/www/backend
 
-            # Older deploys left @naru/shared as a symlink to a path that was never
-            # shipped. Clear it so the incoming real directory extracts cleanly
-            # instead of tar trying to follow a dangling link.
-            if [ -L /var/www/backend/node_modules/@naru/shared ]; then
-              sudo rm -f /var/www/backend/node_modules/@naru/shared
-            fi
+            # scp-action untars without --overwrite, so anything already at a
+            # path blocks the incoming entry — "Cannot create symlink to
+            # '.pnpm/hono@4.12.19/node_modules/hono': File exists" when a previous
+            # release left a real directory where this one wants a store symlink.
+            # Layouts differ between pnpm versions and between --legacy and
+            # injected bundles, so the only reliable extraction is onto a clean
+            # tree. Both of these are fully owned by the bundle and are recreated
+            # by the two scp steps below; .env and .env.bak.* are deliberately
+            # left alone. This also stops stale files accumulating forever (M4).
+            sudo rm -rf /var/www/backend/node_modules /var/www/backend/dist
 
       # pnpm 11's `deploy --legacy` symlinks workspace deps to their absolute
       # path in the monorepo checkout, so @naru/shared dangles once the bundle
@@ -219,31 +223,39 @@ jobs:
       - name: Create standalone backend
         run: pnpm --config.inject-workspace-packages=true --filter @naru/backend deploy ./backend-deploy
 
-      # pnpm leaves workspace deps as symlinks that escape the bundle —
-      # node_modules/@naru/shared -> ../../../packages/shared. scp ships the
-      # symlink, not its target, so the server resolves it to /var/www/packages/shared
-      # which does not exist and the backend dies on import. Dereference into real
-      # directories so the bundle is self-contained.
-      - name: Materialize workspace symlinks in the bundle
-        run: |
-          cp -rL backend-deploy backend-deploy-deref
-          rm -rf backend-deploy
-          mv backend-deploy-deref backend-deploy
-
-      # Fail here rather than after a broken deploy takes production down.
+      # Guards the failure mode that took production down: a bundle whose
+      # symlinks resolve on the runner but not after scp. Checking for *broken*
+      # links is not enough — the @naru/shared link pointed at an absolute path
+      # that exists here and only dangled on EC2. The test that matters is
+      # whether every link resolves to somewhere inside the bundle.
+      #
+      # Do not "fix" a failure here by dereferencing the tree (cp -rL). That
+      # flattens pnpm's .pnpm store, after which packages can no longer resolve
+      # their own dependencies — prisma loses @prisma/engines.
       - name: Verify bundle is self-contained
         run: |
-          if [ ! -d backend-deploy/node_modules/@naru/shared ]; then
-            echo "::error::@naru/shared missing from bundle"; exit 1
+          test -f backend-deploy/node_modules/@naru/shared/package.json || {
+            echo "::error::@naru/shared missing from bundle"; exit 1; }
+
+          # pwd -P, not pwd: readlink -f returns a fully resolved path, so a
+          # logical path would never match once any parent is itself a symlink.
+          ROOT=$(cd backend-deploy && pwd -P)
+          find backend-deploy -type l > /tmp/bundle-links.txt
+          : > /tmp/bundle-escaped.txt
+          while IFS= read -r link; do
+            target=$(readlink -f "$link" || true)
+            case "$target" in
+              "$ROOT"/*) ;;
+              *) printf '%s -> %s\n' "$link" "${target:-<broken>}" >> /tmp/bundle-escaped.txt ;;
+            esac
+          done < /tmp/bundle-links.txt
+
+          if [ -s /tmp/bundle-escaped.txt ]; then
+            echo "::error::bundle has symlinks resolving outside itself; these will dangle on EC2:"
+            head -20 /tmp/bundle-escaped.txt
+            exit 1
           fi
-          if [ ! -f backend-deploy/node_modules/@naru/shared/package.json ]; then
-            echo "::error::@naru/shared present but has no package.json"; exit 1
-          fi
-          DANGLING=$(find backend-deploy -xtype l | head -20)
-          if [ -n "$DANGLING" ]; then
-            echo "::error::bundle contains dangling symlinks:"; echo "$DANGLING"; exit 1
-          fi
-          echo "bundle self-contained: $(du -sh backend-deploy | cut -f1)"
+          echo "bundle self-contained: $(du -sh backend-deploy | cut -f1), $(wc -l < /tmp/bundle-links.txt) internal symlinks"
 
       - name: Deploy Web to EC2
         uses: appleboy/scp-action@master

@@ -259,7 +259,7 @@ export const ChildVisitDetailPage: React.FC = () => {
               onClick={handleEdit}
               className="px-3 py-1.5 text-sm bg-hv-green text-white rounded-md hover:bg-hv-green-hover transition-colors"
             >
-              Edit
+              {t('admin.edit_entity_title')}
             </button>
           )}
           <RoleGate requiredRole="SUPERVISOR">

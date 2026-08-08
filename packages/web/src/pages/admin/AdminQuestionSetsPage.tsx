@@ -3,26 +3,26 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionSetsApi } from '../../api/question-sets';
 import { adminApi, type LookupTableName } from '../../api/admin';
-import { type QuestionSetRead, type QuestionSetItemRead, type LookupRead } from '@naru/shared';
+import { type QuestionSetRead, type QuestionSetItemRead, type LookupRead, type TranslationKey } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useTranslation } from '../../hooks';
 
 type VisitType = 'child' | 'parent' | 'family';
 
-const CONFIG: Record<VisitType, { pageTitle: string; questionTable: LookupTableName; fetchFn: () => Promise<LookupRead[]> }> = {
+const CONFIG: Record<VisitType, { pageTitle: TranslationKey; questionTable: LookupTableName; fetchFn: () => Promise<LookupRead[]> }> = {
   child: {
-    pageTitle: 'Child Visit Questions & Sets',
+    pageTitle: 'admin.qs_title_child',
     questionTable: 'child-visit-questions',
     fetchFn: adminApi.fetchChildVisitQuestions,
   },
   parent: {
-    pageTitle: 'Parent Visit Questions & Sets',
+    pageTitle: 'admin.qs_title_parent',
     questionTable: 'parent-visit-questions',
     fetchFn: adminApi.fetchParentVisitQuestions,
   },
   family: {
-    pageTitle: 'Family Visit Questions & Sets',
+    pageTitle: 'admin.qs_title_family',
     questionTable: 'family-visit-questions',
     fetchFn: adminApi.fetchFamilyVisitQuestions,
   },
@@ -102,12 +102,12 @@ const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ visitType, config }) =>
   return (
     <div className="bg-white rounded-xl border border-hv-border mb-6">
       <div className="flex justify-between items-center px-6 py-4 border-b border-hv-border">
-        <h2 className="text-lg font-semibold text-hv-charcoal">Questions ({questions.length})</h2>
+        <h2 className="text-lg font-semibold text-hv-charcoal">{t('admin.questions')} ({questions.length})</h2>
         <button
           onClick={() => { resetForm(); setShowForm(true); }}
           className="bg-hv-terracotta text-white px-3 py-1.5 text-sm rounded hover:bg-hv-terracotta-hover transition-colors"
         >
-          + Add Question
+          + {t('admin.add_question')}
         </button>
       </div>
 
@@ -146,7 +146,7 @@ const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ visitType, config }) =>
       {isLoading ? (
         <p className="p-6 text-hv-gray">Loading...</p>
       ) : questions.length === 0 ? (
-        <p className="p-6 text-center text-hv-gray">No questions yet. Add one above.</p>
+        <p className="p-6 text-center text-hv-gray">{t('admin.no_questions')}</p>
       ) : (
         <table className="w-full">
           <tbody className="divide-y divide-hv-border">
@@ -154,7 +154,7 @@ const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ visitType, config }) =>
               <tr key={q.id} className="hover:bg-hv-page">
                 <td className="px-4 py-3 text-sm text-hv-charcoal">{q.title}</td>
                 <td className="px-4 py-3 text-right text-sm space-x-3 whitespace-nowrap">
-                  <button onClick={() => startEdit(q)} className="text-hv-accent hover:text-hv-green transition-colors">Edit</button>
+                  <button onClick={() => startEdit(q)} className="text-hv-accent hover:text-hv-green transition-colors">{t('admin.edit_entity_title')}</button>
                   <button
                     onClick={() => askDelete(q)}
                     disabled={deleteMut.isPending}
@@ -396,6 +396,7 @@ const SetForm: React.FC<SetFormProps> = ({ visitType, availableQuestions, initia
 export const AdminQuestionSetsPage: React.FC = () => {
   const { visitType } = useParams<{ visitType: string }>();
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [editingSet, setEditingSet] = useState<QuestionSetRead | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<QuestionSetRead | null>(null);
@@ -455,8 +456,8 @@ export const AdminQuestionSetsPage: React.FC = () => {
     <RoleGate requiredRole="ADMIN">
     <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{config.pageTitle}</h1>
-        <Link to="/admin" className="text-hv-terracotta hover:underline transition-colors">← Back to Admin</Link>
+        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t(config.pageTitle)}</h1>
+        <Link to="/admin" className="text-hv-terracotta hover:underline transition-colors">← {t('common.back_to_admin')}</Link>
       </div>
 
       {/* Questions section */}
@@ -464,13 +465,13 @@ export const AdminQuestionSetsPage: React.FC = () => {
 
       {/* Sets section */}
       <div className="flex justify-between items-center mb-3">
-        <h2 className="text-lg font-semibold text-hv-charcoal">Question Sets</h2>
+        <h2 className="text-lg font-semibold text-hv-charcoal">{t('admin.question_sets')}</h2>
         {!showForm && !editingSet && (
           <button
             onClick={() => setShowForm(true)}
             className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors text-sm"
           >
-            + New Set
+            + {t('admin.new_set')}
           </button>
         )}
       </div>
@@ -493,7 +494,7 @@ export const AdminQuestionSetsPage: React.FC = () => {
       {setsLoading ? (
         <p className="text-hv-gray">Loading...</p>
       ) : sets.length === 0 ? (
-        <p className="text-hv-gray text-center py-6">No sets yet. Create one above.</p>
+        <p className="text-hv-gray text-center py-6">{t('admin.no_sets')}</p>
       ) : (
         <div className="space-y-3">
           {sets.map((set) => (
@@ -508,7 +509,7 @@ export const AdminQuestionSetsPage: React.FC = () => {
                     onClick={() => { setEditingSet(set); setShowForm(false); }}
                     className="text-hv-accent hover:text-hv-green text-sm transition-colors"
                   >
-                    Edit
+                    {t('admin.edit_entity_title')}
                   </button>
                   <button
                     onClick={() => askDeleteSet(set)}

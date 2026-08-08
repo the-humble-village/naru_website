@@ -89,6 +89,7 @@ const SiteForm: React.FC<SiteFormProps> = ({ initial, onSave, onCancel }) => {
 
 export const AdminSitesPage: React.FC = () => {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SiteRead | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SiteRead | null>(null);
@@ -118,15 +119,15 @@ export const AdminSitesPage: React.FC = () => {
     <RoleGate requiredRole="ADMIN">
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Sites</h1>
+        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('admin.sites')}</h1>
         <div className="flex gap-3 items-center">
-          <Link to="/admin" className="text-hv-terracotta hover:underline transition-colors text-sm">← Back to Admin</Link>
+          <Link to="/admin" className="text-hv-terracotta hover:underline transition-colors text-sm">← {t('common.back_to_admin')}</Link>
           {!showForm && !editing && (
             <button
               onClick={() => setShowForm(true)}
               className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors text-sm"
             >
-              + Add Site
+              + {t('admin.site_add')}
             </button>
           )}
         </div>
@@ -144,15 +145,15 @@ export const AdminSitesPage: React.FC = () => {
       {isLoading ? (
         <p className="text-hv-gray">Loading...</p>
       ) : sites.length === 0 ? (
-        <p className="text-hv-gray text-center py-8">No sites yet.</p>
+        <p className="text-hv-gray text-center py-8">{t('admin.sites_empty')}</p>
       ) : (
         <div className="bg-white rounded-xl border border-hv-border overflow-hidden">
           <table className="w-full">
             <thead className="bg-hv-page">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">Location</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-hv-sage uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">{t('common.col_name')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">{t('common.col_location')}</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-hv-sage uppercase tracking-wider">{t('common.col_actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-hv-border">
@@ -179,7 +180,7 @@ export const AdminSitesPage: React.FC = () => {
                       onClick={() => { setEditing(site); setShowForm(false); }}
                       className="text-hv-accent hover:text-hv-green transition-colors"
                     >
-                      Edit
+                      {t('admin.edit_entity_title')}
                     </button>
                     <button
                       onClick={() => askDelete(site)}

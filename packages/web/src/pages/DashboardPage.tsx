@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../api/dashboard';
 import { familiesApi } from '../api/families';
 import { childrenApi } from '../api/children';
-import { FamilyRead, ChildRead } from '@naru/shared';
+import { FamilyRead, ChildRead, type TranslationKey } from '@naru/shared';
 import { useTranslation } from '../hooks/useTranslation';
 import {
   Users, Baby, AlertTriangle, CalendarCheck, ClipboardList, UserRound, Plus,
@@ -18,11 +18,11 @@ import { FamiliesTable } from './families/FamiliesTable';
 
 type ActiveTab = 'overview' | 'families';
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (key: TranslationKey) => string): string {
   const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  return `${days} days ago`;
+  if (days === 0) return t('dash.today');
+  if (days === 1) return t('dash.yesterday');
+  return t('dash.days_ago').replace('{days}', days.toString());
 }
 
 const COLLAPSED_COUNT = 3;
@@ -83,6 +83,7 @@ interface AddVisitModalProps {
 }
 
 const AddVisitModal: React.FC<AddVisitModalProps> = ({ onClose }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState<ModalStep>('type');
   const [visitType, setVisitType] = useState<VisitType | null>(null);
@@ -142,8 +143,8 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ onClose }) => {
               </button>
             )}
             <h2 className="text-base font-semibold text-hv-charcoal">
-              {step === 'type' && 'Add Visit'}
-              {step === 'family' && 'Select Family'}
+              {step === 'type' && t('common.add_visit')}
+              {step === 'family' && t('dash.select_family')}
               {step === 'child' && `Children of ${selectedFamily?.familyName || 'Family'}`}
             </h2>
           </div>
@@ -163,7 +164,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ onClose }) => {
                 <div className="flex items-center gap-3">
                   <Users size={20} className="text-hv-green" />
                   <div className="text-left">
-                    <div className="text-sm font-medium text-hv-charcoal">Family Visit</div>
+                    <div className="text-sm font-medium text-hv-charcoal">{t('dash.family_visit')}</div>
                     <div className="text-xs text-hv-gray">Record a visit for the whole family</div>
                   </div>
                 </div>
@@ -176,7 +177,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ onClose }) => {
                 <div className="flex items-center gap-3">
                   <Baby size={20} className="text-hv-green" />
                   <div className="text-left">
-                    <div className="text-sm font-medium text-hv-charcoal">Child Visit</div>
+                    <div className="text-sm font-medium text-hv-charcoal">{t('dash.child_visit')}</div>
                     <div className="text-xs text-hv-gray">Record a visit for a specific child</div>
                   </div>
                 </div>
@@ -199,7 +200,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ onClose }) => {
                 {familiesLoading ? (
                   <p className="text-sm text-hv-gray text-center py-4">Loading...</p>
                 ) : modalFamilies.length === 0 ? (
-                  <p className="text-sm text-hv-gray text-center py-4">No families found</p>
+                  <p className="text-sm text-hv-gray text-center py-4">{t('families.none_found')}</p>
                 ) : (
                   modalFamilies.map(family => (
                     <button
@@ -292,23 +293,23 @@ export const DashboardPage: React.FC = () => {
                   <div className="text-3xl font-bold text-hv-green">{dashLoading ? '—' : stats?.totalFamilies ?? 0}</div>
                   <Users className="text-hv-sage" size={20} />
                 </div>
-                <div className="text-xs text-hv-sage mt-0.5 uppercase tracking-wide">Total Families</div>
+                <div className="text-xs text-hv-sage mt-0.5 uppercase tracking-wide">{t('dash.total_families')}</div>
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <div className="text-3xl font-bold text-hv-green">{dashLoading ? '—' : stats?.totalChildren ?? 0}</div>
                   <Baby className="text-hv-sage" size={20} />
                 </div>
-                <div className="text-xs text-hv-sage mt-0.5 uppercase tracking-wide">Total Children</div>
+                <div className="text-xs text-hv-sage mt-0.5 uppercase tracking-wide">{t('dash.total_children')}</div>
               </div>
             </div>
             {!dashLoading && dashboardData?.communityBreakdown && dashboardData.communityBreakdown.length > 0 && (
               <table className="w-full text-xs border-t border-hv-border pt-2 mt-1">
                 <thead>
                   <tr className="text-hv-sage uppercase tracking-wide">
-                    <th className="text-left py-1 font-medium">Community</th>
-                    <th className="text-right py-1 font-medium">Families</th>
-                    <th className="text-right py-1 font-medium">Children</th>
+                    <th className="text-left py-1 font-medium">{t('families.col_community')}</th>
+                    <th className="text-right py-1 font-medium">{t('nav.families')}</th>
+                    <th className="text-right py-1 font-medium">{t('families.col_children')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -340,7 +341,7 @@ export const DashboardPage: React.FC = () => {
               </div>
               <AlertTriangle className="text-hv-crisis" size={24} />
             </div>
-            <div className="text-xs text-hv-sage mt-1 uppercase tracking-wide">Families in Crisis</div>
+            <div className="text-xs text-hv-sage mt-1 uppercase tracking-wide">{t('dash.crisis')}</div>
             {!dashLoading && crisisByCommunity.length > 0 && (
               <div className="mt-3 space-y-1 border-t border-hv-border pt-2">
                 {crisisByCommunity.map(([community, count]) => (
@@ -362,7 +363,7 @@ export const DashboardPage: React.FC = () => {
                   </span>
                   <CalendarCheck className="text-hv-sage" size={24} />
                 </div>
-                <div className="text-xs text-hv-sage uppercase tracking-wide mt-0.5">Visits This Month</div>
+                <div className="text-xs text-hv-sage uppercase tracking-wide mt-0.5">{t('dash.visits_this_month')}</div>
               </div>
             </div>
             <div className="flex-1" style={{ height: 60 }}>
@@ -403,7 +404,7 @@ export const DashboardPage: React.FC = () => {
               }`}
             >
               <LayoutDashboard size={15} />
-              Overview
+              {t('dash.overview')}
             </button>
             <button
               onClick={() => setActiveTab('families')}
@@ -414,7 +415,7 @@ export const DashboardPage: React.FC = () => {
               }`}
             >
               <Users size={15} />
-              Families
+              {t('nav.families')}
               {!table.familiesLoading && table.totalFamilies > 0 && (
                 <span className="ml-1 bg-hv-page text-hv-sage text-xs px-1.5 py-0.5 rounded-full">
                   {table.totalFamilies}
@@ -428,7 +429,7 @@ export const DashboardPage: React.FC = () => {
               className="flex items-center gap-1.5 bg-hv-terracotta text-white px-3 py-1.5 rounded-md hover:bg-hv-terracotta-hover transition-colors text-sm font-medium mb-px"
             >
               <Plus size={15} />
-              Add Family
+              {t('add_family.title')}
             </Link>
           )}
         </div>
@@ -442,22 +443,22 @@ export const DashboardPage: React.FC = () => {
               </div>
             ) : !dashboardData ? (
               <div className="flex items-center justify-center h-48">
-                <div className="text-hv-gray">No data available</div>
+                <div className="text-hv-gray">{t('dash.no_data')}</div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <OverviewSection
-                  title="Recent Visits"
+                  title={t('dash.recent_visits')}
                   icon={<ClipboardList size={16} className="text-hv-sage" />}
                   count={dashboardData.recentVisits.childVisits.length + dashboardData.recentVisits.familyVisits.length}
-                  empty="No recent visits"
+                  empty={t('dash.no_visits')}
                   action={
                     <button
                       onClick={() => setShowAddVisitModal(true)}
                       className="flex items-center gap-1 px-2.5 py-1 text-xs bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors"
                     >
                       <Plus size={12} />
-                      Add Visit
+                      {t('common.add_visit')}
                     </button>
                   }
                 >
@@ -465,13 +466,13 @@ export const DashboardPage: React.FC = () => {
                     ...dashboardData.recentVisits.childVisits.map(v => ({
                       key: `child-${v.id}`,
                       primary: v.child.name,
-                      secondary: `Child Visit · ${timeAgo(v.visitDate)}`,
+                      secondary: `${t('dash.child_visit')} · ${timeAgo(v.visitDate, t)}`,
                       to: `/families/${v.familyId}/children/${v.childId}/visits/${v.id}`,
                     })),
                     ...dashboardData.recentVisits.familyVisits.map(v => ({
                       key: `family-${v.id}`,
                       primary: v.family.familyName || 'Unnamed Family',
-                      secondary: `Family Visit · ${timeAgo(v.visitDate)}`,
+                      secondary: `${t('dash.family_visit')} · ${timeAgo(v.visitDate, t)}`,
                       to: `/families/${v.familyId}/visits/${v.id}`,
                     })),
                   ].map(item => (
@@ -487,10 +488,10 @@ export const DashboardPage: React.FC = () => {
                 </OverviewSection>
 
                 <OverviewSection
-                  title="Recently Updated Children"
+                  title={t('dash.recent_children_title')}
                   icon={<UserRound size={16} className="text-hv-sage" />}
                   count={dashboardData.recentlyUpdatedChildren.length}
-                  empty="No recently updated children"
+                  empty={t('dash.no_children')}
                 >
                   {dashboardData.recentlyUpdatedChildren.map(child => (
                     <Link
@@ -502,7 +503,7 @@ export const DashboardPage: React.FC = () => {
                         <span className="text-sm font-medium text-hv-charcoal group-hover:text-hv-green truncate transition-colors">{child.name}</span>
                         <span className="text-xs text-hv-sage shrink-0">
                           {child.family.familyName || 'Unnamed Family'}
-                          {child.latestVisit && ` · ${timeAgo(child.latestVisit.visitDate)}`}
+                          {child.latestVisit && ` · ${timeAgo(child.latestVisit.visitDate, t)}`}
                         </span>
                       </div>
                       {child.latestVisit && (

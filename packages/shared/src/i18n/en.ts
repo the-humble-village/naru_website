@@ -1,6 +1,7 @@
 // English translations ported from root/sys/i18n/en.php
 export const en = {
   // Navigation
+  'nav.brand': 'Humble Village',
   'nav.dashboard': 'Dashboard',
   'nav.families': 'Families',
   'nav.admin': 'Admin',
@@ -341,4 +342,114 @@ export const en = {
   'common.update_site': 'Update Site',
   'common.save_order': 'Save Order',
   'common.order_saved': 'Order saved',
+  'common.add_user': 'Add User',
+  'common.create_new_user': 'Create New User',
+  'common.user_management': 'User Management',
+  'common.back_to_admin': 'Back to Admin',
+
+  // Table columns
+  'common.col_user': 'User',
+  'common.col_login': 'Login',
+  'common.col_email': 'Email',
+  'common.col_role': 'Role',
+  'common.col_created': 'Created',
+  'common.col_actions': 'Actions',
+  'common.col_name': 'Name',
+  'common.col_location': 'Location',
+  'common.col_title': 'Title',
+  'common.col_updated': 'Updated',
+  'common.first_name': 'First Name',
+  'common.last_name': 'Last Name',
+  'common.password': 'Password',
+  'common.new_password': 'New Password',
+  'common.delete': 'Delete',
+  'common.you': 'you',
+
+  'common.loading': 'Loading...',
+  'common.add_visit': 'Add Visit',
+
+  // Error page
+  'error.title': 'Something went wrong',
+  'error.message': 'An unexpected error occurred.',
+  'error.go_dashboard': 'Go to Dashboard',
+
+  // Roles
+  'role.admin': 'Admin',
+  'role.supervisor': 'Supervisor',
+  'role.caseworker': 'Caseworker',
+
+  // Admin - lookup tables (interpolate {name} with the entity label)
+  'admin.add_entity': 'Add {name}',
+  'admin.add_new_entity': 'Add New {name}',
+  'admin.edit_entity': 'Edit {name}',
+  'admin.delete_entity': 'Delete {name}',
+  'admin.enter_entity_title': 'Enter {name} title',
+  'admin.loading_entity': 'Loading {name}...',
+  'admin.failed_load_entity': 'Failed to load {name}',
+  'admin.empty_entity': 'No {name} found. Create your first item to get started.',
+  'admin.delete_warning_entity':
+    'Existing records that already reference this {name} keep their current value — they are not changed or removed.',
+  'admin.community_singular': 'Community',
+  'admin.site_singular': 'Site',
+  'admin.resource_singular': 'Resource',
+  'admin.training_singular': 'Training',
+  'admin.child_q_singular': 'Child Visit Question',
+  'admin.parent_q_singular': 'Parent Visit Question',
+  'admin.family_q_singular': 'Family Visit Question',
+
+  // Admin - Sites
+  'admin.site_add': 'Add Site',
+  'admin.sites_empty': 'No sites yet.',
+
+  // Admin - Question sets
+  'admin.qs_title_child': 'Child Visit Questions & Sets',
+  'admin.qs_title_parent': 'Parent Visit Questions & Sets',
+  'admin.qs_title_family': 'Family Visit Questions & Sets',
+  'admin.questions': 'Questions',
+  'admin.add_question': 'Add Question',
+  'admin.no_questions': 'No questions yet. Add one above.',
+  'admin.question_sets': 'Question Sets',
+  'admin.new_set': 'New Set',
+  'admin.no_sets': 'No sets yet. Create one above.',
+
+  // Admin - Birthing Assistants table
+  'admin.ba_add': 'Add Birthing Assistant',
+  'admin.ba_communities_served': 'Communities Served',
+  'admin.ba_trainings_received': 'Trainings Received',
+  'admin.ba_empty_hint': 'No birthing assistants found. Create your first birthing assistant to get started.',
+
+  // Admin sections
+  'admin.users': 'Users',
+  'admin.section_people': 'People',
+  'admin.section_lookups': 'Lookup Tables',
+  'admin.section_questions': 'Visit Questions',
+
+  // Family table
+  'families.search_families': 'Search Families',
+  'families.search_by_name': 'Search by family name...',
+  'families.crisis_status': 'Crisis Status',
+  'families.all_communities': 'All Communities',
+  'families.all_families': 'All Families',
+  'families.not_in_crisis': 'Not in Crisis',
+  'families.stable': 'Stable',
+  'families.found': '{count} families found',
+  'families.none_found': 'No families found',
+  'families.none_matching': 'No families found matching your criteria.',
+  'families.col_updated': 'Last Updated',
+  'families.col_notes': 'Notes',
+  'families.columns': 'Columns',
+  'families.toggle_columns': 'Toggle Columns',
+
+  // Dashboard
+  'dash.overview': 'Overview',
+  'dash.parent_visit': 'Parent Visit',
+  'dash.visits_this_month': 'Visits This Month',
+  'dash.select_family': 'Select Family',
+  'dash.today': 'Today',
+  'dash.yesterday': 'Yesterday',
+  'dash.days_ago': '{days} days ago',
+  'dash.total_families': 'Total Families',
+  'dash.total_children': 'Total Children',
+  'dash.recent_children_title': 'Recently Updated Children',
+  'dash.no_data': 'No data available',
 } as const;

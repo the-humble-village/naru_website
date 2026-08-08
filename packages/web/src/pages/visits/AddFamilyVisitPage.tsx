@@ -195,7 +195,7 @@ export const AddFamilyVisitPage: React.FC = () => {
     <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-6">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Add Family Visit</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('families.add_visit')}</h1>
           {family && (
             <p className="text-hv-gray mt-1">
               Visit for: {family.familyName || 'Family #' + family.id}

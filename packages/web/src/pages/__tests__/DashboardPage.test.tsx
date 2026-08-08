@@ -14,16 +14,17 @@ vi.mock('../../api/dashboard', () => ({
   },
 }));
 
-// Mock useTranslation to return predictable English strings
-vi.mock('../../hooks/useTranslation', () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const map: Record<string, string> = { 'nav.dashboard': 'Dashboard' };
-      return map[key] ?? key;
-    },
-    lang: 'en',
-  }),
-}));
+// Mock useTranslation so it always resolves against the real English dictionary,
+// independent of whatever language the auth store holds.
+vi.mock('../../hooks/useTranslation', async () => {
+  const { t } = await import('@naru/shared');
+  return {
+    useTranslation: () => ({
+      t: (key: Parameters<typeof t>[0]) => t(key, 'en'),
+      lang: 'en',
+    }),
+  };
+});
 
 // Mock useFamilyTable and FamiliesTable — not under test here
 vi.mock('../families/useFamilyTable', () => ({

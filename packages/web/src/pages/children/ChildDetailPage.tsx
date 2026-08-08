@@ -201,7 +201,7 @@ export const ChildDetailPage: React.FC = () => {
               onClick={handleEdit}
               className="px-3 py-1.5 text-sm bg-hv-green text-white rounded-md hover:bg-hv-green-hover transition-colors"
             >
-              Edit
+              {t('admin.edit_entity_title')}
             </button>
           )}
           <Link
@@ -209,7 +209,7 @@ export const ChildDetailPage: React.FC = () => {
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors"
           >
             <Plus size={14} />
-            Add Visit
+            {t('common.add_visit')}
           </Link>
           <RoleGate requiredRole="SUPERVISOR">
             <button
@@ -411,7 +411,7 @@ export const ChildDetailPage: React.FC = () => {
         {zscore && (
           <div className="px-4 py-3 border-t border-hv-border flex items-center gap-4">
             <div className="text-xs text-hv-sage uppercase tracking-wide">Weight-for-Age Z-Score</div>
-            <ZScoreBadge zScore={zscore.zScore} label="Weight-for-Age" showValue={true} />
+            <ZScoreBadge zScore={zscore.zScore} label={t('view_child.zscore_wfa')} showValue={true} />
             <span className="text-xs text-hv-sage">{child.zScores!.ageInDays} days old</span>
           </div>
         )}
@@ -446,7 +446,7 @@ export const ChildDetailPage: React.FC = () => {
       {/* Visit History */}
       <div className="bg-white rounded-xl border border-hv-border">
         <div className="flex items-center justify-between px-4 py-3 border-b border-hv-border">
-          <h2 className="text-sm font-semibold text-hv-charcoal">Visit History</h2>
+          <h2 className="text-sm font-semibold text-hv-charcoal">{t('family.visit_history')}</h2>
           {sortedVisits.length > 0 && (
             <span className="text-xs text-hv-sage">{sortedVisits.length} visit{sortedVisits.length !== 1 ? 's' : ''}</span>
           )}

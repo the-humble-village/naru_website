@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
 import { visitsApi } from '../../api/visits';
 import { PhotoGallery, RoleGate, ConfirmDialog } from '../../components';
+import { useTranslation } from '../../hooks';
 
 /**
  * ParentVisitDetailPage - Shows full details of a single parent visit
@@ -12,6 +13,7 @@ export const ParentVisitDetailPage: React.FC = () => {
   const { id: familyId, pid: parentId, vid: visitId } = useParams<{ id: string; pid: string; vid: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
@@ -56,7 +58,7 @@ export const ParentVisitDetailPage: React.FC = () => {
             to={`/families/${familyId}/parents/${parentId}/visits/${visitId}/edit`}
             className="bg-hv-green text-white px-4 py-2 rounded text-sm hover:bg-hv-green-hover transition-colors"
           >
-            Edit
+            {t('admin.edit_entity_title')}
           </Link>
           <RoleGate requiredRole="SUPERVISOR">
             <button

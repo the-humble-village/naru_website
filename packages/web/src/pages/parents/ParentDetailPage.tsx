@@ -237,7 +237,7 @@ export const ParentDetailPage: React.FC = () => {
               onClick={handleEdit}
               className="bg-hv-green text-white px-4 py-2 rounded text-sm hover:bg-hv-green-hover transition-colors"
             >
-              Edit
+              {t('admin.edit_entity_title')}
             </button>
           )}
         </div>
@@ -444,7 +444,7 @@ export const ParentDetailPage: React.FC = () => {
             to={`/families/${familyId}/parents/${parentId}/visits/new`}
             className="bg-hv-terracotta text-white px-4 py-2 rounded text-sm hover:bg-hv-terracotta-hover transition-colors"
           >
-            Add Visit
+            {t('common.add_visit')}
           </Link>
         </div>
 

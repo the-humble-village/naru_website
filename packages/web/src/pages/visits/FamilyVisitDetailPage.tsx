@@ -255,7 +255,7 @@ export const FamilyVisitDetailPage: React.FC = () => {
               className="flex items-center gap-1 px-3 py-1.5 text-sm border border-hv-border rounded-md text-hv-charcoal hover:bg-hv-page transition-colors"
             >
               <Pencil size={13} />
-              Edit
+              {t('admin.edit_entity_title')}
             </button>
           )}
           <RoleGate requiredRole="SUPERVISOR">

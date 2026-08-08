@@ -256,12 +256,12 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
     return (
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Birthing Assistants</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('admin.birthing_assistants')}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
         <div className="bg-white p-6 rounded-xl border border-hv-border">
@@ -276,12 +276,12 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
     return (
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Birthing Assistants</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('admin.birthing_assistants')}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
         <div className="bg-white p-6 rounded-xl border border-hv-border">
@@ -295,25 +295,25 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
     <RoleGate requiredRole="SUPERVISOR">
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Birthing Assistants</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('admin.birthing_assistants')}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
 
         <div className="bg-white rounded-xl border border-hv-border">
           <div className="flex justify-between items-center p-6 border-b border-hv-border">
             <h2 className="text-lg font-serif font-semibold text-hv-charcoal">
-              Birthing Assistants ({birthingAssistants.length})
+              {t('admin.birthing_assistants')} ({birthingAssistants.length})
             </h2>
             <button
               onClick={() => setShowCreateForm(true)}
               className="bg-hv-terracotta text-white px-4 py-2 rounded-md hover:bg-hv-terracotta-hover transition-colors"
             >
-              Add Birthing Assistant
+              {t('admin.ba_add')}
             </button>
           </div>
 
@@ -390,7 +390,7 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
                 {/* Training Multi-Select */}
                 <div>
                   <label className="block text-sm font-medium text-hv-charcoal mb-2">
-                    Trainings Received
+                    {t('admin.ba_trainings_received')}
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border border-hv-border-input rounded-md p-3">
                     {trainings.map((training) => (
@@ -472,19 +472,19 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
               <thead className="bg-hv-page">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Name
+                    {t('common.col_name')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Communities Served
+                    {t('admin.ba_communities_served')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Trainings Received
+                    {t('admin.ba_trainings_received')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Created
+                    {t('common.col_created')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Actions
+                    {t('common.col_actions')}
                   </th>
                 </tr>
               </thead>
@@ -514,7 +514,7 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
                         onClick={() => startEdit(ba)}
                         className="text-hv-terracotta hover:underline transition-colors"
                       >
-                        Edit
+                        {t('admin.edit_entity_title')}
                       </button>
                       <button
                         onClick={() => requestDelete(ba)}
@@ -533,7 +533,7 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
 
           {birthingAssistants.length === 0 && (
             <div className="p-6 text-center text-hv-gray">
-              No birthing assistants found. Create your first birthing assistant to get started.
+              {t('admin.ba_empty_hint')}
             </div>
           )}
         </div>

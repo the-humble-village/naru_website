@@ -239,7 +239,7 @@ export const FamilyDetailPage: React.FC = () => {
             {family.inCrisis && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
                 <AlertTriangle size={11} />
-                In Crisis
+                {t('families.col_crisis')}
               </span>
             )}
           </div>
@@ -251,7 +251,7 @@ export const FamilyDetailPage: React.FC = () => {
               className="flex items-center gap-1 px-3 py-1.5 text-sm border border-hv-border rounded-md text-hv-charcoal hover:bg-hv-page transition-colors"
             >
               <Pencil size={13} />
-              Edit
+              {t('admin.edit_entity_title')}
             </button>
           )}
           <RoleGate requiredRole="SUPERVISOR">
@@ -274,7 +274,7 @@ export const FamilyDetailPage: React.FC = () => {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
-                <label htmlFor="familyName" className="block text-xs font-medium text-hv-charcoal mb-1">Family Name</label>
+                <label htmlFor="familyName" className="block text-xs font-medium text-hv-charcoal mb-1">{t('families.col_name')}</label>
                 <input
                   id="familyName"
                   type="text"
@@ -284,14 +284,14 @@ export const FamilyDetailPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor="communityId" className="block text-xs font-medium text-hv-charcoal mb-1">Community</label>
+                <label htmlFor="communityId" className="block text-xs font-medium text-hv-charcoal mb-1">{t('families.col_community')}</label>
                 <select
                   id="communityId"
                   value={editData.communityId || ''}
                   onChange={(e) => setEditData({ ...editData, communityId: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-3 py-2 text-sm border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                 >
-                  <option value="">None</option>
+                  <option value="">{t('family.none')}</option>
                   {editData.communityId != null && !communities.some(c => c.id === editData.communityId) && (
                     <option value={editData.communityId}>{missingLabel(editData.communityId)}</option>
                   )}
@@ -299,14 +299,14 @@ export const FamilyDetailPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label htmlFor="siteId" className="block text-xs font-medium text-hv-charcoal mb-1">Site</label>
+                <label htmlFor="siteId" className="block text-xs font-medium text-hv-charcoal mb-1">{t('families.col_site')}</label>
                 <select
                   id="siteId"
                   value={editData.siteId || ''}
                   onChange={(e) => setEditData({ ...editData, siteId: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-3 py-2 text-sm border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                 >
-                  <option value="">None</option>
+                  <option value="">{t('family.none')}</option>
                   {editData.siteId != null && !sites.some(s => s.id === editData.siteId) && (
                     <option value={editData.siteId}>{missingLabel(editData.siteId)}</option>
                   )}
@@ -314,14 +314,14 @@ export const FamilyDetailPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label htmlFor="birthingAssistantId" className="block text-xs font-medium text-hv-charcoal mb-1">Birthing Assistant</label>
+                <label htmlFor="birthingAssistantId" className="block text-xs font-medium text-hv-charcoal mb-1">{t('families.col_assistant')}</label>
                 <select
                   id="birthingAssistantId"
                   value={editData.birthingAssistantId || ''}
                   onChange={(e) => setEditData({ ...editData, birthingAssistantId: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-3 py-2 text-sm border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                 >
-                  <option value="">None</option>
+                  <option value="">{t('family.none')}</option>
                   {editData.birthingAssistantId != null && !birthingAssistants.some(ba => ba.id === editData.birthingAssistantId) && (
                     <option value={editData.birthingAssistantId}>{missingLabel(editData.birthingAssistantId)}</option>
                   )}
@@ -408,11 +408,11 @@ export const FamilyDetailPage: React.FC = () => {
         <div className="bg-white rounded-xl border border-hv-border mb-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-hv-border">
             <div className="px-4 py-3">
-              <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Community</div>
-              <div className="text-sm font-medium text-hv-charcoal">{communityName || <span className="text-hv-sage italic">None</span>}</div>
+              <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">{t('families.col_community')}</div>
+              <div className="text-sm font-medium text-hv-charcoal">{communityName || <span className="text-hv-sage italic">{t('family.none')}</span>}</div>
             </div>
             <div className="px-4 py-3">
-              <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Site</div>
+              <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">{t('families.col_site')}</div>
               {site?.lat && site?.lng ? (
                 <button
                   onClick={() => setMapSite(site)}
@@ -422,12 +422,12 @@ export const FamilyDetailPage: React.FC = () => {
                   {siteName}
                 </button>
               ) : (
-                <div className="text-sm font-medium text-hv-charcoal">{siteName || <span className="text-hv-sage italic">None</span>}</div>
+                <div className="text-sm font-medium text-hv-charcoal">{siteName || <span className="text-hv-sage italic">{t('family.none')}</span>}</div>
               )}
             </div>
             <div className="px-4 py-3">
-              <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Birthing Assistant</div>
-              <div className="text-sm font-medium text-hv-charcoal">{baName || <span className="text-hv-sage italic">None</span>}</div>
+              <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">{t('families.col_assistant')}</div>
+              <div className="text-sm font-medium text-hv-charcoal">{baName || <span className="text-hv-sage italic">{t('family.none')}</span>}</div>
             </div>
             <div className="px-4 py-3">
               <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Updated</div>
@@ -457,7 +457,7 @@ export const FamilyDetailPage: React.FC = () => {
             <div className="flex items-center justify-between px-4 py-3 border-b border-hv-border">
               <h2 className="text-sm font-semibold text-hv-charcoal flex items-center gap-1.5">
                 <Users size={15} className="text-hv-sage" />
-                Parents
+                {t('family.parents')}
                 {parents.length > 0 && (
                   <span className="ml-1 bg-hv-page text-hv-sage text-xs px-1.5 py-0.5 rounded-full">{parents.length}</span>
                 )}
@@ -467,7 +467,7 @@ export const FamilyDetailPage: React.FC = () => {
                 className="flex items-center gap-1 px-2.5 py-1 text-xs bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors"
               >
                 <Plus size={12} />
-                Add Parent
+                {t('family.add_parent')}
               </Link>
             </div>
             {parentsQuery.isLoading ? (
@@ -518,7 +518,7 @@ export const FamilyDetailPage: React.FC = () => {
             <div className="flex items-center justify-between px-4 py-3 border-b border-hv-border">
               <h2 className="text-sm font-semibold text-hv-charcoal flex items-center gap-1.5">
                 <Baby size={15} className="text-hv-sage" />
-                Children
+                {t('family.children')}
                 {children.length > 0 && (
                   <span className="ml-1 bg-hv-page text-hv-sage text-xs px-1.5 py-0.5 rounded-full">{children.length}</span>
                 )}
@@ -528,7 +528,7 @@ export const FamilyDetailPage: React.FC = () => {
                 className="flex items-center gap-1 px-2.5 py-1 text-xs bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors"
               >
                 <Plus size={12} />
-                Add Child
+                {t('family.add_child')}
               </Link>
             </div>
             {childrenQuery.isLoading ? (
@@ -565,14 +565,14 @@ export const FamilyDetailPage: React.FC = () => {
           <div className="flex items-center justify-between px-4 py-3 border-b border-hv-border">
             <h2 className="text-sm font-semibold text-hv-charcoal flex items-center gap-1.5">
               <CalendarCheck size={15} className="text-hv-sage" />
-              Recent Visits
+              {t('dash.recent_visits')}
             </h2>
             <Link
               to={`/families/${id}/visits/new`}
               className="flex items-center gap-1 px-2.5 py-1 text-xs bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors"
             >
               <Plus size={12} />
-              Add Visit
+              {t('common.add_visit')}
             </Link>
           </div>
           {visitsQuery.isLoading ? (

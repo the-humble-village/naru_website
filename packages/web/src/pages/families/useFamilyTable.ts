@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
+import { type TranslationKey } from '@naru/shared';
 
 export type SortColumn = 'familyName' | 'community' | 'inCrisis' | 'updatedAt' | 'childrenEditable';
 export type SortDirection = 'asc' | 'desc';
@@ -11,13 +12,13 @@ export const SORTABLE: Set<ColumnKey> = new Set([
   'familyName', 'community', 'inCrisis', 'updatedAt', 'childrenEditable',
 ]);
 
-export const ALL_COLUMNS: { key: ColumnKey; label: string; defaultWidth: number; defaultVisible: boolean }[] = [
-  { key: 'familyName',       label: 'Family Name',   defaultWidth: 200, defaultVisible: true  },
-  { key: 'community',        label: 'Community',     defaultWidth: 150, defaultVisible: true  },
-  { key: 'inCrisis',         label: 'Crisis Status', defaultWidth: 130, defaultVisible: true  },
-  { key: 'updatedAt',        label: 'Last Updated',  defaultWidth: 130, defaultVisible: true  },
-  { key: 'notes',            label: 'Notes',         defaultWidth: 220, defaultVisible: false },
-  { key: 'childrenEditable', label: 'Children',      defaultWidth: 100, defaultVisible: false },
+export const ALL_COLUMNS: { key: ColumnKey; labelKey: TranslationKey; defaultWidth: number; defaultVisible: boolean }[] = [
+  { key: 'familyName',       labelKey: 'families.col_name',      defaultWidth: 200, defaultVisible: true  },
+  { key: 'community',        labelKey: 'families.col_community', defaultWidth: 150, defaultVisible: true  },
+  { key: 'inCrisis',         labelKey: 'families.crisis_status', defaultWidth: 130, defaultVisible: true  },
+  { key: 'updatedAt',        labelKey: 'families.col_updated',   defaultWidth: 130, defaultVisible: true  },
+  { key: 'notes',            labelKey: 'families.col_notes',     defaultWidth: 220, defaultVisible: false },
+  { key: 'childrenEditable', labelKey: 'families.col_children',  defaultWidth: 100, defaultVisible: false },
 ];
 
 const DEFAULT_VISIBLE = ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);

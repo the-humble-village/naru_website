@@ -1,27 +1,33 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Columns2 } from 'lucide-react';
-import { type FamilyRead } from '@naru/shared';
+import { type FamilyRead, type TranslationKey } from '@naru/shared';
+import { useTranslation } from '../../hooks';
 import { ALL_COLUMNS, SORTABLE, type ColumnKey, type SortColumn, type FamilyTableState } from './useFamilyTable';
 
-function renderCell(colKey: ColumnKey, family: FamilyRead, communityLookup: Record<number, string>): React.ReactNode {
+function renderCell(
+  colKey: ColumnKey,
+  family: FamilyRead,
+  communityLookup: Record<number, string>,
+  t: (key: TranslationKey) => string
+): React.ReactNode {
   switch (colKey) {
     case 'familyName':
       return <div className="text-sm font-medium text-hv-charcoal">{family.familyName || 'Unnamed Family'}</div>;
     case 'community':
       return (
         <div className="text-sm text-hv-charcoal">
-          {family.communityId ? communityLookup[family.communityId] ?? 'Unknown' : 'None'}
+          {family.communityId ? communityLookup[family.communityId] ?? 'Unknown' : t('family.none')}
         </div>
       );
     case 'inCrisis':
       return family.inCrisis ? (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          In Crisis
+          {t('families.col_crisis')}
         </span>
       ) : (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          Stable
+          {t('families.stable')}
         </span>
       );
     case 'notes':
@@ -48,6 +54,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
   highlightCrisis = false,
   compact = false,
 }) => {
+  const { t } = useTranslation();
   const {
     searchTerm, setSearchTerm,
     selectedCommunityId, setSelectedCommunityId,
@@ -75,18 +82,18 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
       <div className={`bg-white ${compact ? 'p-4 mb-4' : 'p-6 mb-6'} rounded-xl border border-hv-border`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label htmlFor="fam-search" className={labelClass}>Search Families</label>
+            <label htmlFor="fam-search" className={labelClass}>{t('families.search_families')}</label>
             <input
               id="fam-search"
               type="text"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); handleFilterChange(); }}
-              placeholder="Search by family name..."
+              placeholder={t('families.search_by_name')}
               className={inputClass}
             />
           </div>
           <div>
-            <label htmlFor="fam-community" className={labelClass}>Community</label>
+            <label htmlFor="fam-community" className={labelClass}>{t('families.col_community')}</label>
             <select
               id="fam-community"
               value={selectedCommunityId}
@@ -94,28 +101,30 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
               disabled={communitiesLoading}
               className={inputClass}
             >
-              <option value="">All Communities</option>
+              <option value="">{t('families.all_communities')}</option>
               {communities.map((c) => (
                 <option key={c.id} value={c.id}>{c.title}</option>
               ))}
             </select>
           </div>
           <div>
-            <label htmlFor="fam-crisis" className={labelClass}>Crisis Status</label>
+            <label htmlFor="fam-crisis" className={labelClass}>{t('families.crisis_status')}</label>
             <select
               id="fam-crisis"
               value={inCrisisFilter.toString()}
               onChange={(e) => { const v = e.target.value; setInCrisisFilter(v === '' ? '' : v === 'true'); handleFilterChange(); }}
               className={inputClass}
             >
-              <option value="">All Families</option>
-              <option value="true">In Crisis</option>
-              <option value="false">Not in Crisis</option>
+              <option value="">{t('families.all_families')}</option>
+              <option value="true">{t('families.col_crisis')}</option>
+              <option value="false">{t('families.not_in_crisis')}</option>
             </select>
           </div>
           <div className="flex items-end">
             <p className="text-sm text-hv-gray">
-              {familiesLoading ? 'Loading...' : `${totalFamilies} families found`}
+              {familiesLoading
+                ? t('common.loading')
+                : t('families.found').replace('{count}', totalFamilies.toString())}
             </p>
           </div>
         </div>
@@ -131,11 +140,11 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-hv-border rounded-md text-hv-charcoal hover:bg-hv-page transition-colors"
             >
               <Columns2 className="w-4 h-4" />
-              Columns
+              {t('families.columns')}
             </button>
             {showColumnPicker && (
               <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-hv-border rounded-lg shadow-lg p-3 min-w-[180px]">
-                <p className="text-xs font-semibold text-hv-sage uppercase tracking-wider mb-2">Toggle Columns</p>
+                <p className="text-xs font-semibold text-hv-sage uppercase tracking-wider mb-2">{t('families.toggle_columns')}</p>
                 <div className="space-y-1">
                   {ALL_COLUMNS.map((col) => (
                     <label
@@ -148,7 +157,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
                         onChange={() => toggleColumn(col.key)}
                         className="rounded border-hv-border-input text-hv-accent focus:ring-hv-accent"
                       />
-                      {col.label}
+                      {t(col.labelKey)}
                     </label>
                   ))}
                 </div>
@@ -166,7 +175,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
             </p>
           </div>
         ) : families.length === 0 ? (
-          <div className="text-center py-8"><p className="text-hv-gray">No families found matching your criteria.</p></div>
+          <div className="text-center py-8"><p className="text-hv-gray">{t('families.none_matching')}</p></div>
         ) : (
           <>
             <div className="overflow-x-auto">
@@ -186,7 +195,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
                             className={`inline-flex items-center gap-1 ${isSortable ? 'cursor-pointer hover:text-hv-charcoal select-none' : ''}`}
                             onClick={isSortable ? () => handleSort(col.key as SortColumn) : undefined}
                           >
-                            {col.label}
+                            {t(col.labelKey)}
                             {isSortable && (
                               <span className="text-hv-border">
                                 {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
@@ -215,7 +224,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
                           style={{ width: columnWidths[col.key], maxWidth: columnWidths[col.key] }}
                           className="px-4 py-4 whitespace-nowrap overflow-hidden"
                         >
-                          {renderCell(col.key, family, communityLookup)}
+                          {renderCell(col.key, family, communityLookup, t)}
                         </td>
                       ))}
                     </tr>

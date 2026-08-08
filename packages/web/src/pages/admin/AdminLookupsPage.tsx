@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, LookupTableName } from '../../api/admin';
-import { LookupRead, LookupCreate, LookupUpdate } from '@naru/shared';
+import { LookupRead, LookupCreate, LookupUpdate, type TranslationKey } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ChevronUp, ChevronDown } from 'lucide-react';
@@ -14,14 +14,14 @@ interface LookupFormData {
 
 const QUESTION_TABLES = new Set(['child-visit-questions', 'parent-visit-questions', 'family-visit-questions']);
 
-const TABLE_CONFIG: Record<string, { plural: string; singular: string }> = {
-  'communities':           { plural: 'Communities',            singular: 'Community' },
-  'sites':                 { plural: 'Sites',                  singular: 'Site' },
-  'resources':             { plural: 'Resources',              singular: 'Resource' },
-  'training':              { plural: 'Training',               singular: 'Training' },
-  'child-visit-questions': { plural: 'Child Visit Questions',  singular: 'Child Visit Question' },
-  'parent-visit-questions':{ plural: 'Parent Visit Questions', singular: 'Parent Visit Question' },
-  'family-visit-questions':{ plural: 'Family Visit Questions', singular: 'Family Visit Question' },
+const TABLE_CONFIG: Record<string, { plural: TranslationKey; singular: TranslationKey }> = {
+  'communities':           { plural: 'admin.communities',    singular: 'admin.community_singular' },
+  'sites':                 { plural: 'admin.sites',          singular: 'admin.site_singular' },
+  'resources':             { plural: 'admin.resources',      singular: 'admin.resource_singular' },
+  'training':              { plural: 'admin.training',       singular: 'admin.training_singular' },
+  'child-visit-questions': { plural: 'admin.child_q_title',  singular: 'admin.child_q_singular' },
+  'parent-visit-questions':{ plural: 'admin.parent_q_title', singular: 'admin.parent_q_singular' },
+  'family-visit-questions':{ plural: 'admin.family_q_title', singular: 'admin.family_q_singular' },
 };
 
 const DEFAULT_ITEMS: LookupRead[] = [];
@@ -54,7 +54,9 @@ export const AdminLookupsPage: React.FC = () => {
 
   const lookupTable = table && isValidTable(table) ? table : null;
 
-  const config = lookupTable ? (TABLE_CONFIG[lookupTable] ?? { plural: 'Lookup Table', singular: 'Item' }) : null;
+  const config = lookupTable
+    ? (TABLE_CONFIG[lookupTable] ?? { plural: 'admin.section_lookups' as const, singular: 'common.unnamed' as const })
+    : null;
 
   const isQuestionTable = !!lookupTable && QUESTION_TABLES.has(lookupTable);
 
@@ -185,7 +187,7 @@ export const AdminLookupsPage: React.FC = () => {
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
         <div className="bg-white p-6 rounded-xl border border-hv-border">
@@ -200,16 +202,16 @@ export const AdminLookupsPage: React.FC = () => {
     return (
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{config!.plural}</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t(config!.plural)}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
         <div className="bg-white p-6 rounded-xl border border-hv-border">
-          <p className="text-hv-gray">Loading {config!.plural.toLowerCase()}...</p>
+          <p className="text-hv-gray">{t('admin.loading_entity').replace('{name}', t(config!.plural).toLowerCase())}</p>
         </div>
       </div>
     );
@@ -220,16 +222,18 @@ export const AdminLookupsPage: React.FC = () => {
     return (
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{config!.plural}</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t(config!.plural)}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
         <div className="bg-white p-6 rounded-xl border border-hv-border">
-          <p className="text-red-600">Failed to load {config!.plural.toLowerCase()}: {error.message}</p>
+          <p className="text-red-600">
+            {t('admin.failed_load_entity').replace('{name}', t(config!.plural).toLowerCase())}: {error.message}
+          </p>
         </div>
       </div>
     );
@@ -239,19 +243,19 @@ export const AdminLookupsPage: React.FC = () => {
     <RoleGate requiredRole="ADMIN">
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{config!.plural}</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t(config!.plural)}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
 
         <div className="bg-white rounded-xl border border-hv-border">
           <div className="flex justify-between items-center p-6 border-b border-hv-border">
             <h2 className="text-lg font-serif font-semibold text-hv-charcoal">
-              {config!.plural} ({items.length})
+              {t(config!.plural)} ({items.length})
             </h2>
             <div className="flex items-center gap-3">
               {isQuestionTable && (
@@ -276,7 +280,7 @@ export const AdminLookupsPage: React.FC = () => {
                 onClick={() => setShowCreateForm(true)}
                 className="bg-hv-terracotta text-white px-4 py-2 rounded-md hover:bg-hv-terracotta-hover transition-colors"
               >
-                Add {config!.singular}
+                {t('admin.add_entity').replace('{name}', t(config!.singular))}
               </button>
             </div>
           </div>
@@ -285,12 +289,14 @@ export const AdminLookupsPage: React.FC = () => {
           {showCreateForm && (
             <div className="p-6 border-b border-hv-border bg-hv-page">
               <h3 className="text-lg font-serif font-semibold text-hv-charcoal mb-4">
-                {editingItem ? `Edit ${config!.singular}` : `Add New ${config!.singular}`}
+                {editingItem
+                  ? t('admin.edit_entity').replace('{name}', t(config!.singular))
+                  : t('admin.add_new_entity').replace('{name}', t(config!.singular))}
               </h3>
               <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
                 <div>
                   <label htmlFor="lookup-title" className="block text-sm font-medium text-hv-charcoal mb-1">
-                    Title <span className="text-red-500">*</span>
+                    {t('common.col_title')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="lookup-title"
@@ -299,7 +305,7 @@ export const AdminLookupsPage: React.FC = () => {
                     onChange={(e) => setFormData({ title: e.target.value })}
                     className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                     required
-                    placeholder={`Enter ${config!.singular.toLowerCase()} title`}
+                    placeholder={t('admin.enter_entity_title').replace('{name}', t(config!.singular).toLowerCase())}
                   />
                 </div>
                 <div className="flex justify-start space-x-3">
@@ -343,16 +349,16 @@ export const AdminLookupsPage: React.FC = () => {
                     <th className="px-4 py-3 w-16" />
                   )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Title
+                    {t('common.col_title')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Created
+                    {t('common.col_created')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Updated
+                    {t('common.col_updated')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Actions
+                    {t('common.col_actions')}
                   </th>
                 </tr>
               </thead>
@@ -395,7 +401,7 @@ export const AdminLookupsPage: React.FC = () => {
                         onClick={() => startEdit(item)}
                         className="text-hv-terracotta hover:underline transition-colors"
                       >
-                        Edit
+                        {t('admin.edit_entity_title')}
                       </button>
                       <button
                         onClick={() => { deleteItemMutation.reset(); setDeleteTarget(item); }}
@@ -413,14 +419,14 @@ export const AdminLookupsPage: React.FC = () => {
 
           {items.length === 0 && (
             <div className="p-6 text-center text-hv-gray">
-              No {config!.plural.toLowerCase()} found. Create your first item to get started.
+              {t('admin.empty_entity').replace('{name}', t(config!.plural).toLowerCase())}
             </div>
           )}
         </div>
 
         <ConfirmDialog
           open={deleteTarget !== null}
-          title={`Delete ${config!.singular}`}
+          title={t('admin.delete_entity').replace('{name}', t(config!.singular))}
           message={
             <>
               <p>
@@ -434,7 +440,7 @@ export const AdminLookupsPage: React.FC = () => {
               )}
             </>
           }
-          warning={`Existing records that already reference this ${config!.singular.toLowerCase()} keep their current value — they are not changed or removed.`}
+          warning={t('admin.delete_warning_entity').replace('{name}', t(config!.singular).toLowerCase())}
           busy={deleteItemMutation.isPending}
           onConfirm={confirmDelete}
           onCancel={() => { setDeleteTarget(null); deleteItemMutation.reset(); }}

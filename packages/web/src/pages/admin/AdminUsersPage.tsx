@@ -218,9 +218,9 @@ export const AdminUsersPage: React.FC = () => {
 
   const getRoleDisplayName = (role: Role) => {
     switch (role) {
-      case 'ADMIN': return 'Admin';
-      case 'SUPERVISOR': return 'Supervisor';
-      case 'CASEWORKER': return 'Caseworker';
+      case 'ADMIN': return t('role.admin');
+      case 'SUPERVISOR': return t('role.supervisor');
+      case 'CASEWORKER': return t('role.caseworker');
     }
   };
 
@@ -243,12 +243,12 @@ export const AdminUsersPage: React.FC = () => {
     return (
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">User Management</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('common.user_management')}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
         <div className="bg-white p-6 rounded-xl border border-hv-border">
@@ -262,12 +262,12 @@ export const AdminUsersPage: React.FC = () => {
     return (
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">User Management</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('common.user_management')}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
         <div className="bg-white p-6 rounded-xl border border-hv-border">
@@ -281,23 +281,23 @@ export const AdminUsersPage: React.FC = () => {
     <RoleGate requiredRole="ADMIN">
       <div>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">User Management</h1>
+          <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('common.user_management')}</h1>
           <Link
             to="/admin"
             className="text-hv-terracotta hover:underline transition-colors"
           >
-            ← Back to Admin
+            ← {t('common.back_to_admin')}
           </Link>
         </div>
 
         <div className="bg-white rounded-xl border border-hv-border">
           <div className="flex justify-between items-center p-6 border-b border-hv-border">
-            <h2 className="text-lg font-serif font-semibold text-hv-charcoal">Users ({users.length})</h2>
+            <h2 className="text-lg font-serif font-semibold text-hv-charcoal">{t('admin.users')} ({users.length})</h2>
             <button
               onClick={() => setShowCreateForm(true)}
               className="bg-hv-terracotta text-white px-4 py-2 rounded-md hover:bg-hv-terracotta-hover transition-colors"
             >
-              Add User
+              {t('common.add_user')}
             </button>
           </div>
 
@@ -305,13 +305,13 @@ export const AdminUsersPage: React.FC = () => {
           {showCreateForm && (
             <div className="p-6 border-b border-hv-border bg-hv-page">
               <h3 className="text-lg font-serif font-semibold text-hv-charcoal mb-4">
-                {editingUser ? 'Edit User' : 'Create New User'}
+                {editingUser ? t('admin.edit_user_title') : t('common.create_new_user')}
               </h3>
               <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="user-login" className="block text-sm font-medium text-hv-charcoal mb-1">
-                      Login <span className="text-red-500">*</span>
+                      {t('common.col_login')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="user-login"
@@ -324,7 +324,7 @@ export const AdminUsersPage: React.FC = () => {
                   </div>
                   <div>
                     <label htmlFor="user-email" className="block text-sm font-medium text-hv-charcoal mb-1">
-                      Email
+                      {t('common.col_email')}
                     </label>
                     <input
                       id="user-email"
@@ -336,7 +336,7 @@ export const AdminUsersPage: React.FC = () => {
                   </div>
                   <div>
                     <label htmlFor="user-firstName" className="block text-sm font-medium text-hv-charcoal mb-1">
-                      First Name
+                      {t('common.first_name')}
                     </label>
                     <input
                       id="user-firstName"
@@ -348,7 +348,7 @@ export const AdminUsersPage: React.FC = () => {
                   </div>
                   <div>
                     <label htmlFor="user-lastName" className="block text-sm font-medium text-hv-charcoal mb-1">
-                      Last Name
+                      {t('common.last_name')}
                     </label>
                     <input
                       id="user-lastName"
@@ -360,7 +360,7 @@ export const AdminUsersPage: React.FC = () => {
                   </div>
                   <div>
                     <label htmlFor="user-password" className="block text-sm font-medium text-hv-charcoal mb-1">
-                      {editingUser ? 'New Password' : <>Password <span className="text-red-500">*</span></>}
+                      {editingUser ? t('common.new_password') : <>{t('common.password')} <span className="text-red-500">*</span></>}
                     </label>
                     <input
                       id="user-password"
@@ -381,7 +381,7 @@ export const AdminUsersPage: React.FC = () => {
                   </div>
                   <div>
                     <label htmlFor="user-role" className="block text-sm font-medium text-hv-charcoal mb-1">
-                      Role
+                      {t('common.col_role')}
                     </label>
                     <select
                       id="user-role"
@@ -391,9 +391,9 @@ export const AdminUsersPage: React.FC = () => {
                       title={roleLocked ? selfRoleTitle : undefined}
                       className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <option value="CASEWORKER">Caseworker</option>
-                      <option value="SUPERVISOR">Supervisor</option>
-                      <option value="ADMIN">Admin</option>
+                      <option value="CASEWORKER">{t('role.caseworker')}</option>
+                      <option value="SUPERVISOR">{t('role.supervisor')}</option>
+                      <option value="ADMIN">{t('role.admin')}</option>
                     </select>
                     {roleLocked && (
                       <p className="text-xs text-hv-gray mt-1">{selfRoleTitle}</p>
@@ -401,7 +401,7 @@ export const AdminUsersPage: React.FC = () => {
                   </div>
                   <div>
                     <label htmlFor="user-language" className="block text-sm font-medium text-hv-charcoal mb-1">
-                      Language
+                      {t('admin.language')}
                     </label>
                     <select
                       id="user-language"
@@ -409,8 +409,8 @@ export const AdminUsersPage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, lang: e.target.value })}
                       className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                     >
-                      <option value="en">English</option>
-                      <option value="es">Spanish</option>
+                      <option value="en">{t('lang.english')}</option>
+                      <option value="es">{t('lang.spanish')}</option>
                     </select>
                   </div>
                 </div>
@@ -452,25 +452,25 @@ export const AdminUsersPage: React.FC = () => {
               <thead className="bg-hv-page">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    User
+                    {t('common.col_user')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Login
+                    {t('common.col_login')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Email
+                    {t('common.col_email')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Role
+                    {t('common.col_role')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Language
+                    {t('admin.language')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Created
+                    {t('common.col_created')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    Actions
+                    {t('common.col_actions')}
                   </th>
                 </tr>
               </thead>
@@ -481,7 +481,7 @@ export const AdminUsersPage: React.FC = () => {
                       <div className="font-medium text-hv-charcoal">
                         {formatUserName(user)}
                         {isCurrentUser(user) && (
-                          <span className="ml-2 text-xs font-normal text-hv-gray">(you)</span>
+                          <span className="ml-2 text-xs font-normal text-hv-gray">({t('common.you')})</span>
                         )}
                       </div>
                     </td>
@@ -503,7 +503,7 @@ export const AdminUsersPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
-                      {user.lang === 'en' ? 'English' : 'Spanish'}
+                      {user.lang === 'en' ? t('lang.english') : t('lang.spanish')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
                       {new Date(user.createdAt).toLocaleDateString()}
@@ -513,7 +513,7 @@ export const AdminUsersPage: React.FC = () => {
                         onClick={() => startEdit(user)}
                         className="text-hv-terracotta hover:underline transition-colors"
                       >
-                        Edit
+                        {t('admin.edit_entity_title')}
                       </button>
                       <button
                         onClick={() => requestDelete(user)}
@@ -521,7 +521,7 @@ export const AdminUsersPage: React.FC = () => {
                         title={isCurrentUser(user) ? selfDeleteTitle : `Delete ${formatUserName(user)}`}
                         className="text-hv-crisis hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline transition-colors"
                       >
-                        Delete
+                        {t('common.delete')}
                       </button>
                     </td>
                   </tr>

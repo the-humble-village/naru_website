@@ -91,7 +91,7 @@ export const AddParentPage: React.FC = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Add Parent</h1>
+        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('families.add_parent')}</h1>
         <Link
           to={`/families/${familyId}`}
           className="text-hv-terracotta hover:underline transition-colors"

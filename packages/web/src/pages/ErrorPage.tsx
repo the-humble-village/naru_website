@@ -1,11 +1,13 @@
 import React from 'react';
 import { useRouteError, isRouteErrorResponse, Link } from 'react-router-dom';
+import { useTranslation } from '../hooks';
 
 export const ErrorPage: React.FC = () => {
   const error = useRouteError();
+  const { t } = useTranslation();
 
-  let title = 'Something went wrong';
-  let message = 'An unexpected error occurred.';
+  let title = t('error.title');
+  let message = t('error.message');
 
   if (isRouteErrorResponse(error)) {
     title = `${error.status} ${error.statusText}`;
@@ -23,7 +25,7 @@ export const ErrorPage: React.FC = () => {
           to="/"
           className="inline-block bg-hv-terracotta text-white px-4 py-2 rounded-md hover:bg-hv-terracotta-hover transition-colors text-sm"
         >
-          Go to Dashboard
+          {t('error.go_dashboard')}
         </Link>
       </div>
     </div>

@@ -26,6 +26,7 @@ function timeAgo(dateStr: string): string {
 }
 
 const COLLAPSED_COUNT = 3;
+const COMMUNITY_COLLAPSED_COUNT = 5;
 
 interface OverviewSectionProps {
   title: string;
@@ -251,6 +252,8 @@ export const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [showAddVisitModal, setShowAddVisitModal] = useState(false);
+  const [showAllCommunities, setShowAllCommunities] = useState(false);
+  const [showAllCrisisCommunities, setShowAllCrisisCommunities] = useState(false);
   const table = useFamilyTable();
 
   const { data: dashboardData, isLoading: dashLoading } = useQuery({
@@ -259,6 +262,11 @@ export const DashboardPage: React.FC = () => {
   });
 
   const stats = dashboardData?.stats;
+
+  const communityRows = useMemo(
+    () => (dashboardData?.communityBreakdown ?? []).slice().sort((a, b) => b.families - a.families),
+    [dashboardData?.communityBreakdown],
+  );
 
   const crisisByCommunity = useMemo(() => {
     if (!dashboardData?.familiesInCrisis) return [];
@@ -302,20 +310,18 @@ export const DashboardPage: React.FC = () => {
                 <div className="text-xs text-hv-sage mt-0.5 uppercase tracking-wide">Total Children</div>
               </div>
             </div>
-            {!dashLoading && dashboardData?.communityBreakdown && dashboardData.communityBreakdown.length > 0 && (
-              <table className="w-full text-xs border-t border-hv-border pt-2 mt-1">
-                <thead>
-                  <tr className="text-hv-sage uppercase tracking-wide">
-                    <th className="text-left py-1 font-medium">Community</th>
-                    <th className="text-right py-1 font-medium">Families</th>
-                    <th className="text-right py-1 font-medium">Children</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboardData.communityBreakdown
-                    .slice()
-                    .sort((a, b) => b.families - a.families)
-                    .map((row) => {
+            {!dashLoading && communityRows.length > 0 && (
+              <>
+                <table className="w-full text-xs border-t border-hv-border pt-2 mt-1">
+                  <thead>
+                    <tr className="text-hv-sage uppercase tracking-wide">
+                      <th className="text-left py-1 font-medium">Community</th>
+                      <th className="text-right py-1 font-medium">Families</th>
+                      <th className="text-right py-1 font-medium">Children</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(showAllCommunities ? communityRows : communityRows.slice(0, COMMUNITY_COLLAPSED_COUNT)).map((row) => {
                       const name = row.communityId ? (table.communityLookup[row.communityId] ?? 'Unknown') : 'No Community';
                       return (
                         <tr key={row.communityId ?? 'none'} className="border-t border-hv-border/50">
@@ -325,8 +331,19 @@ export const DashboardPage: React.FC = () => {
                         </tr>
                       );
                     })}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+                {communityRows.length > COMMUNITY_COLLAPSED_COUNT && (
+                  <button
+                    onClick={() => setShowAllCommunities(v => !v)}
+                    className="mt-1.5 text-xs text-hv-terracotta hover:underline"
+                  >
+                    {showAllCommunities
+                      ? 'Show less'
+                      : `See ${communityRows.length - COMMUNITY_COLLAPSED_COUNT} more communities`}
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -343,12 +360,34 @@ export const DashboardPage: React.FC = () => {
             <div className="text-xs text-hv-sage mt-1 uppercase tracking-wide">Families in Crisis</div>
             {!dashLoading && crisisByCommunity.length > 0 && (
               <div className="mt-3 space-y-1 border-t border-hv-border pt-2">
-                {crisisByCommunity.map(([community, count]) => (
+                {(showAllCrisisCommunities
+                  ? crisisByCommunity
+                  : crisisByCommunity.slice(0, COMMUNITY_COLLAPSED_COUNT)
+                ).map(([community, count]) => (
                   <div key={community} className="flex justify-between text-xs text-hv-charcoal">
                     <span className="truncate mr-2 text-hv-sage">{community}</span>
                     <span className="font-medium text-hv-crisis shrink-0">{count}</span>
                   </div>
                 ))}
+                {crisisByCommunity.length > COMMUNITY_COLLAPSED_COUNT && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); setShowAllCrisisCommunities(v => !v); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowAllCrisisCommunities(v => !v);
+                      }
+                    }}
+                    className="block pt-0.5 text-xs text-hv-terracotta hover:underline cursor-pointer"
+                  >
+                    {showAllCrisisCommunities
+                      ? 'Show less'
+                      : `See ${crisisByCommunity.length - COMMUNITY_COLLAPSED_COUNT} more communities`}
+                  </span>
+                )}
               </div>
             )}
           </button>

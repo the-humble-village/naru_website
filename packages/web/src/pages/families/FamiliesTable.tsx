@@ -18,13 +18,13 @@ function renderCell(
     case 'community':
       return (
         <div className="text-sm text-hv-charcoal">
-          {family.communityId ? communityLookup[family.communityId] ?? 'Unknown' : t('family.none')}
+          {family.communityId ? communityLookup[family.communityId] ?? t('common.unknown') : t('family.none')}
         </div>
       );
     case 'site':
       return (
         <div className="text-sm text-hv-charcoal">
-          {family.siteId ? siteLookup[family.siteId] ?? 'Unknown' : t('family.none')}
+          {family.siteId ? siteLookup[family.siteId] ?? t('common.unknown') : t('family.none')}
         </div>
       );
     case 'inCrisis':

@@ -7,6 +7,7 @@ import { FamilyRead, FamilyCreate, FamilyUpdate } from '@naru/shared';
 export interface ListFamiliesParams {
   search?: string;
   communityId?: number;
+  siteId?: number;
   inCrisis?: boolean;
   skip?: number;
   limit?: number;
@@ -27,6 +28,7 @@ export const listFamilies = async (params: ListFamiliesParams = {}): Promise<Lis
 
   if (params.search) searchParams.set('search', params.search);
   if (params.communityId) searchParams.set('communityId', params.communityId.toString());
+  if (params.siteId) searchParams.set('siteId', params.siteId.toString());
   if (params.inCrisis !== undefined) searchParams.set('inCrisis', params.inCrisis.toString());
   if (params.skip !== undefined) searchParams.set('skip', params.skip.toString());
   if (params.limit !== undefined) searchParams.set('limit', params.limit.toString());

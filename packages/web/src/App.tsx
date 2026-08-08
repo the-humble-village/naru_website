@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout, ProtectedRoute, RoleGate } from './components';
 import {
   LoginPage,
-  SignupPage,
   DashboardPage,
   FamiliesPage,
   FamilyDetailPage,
@@ -49,12 +48,6 @@ const router = createBrowserRouter([
     element: <LoginPage />,
     errorElement: <ErrorPage />,
   },
-  {
-    path: '/signup',
-    element: <SignupPage />,
-    errorElement: <ErrorPage />,
-  },
-
   // Protected routes (authentication required)
   {
     path: '/',

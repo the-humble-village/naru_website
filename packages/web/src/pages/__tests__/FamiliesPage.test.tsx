@@ -21,6 +21,11 @@ const mockCommunities: LookupRead[] = [
   { id: 2, title: 'Community B', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
 ];
 
+const mockSites: LookupRead[] = [
+  { id: 1, title: 'Site A', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+  { id: 2, title: 'Site B', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+];
+
 const mockFamilies: FamilyRead[] = [
   {
     id: 1,
@@ -82,6 +87,7 @@ describe('FamiliesPage', () => {
 
     // Default mock implementations
     mockAdminApi.fetchCommunities.mockResolvedValue(mockCommunities);
+    mockAdminApi.fetchSites.mockResolvedValue(mockSites);
     mockFamiliesApi.listFamilies.mockResolvedValue(mockFamiliesResponse);
   });
 

@@ -11,16 +11,6 @@ export const es = {
   'login.hint_login': 'Usuario:',
   'login.hint_password': 'Contrasena:',
   'login.button': 'Iniciar Sesion',
-  'login.create_account': 'Nuevo aqui? Crear cuenta',
-
-  // Signup
-  'signup.title': 'Registrarse',
-  'signup.hint_login': 'Usuario:',
-  'signup.hint_email': 'Correo:',
-  'signup.hint_password': 'Contrasena:',
-  'signup.hint_confirm': 'Confirmar Contrasena:',
-  'signup.button': 'Registrarse',
-  'signup.have_account': 'Ya tengo una cuenta',
 
   // Profile
   'profile.title': 'Perfil',

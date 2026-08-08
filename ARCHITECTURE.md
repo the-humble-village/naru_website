@@ -343,7 +343,7 @@ erDiagram
 ```mermaid
 graph TD
     subgraph Router["React Router v6 (App.tsx)"]
-        Public["Public Routes<br/>/login · /signup"]
+        Public["Public Routes<br/>/login"]
         Protected["ProtectedRoute (redirects if not authed)"]
     end
 

@@ -30,6 +30,7 @@ app.get('/', auth, async (c) => {
   const skipParam = c.req.query('skip');
   const limitParam = c.req.query('limit');
   const communityId = c.req.query('communityId');
+  const siteId = c.req.query('siteId');
   const inCrisis = c.req.query('inCrisis');
 
   const skip = skipParam ? parseInt(skipParam, 10) : undefined;
@@ -41,6 +42,7 @@ app.get('/', auth, async (c) => {
     skip,
     limit,
     communityId,
+    siteId,
     inCrisis,
     user
   });

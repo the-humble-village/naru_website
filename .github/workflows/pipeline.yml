@@ -204,12 +204,16 @@ jobs:
             sudo chown -R ec2-user:ec2-user /var/www/web
             sudo chown -R ec2-user:ec2-user /var/www/backend
 
-            # Deploys before the pnpm 11 fix left @naru/shared as a symlink to a
-            # runner path that was never shipped. Clear any stale link so the
-            # incoming one extracts cleanly rather than tar following a dead link.
-            if [ -L /var/www/backend/node_modules/@naru/shared ]; then
-              sudo rm -f /var/www/backend/node_modules/@naru/shared
-            fi
+            # scp-action untars without --overwrite, so anything already at a
+            # path blocks the incoming entry — "Cannot create symlink to
+            # '.pnpm/hono@4.12.19/node_modules/hono': File exists" when a previous
+            # release left a real directory where this one wants a store symlink.
+            # Layouts differ between pnpm versions and between --legacy and
+            # injected bundles, so the only reliable extraction is onto a clean
+            # tree. Both of these are fully owned by the bundle and are recreated
+            # by the two scp steps below; .env and .env.bak.* are deliberately
+            # left alone. This also stops stale files accumulating forever (M4).
+            sudo rm -rf /var/www/backend/node_modules /var/www/backend/dist
 
       # pnpm 11's `deploy --legacy` symlinks workspace deps to their absolute
       # path in the monorepo checkout, so @naru/shared dangles once the bundle

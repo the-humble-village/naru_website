@@ -9,7 +9,7 @@ import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoGallery, PhotoUpload, ConfirmDialog, RoleGate } from '../../components';
-import { usePendingPhotoDeletions } from '../../hooks';
+import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 import { toDateTimeLocal, fromDateTimeLocal } from '../../utils/datetime';
 
 /**
@@ -52,6 +52,7 @@ export const ChildVisitDetailPage: React.FC = () => {
   const { id: familyId, cid: childId, vid: visitId } = useParams<{ id: string; cid: string; vid: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
   const childIdNum = childId ? parseInt(childId, 10) : 0;
@@ -473,14 +474,14 @@ export const ChildVisitDetailPage: React.FC = () => {
                 disabled={updateVisitMutation.isPending}
                 className="bg-hv-terracotta text-white px-4 py-2 rounded-md text-sm hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50"
               >
-                {updateVisitMutation.isPending ? 'Saving...' : 'Save'}
+                {updateVisitMutation.isPending ? t('common.saving') : t('common.save')}
               </button>
               <button
                 onClick={handleCancel}
                 disabled={updateVisitMutation.isPending}
                 className="px-4 py-2 border border-hv-border rounded-md text-sm text-hv-charcoal hover:bg-hv-page transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
 

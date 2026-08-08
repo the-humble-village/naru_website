@@ -10,9 +10,11 @@ import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoUpload } from '../../components';
 import { toDateTimeLocal, fromDateTimeLocal, nowDateTimeLocal } from '../../utils/datetime';
+import { useTranslation } from '../../hooks';
 
 export const AddFamilyVisitPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { id: familyId } = useParams<{ id: string }>();
 
   // Parse ID from URL param
@@ -368,13 +370,13 @@ export const AddFamilyVisitPage: React.FC = () => {
               disabled={createVisitMutation.isPending}
               className="bg-hv-terracotta hover:bg-hv-terracotta-hover text-white px-6 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createVisitMutation.isPending ? 'Creating...' : 'Create Visit'}
+              {createVisitMutation.isPending ? t('common.creating') : t('common.create_visit')}
             </button>
             <Link
               to={`/families/${familyId}`}
               className="px-6 py-2 border border-hv-border rounded-md text-hv-charcoal hover:bg-hv-page transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </Link>
           </div>
 

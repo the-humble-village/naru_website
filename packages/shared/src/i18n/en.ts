@@ -322,4 +322,10 @@ export const en = {
 
   // Common
   'common.unnamed': 'Unnamed',
+  'common.save': 'Save',
+  'common.save_changes': 'Save Changes',
+  'common.saving': 'Saving...',
+  'common.cancel': 'Cancel',
+  'common.creating': 'Creating...',
+  'common.create_visit': 'Create Visit',
 } as const;

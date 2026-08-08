@@ -219,7 +219,6 @@ packages/web/src/
 │   ├── LanguagePage.tsx        # /admin/language — toggle UI language (en/es)
 │   ├── auth/
 │   │   ├── LoginPage.tsx       # /login
-│   │   └── SignupPage.tsx      # /signup
 │   ├── families/
 │   │   ├── FamiliesPage.tsx    # /families — paginated list + search
 │   │   ├── FamilyDetailPage.tsx  # /families/:id — family overview, members, visits

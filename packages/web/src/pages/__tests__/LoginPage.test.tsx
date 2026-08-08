@@ -193,18 +193,6 @@ describe('LoginPage', () => {
     });
   });
 
-  it('navigates to signup page when signup link is clicked', () => {
-    render(
-      <TestWrapper>
-        <LoginPage />
-      </TestWrapper>
-    );
-
-    const signupLink = screen.getByText(en['login.create_account']);
-    fireEvent.click(signupLink);
-
-    expect(mockNavigate).toHaveBeenCalledWith('/signup');
-  });
 
   it('shows loading state during form submission', async () => {
     let resolveLogin: any;

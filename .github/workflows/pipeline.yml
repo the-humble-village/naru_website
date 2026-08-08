@@ -211,8 +211,13 @@ jobs:
               sudo rm -f /var/www/backend/node_modules/@naru/shared
             fi
 
+      # pnpm 11's `deploy --legacy` symlinks workspace deps to their absolute
+      # path in the monorepo checkout, so @naru/shared dangles once the bundle
+      # is scp'd to EC2. Injecting copies the built package into the deploy
+      # dir's .pnpm store instead, which is self-contained. Set here rather
+      # than in pnpm-workspace.yaml so local dev keeps live symlinks.
       - name: Create standalone backend
-        run: pnpm --filter @naru/backend deploy --legacy ./backend-deploy
+        run: pnpm --config.inject-workspace-packages=true --filter @naru/backend deploy ./backend-deploy
 
       # pnpm leaves workspace deps as symlinks that escape the bundle —
       # node_modules/@naru/shared -> ../../../packages/shared. scp ships the

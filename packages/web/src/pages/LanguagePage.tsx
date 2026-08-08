@@ -94,7 +94,7 @@ export const LanguagePage: React.FC = () => {
             disabled={isSaving || selectedLang === lang}
             className="bg-hv-terracotta text-white px-4 py-2 rounded-md hover:bg-hv-terracotta-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            {isSaving ? 'Saving...' : t('lang.button')}
+            {isSaving ? t('common.saving') : t('lang.button')}
           </button>
 
           {updateLanguageMutation.isSuccess && (

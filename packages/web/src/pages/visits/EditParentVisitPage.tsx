@@ -9,11 +9,12 @@ import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoUpload } from '../../components';
 import { toDateTimeLocal, fromDateTimeLocal, nowDateTimeLocal } from '../../utils/datetime';
-import { usePendingPhotoDeletions } from '../../hooks';
+import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 
 export const EditParentVisitPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const { id: familyId, pid: parentId, vid: visitId } = useParams<{ id: string; pid: string; vid: string }>();
 
   const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
@@ -429,13 +430,13 @@ export const EditParentVisitPage: React.FC = () => {
               disabled={updateVisitMutation.isPending}
               className="bg-hv-terracotta hover:bg-hv-terracotta-hover text-white px-6 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {updateVisitMutation.isPending ? 'Saving...' : 'Save Changes'}
+              {updateVisitMutation.isPending ? t('common.saving') : t('common.save_changes')}
             </button>
             <Link
               to={`/families/${familyId}/parents/${parentId}/visits/${visitId}`}
               className="px-6 py-2 border border-hv-border rounded-md text-hv-charcoal hover:bg-hv-page transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </Link>
           </div>
 

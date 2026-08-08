@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CalendarCheck, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { visitsApi } from '../../api/visits';
 import { familiesApi } from '../../api/families';
+import { useTranslation } from '../../hooks';
 
 const PAGE_SIZE = 20;
 
@@ -16,6 +17,7 @@ const formatDateOnly = (d: string) => new Date(d).toLocaleDateString(undefined, 
  * FamilyDetailPage only shows the five most recent and links here for the rest.
  */
 export const FamilyVisitsPage: React.FC = () => {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const familyId = parseInt(id || '0', 10);
   const [page, setPage] = useState(1);
@@ -57,7 +59,7 @@ export const FamilyVisitsPage: React.FC = () => {
             className="flex items-center gap-1.5 px-4 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors self-start"
           >
             <Plus size={14} />
-            Add Visit
+            {t('common.add_visit')}
           </Link>
         </div>
       </div>

@@ -1,12 +1,13 @@
 // Spanish translations ported from root/sys/i18n/es.php
 export const es = {
   // Navigation
+  'nav.brand': 'Naru',
   'nav.dashboard': 'Inicio',
   'nav.families': 'Familias',
-  'nav.admin': 'Admin',
+  'nav.admin': 'Administracion',
 
   // Login
-  'login.app_title': 'Humble Village - Seguimiento',
+  'login.app_title': 'Naru - Seguimiento',
   'login.title': 'Iniciar Sesion',
   'login.hint_login': 'Usuario:',
   'login.hint_password': 'Contrasena:',
@@ -200,7 +201,7 @@ export const es = {
   'view_visit.update': 'Actualizar Visita',
 
   // Admin
-  'admin.title': 'Admin',
+  'admin.title': 'Administracion',
   'admin.my_team': 'Mi Equipo',
   'admin.communities': 'Comunidades',
   'admin.birthing_assistants': 'Parteras',
@@ -322,4 +323,136 @@ export const es = {
 
   // Common
   'common.unnamed': 'Sin nombre',
+  'common.save': 'Guardar',
+  'common.save_changes': 'Guardar cambios',
+  'common.saving': 'Guardando...',
+  'common.cancel': 'Cancelar',
+  'common.creating': 'Creando...',
+  'common.create': 'Crear',
+  'common.update': 'Actualizar',
+  'common.create_visit': 'Crear visita',
+  'common.create_family': 'Crear familia',
+  'common.add_child': 'Agregar hijo/a',
+  'common.add_parent': 'Agregar padre/madre',
+  'common.create_user': 'Crear usuario',
+  'common.update_user': 'Actualizar usuario',
+  'common.create_set': 'Crear conjunto',
+  'common.update_set': 'Actualizar conjunto',
+  'common.create_site': 'Crear sitio',
+  'common.update_site': 'Actualizar sitio',
+  'common.save_order': 'Guardar orden',
+  'common.order_saved': 'Orden guardada',
+  'common.add_user': 'Agregar usuario',
+  'common.create_new_user': 'Crear nuevo usuario',
+  'common.user_management': 'Gestion de Usuarios',
+  'common.back_to_admin': 'Volver a Admin',
+
+  // Table columns
+  'common.col_user': 'Usuario',
+  'common.col_login': 'Acceso',
+  'common.col_email': 'Correo',
+  'common.col_role': 'Rol',
+  'common.col_created': 'Creado',
+  'common.col_actions': 'Acciones',
+  'common.col_name': 'Nombre',
+  'common.col_location': 'Ubicacion',
+  'common.col_title': 'Titulo',
+  'common.col_updated': 'Actualizado',
+  'common.first_name': 'Nombre',
+  'common.last_name': 'Apellido',
+  'common.password': 'Contrasena',
+  'common.new_password': 'Nueva Contrasena',
+  'common.delete': 'Eliminar',
+  'common.you': 'usted',
+
+  'common.loading': 'Cargando...',
+  'common.add_visit': 'Agregar Visita',
+
+  // Error page
+  'error.title': 'Algo salio mal',
+  'error.message': 'Ocurrio un error inesperado.',
+  'error.go_dashboard': 'Ir al Inicio',
+
+  // Roles
+  'role.admin': 'Administrador',
+  'role.supervisor': 'Supervisor',
+  'role.caseworker': 'Trabajador Social',
+
+  // Admin - lookup tables (interpolate {name} with the entity label)
+  'admin.add_entity': 'Agregar {name}',
+  'admin.add_new_entity': 'Agregar nuevo/a {name}',
+  'admin.edit_entity': 'Editar {name}',
+  'admin.delete_entity': 'Eliminar {name}',
+  'admin.enter_entity_title': 'Ingrese el titulo de {name}',
+  'admin.loading_entity': 'Cargando {name}...',
+  'admin.failed_load_entity': 'Error al cargar {name}',
+  'admin.empty_entity': 'No se encontro {name}. Cree el primero para comenzar.',
+  'admin.delete_warning_entity':
+    'Los registros existentes que ya hacen referencia a este/a {name} conservan su valor actual — no se modifican ni se eliminan.',
+  'admin.community_singular': 'Comunidad',
+  'admin.site_singular': 'Sitio',
+  'admin.resource_singular': 'Recurso',
+  'admin.training_singular': 'Capacitacion',
+  'admin.child_q_singular': 'Pregunta de Visita de Hijo/a',
+  'admin.parent_q_singular': 'Pregunta de Visita de Padre/Madre',
+  'admin.family_q_singular': 'Pregunta de Visita Familiar',
+
+  // Admin - Sites
+  'admin.site_add': 'Agregar Sitio',
+  'admin.sites_empty': 'Aun no hay sitios.',
+
+  // Admin - Question sets
+  'admin.qs_title_child': 'Preguntas y Conjuntos de Visita de Hijo/a',
+  'admin.qs_title_parent': 'Preguntas y Conjuntos de Visita de Padre/Madre',
+  'admin.qs_title_family': 'Preguntas y Conjuntos de Visita Familiar',
+  'admin.questions': 'Preguntas',
+  'admin.add_question': 'Agregar Pregunta',
+  'admin.no_questions': 'Aun no hay preguntas. Agregue una arriba.',
+  'admin.question_sets': 'Conjuntos de Preguntas',
+  'admin.new_set': 'Nuevo Conjunto',
+  'admin.no_sets': 'Aun no hay conjuntos. Cree uno arriba.',
+
+  // Admin - Birthing Assistants table
+  'admin.ba_add': 'Agregar Partera',
+  'admin.ba_communities_served': 'Comunidades Atendidas',
+  'admin.ba_trainings_received': 'Capacitaciones Recibidas',
+  'admin.ba_empty_hint': 'No se encontraron parteras. Cree su primera partera para comenzar.',
+
+  // Admin sections
+  'admin.users': 'Usuarios',
+  'admin.section_people': 'Personas',
+  'admin.section_lookups': 'Tablas de Referencia',
+  'admin.section_questions': 'Preguntas de Visita',
+
+  // Family table
+  'families.search_families': 'Buscar Familias',
+  'families.search_by_name': 'Buscar por nombre de familia...',
+  'families.crisis_status': 'Estado de Crisis',
+  'families.all_communities': 'Todas las Comunidades',
+  'families.all_families': 'Todas las Familias',
+  'families.not_in_crisis': 'No en Crisis',
+  'families.stable': 'Estable',
+  'families.found': '{count} familias encontradas',
+  'families.none_found': 'No se encontraron familias',
+  'families.none_matching': 'No se encontraron familias que coincidan con los criterios.',
+  'families.col_updated': 'Ultima Actualizacion',
+  'families.col_notes': 'Notas',
+  'families.columns': 'Columnas',
+  'families.toggle_columns': 'Mostrar/Ocultar Columnas',
+
+  // Dashboard
+  'dash.overview': 'Resumen',
+  'dash.parent_visit': 'Visita de Padre/Madre',
+  'dash.visits_this_month': 'Visitas Este Mes',
+  'dash.select_family': 'Seleccionar Familia',
+  'dash.today': 'Hoy',
+  'dash.yesterday': 'Ayer',
+  'dash.days_ago': 'hace {days} dias',
+  'dash.total_families': 'Total de Familias',
+  'dash.total_children': 'Total de Hijos/as',
+  'dash.recent_children_title': 'Hijos/as Actualizados Recientemente',
+  'dash.no_data': 'No hay datos disponibles',
+  'dash.show_less': 'Ver menos',
+  'dash.more_communities': 'Ver {count} comunidades mas',
+  'families.all_sites': 'Todos los Sitios',
 } as const;

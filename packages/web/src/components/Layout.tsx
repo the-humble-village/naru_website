@@ -47,7 +47,7 @@ export const Layout: React.FC = () => {
             <div className="flex items-center gap-6 shrink-0">
               <Link to="/" className="flex items-center gap-2">
                 <span className="text-white text-xl font-serif font-bold tracking-wide leading-none">
-                  Humble Village
+                  {t('nav.brand')}
                 </span>
               </Link>
 

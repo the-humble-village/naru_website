@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ParentCreate, ParentCreateSchema } from '@naru/shared';
 import { parentsApi } from '../../api/parents';
 import { PhotoUpload } from '../../components';
+import { useTranslation } from '../../hooks';
 
 /**
  * AddParentPage - Form to add a new parent to a family
@@ -12,6 +13,7 @@ export const AddParentPage: React.FC = () => {
   const { id: familyId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
 
   const [formData, setFormData] = useState({
@@ -89,7 +91,7 @@ export const AddParentPage: React.FC = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Add Parent</h1>
+        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('families.add_parent')}</h1>
         <Link
           to={`/families/${familyId}`}
           className="text-hv-terracotta hover:underline transition-colors"
@@ -218,14 +220,14 @@ export const AddParentPage: React.FC = () => {
             to={`/families/${familyId}`}
             className="px-4 py-2 text-hv-sage hover:text-hv-charcoal transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </Link>
           <button
             type="submit"
             disabled={createParentMutation.isPending}
             className="px-6 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {createParentMutation.isPending ? 'Creating...' : 'Add Parent'}
+            {createParentMutation.isPending ? t('common.creating') : t('common.add_parent')}
           </button>
         </div>
       </form>

@@ -16,6 +16,7 @@ export async function listFamilies(options: {
   skip?: number;
   limit?: number;
   communityId?: string;
+  siteId?: string;
   inCrisis?: string;
   user: UserRead;
 } = {} as any): Promise<{ families: FamilyRead[]; total: number }> {
@@ -38,6 +39,14 @@ export async function listFamilies(options: {
     const communityIdNum = parseInt(options.communityId, 10);
     if (!isNaN(communityIdNum)) {
       where.communityId = communityIdNum;
+    }
+  }
+
+  // Site filter
+  if (options.siteId) {
+    const siteIdNum = parseInt(options.siteId, 10);
+    if (!isNaN(siteIdNum)) {
+      where.siteId = siteIdNum;
     }
   }
 

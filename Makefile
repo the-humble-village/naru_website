@@ -1,10 +1,11 @@
-.PHONY: dev-backend dev-web dev
+.PHONY: backend frontend dev
 
-dev-backend:
-	cd packages/backend && pnpm dev
+dev: 
+	pnpm dev &
+	pnpm --filter @naru/backend exec prisma studio
 
-dev-web:
-	cd packages/web && pnpm dev
+backend:
+	pnpm --filter @naru/backend exec prisma studio
 
-dev:
-	make -j 2 dev-backend dev-web
+frontend:
+	pnpm dev

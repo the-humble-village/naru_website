@@ -67,6 +67,16 @@ make dev
 
 This starts the backend and web apps together.
 
+### 7. Create your first user
+
+With both servers running, create a user by sending a registration request:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"login": "admin", "password": "yourpassword", "role": "ADMIN"}'
+```
+
 
 ## Create SSH keys (ed25519)
 

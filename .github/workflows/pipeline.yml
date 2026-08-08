@@ -1,12 +1,29 @@
 name: CI/CD Pipeline
 
 
+# Bare `on: push` + `on: pull_request` ran the whole pipeline twice for every
+# push to a branch with an open PR. Pushes are now scoped to the two long-lived
+# branches; feature branches are covered by their pull_request run.
 on:
   push:
+    branches: [main, dev]
   pull_request:
+
+# One run per PR / per long-lived branch. Superseded runs on feature work and
+# dev are cancelled, but main is NOT cancellable: a run cancelled between
+# `rm -rf /var/www/backend/node_modules dist` and the scp steps leaves the box
+# half-updated with no rollback path, so pushes to main queue and run in order.
+concurrency:
+  group: pipeline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   TURBO_CACHE_DIR: .turbo
+  # The build job produces the deploy artifacts, so the steps that do it are
+  # gated on the same condition the deploy job carries. Job-level `if` cannot
+  # read the `env` context, so `deploy.if` spells the expression out again —
+  # keep the two in sync.
+  IS_DEPLOY: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
 jobs:
   lint:
@@ -135,62 +152,105 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Prisma Client
-        id: cache-prisma
-        uses: actions/cache@v4
-        with:
-          path: packages/backend/node_modules/.prisma
-          key: prisma-${{ runner.os }}-${{ hashFiles('packages/backend/prisma/schema.prisma') }}
-
+      # No cache gate. pnpm generates the client into
+      # node_modules/.pnpm/@prisma+client@*/node_modules/.prisma, not
+      # packages/backend/node_modules/.prisma, so the cache never covered the
+      # real output — and this job's build is now what ships, so gating on it
+      # risks bundling a stale client.
       - name: Generate Prisma Client
-        if: steps.cache-prisma.outputs.cache-hit != 'true'
         run: |
             cd packages/backend
             npx prisma generate
 
       - name: Build monorepo
         run: pnpm build
+
+      # The bundle is built and checked on every run, including PRs. A bundle
+      # whose symlinks do not survive leaving the runner has taken production
+      # down twice, and that breakage is invisible to lint, test and build — it
+      # only shows up here. Catching it pre-merge is worth the extra minute.
+      #
+      # pnpm 11's `deploy --legacy` symlinks workspace deps to their absolute
+      # path in the monorepo checkout, so @naru/shared dangles once the bundle
+      # leaves this runner. Injecting copies the built package into the deploy
+      # dir's .pnpm store instead, which is self-contained. Set here rather
+      # than in pnpm-workspace.yaml so local dev keeps live symlinks.
+      - name: Create standalone backend
+        run: pnpm --config.inject-workspace-packages=true --filter @naru/backend deploy ./backend-deploy
+
+      - name: Verify bundle is self-contained
+        run: bash .github/scripts/verify-bundle.sh backend-deploy
+
+      # Packaging and upload stay gated: nothing consumes these artifacts off
+      # the deploy path, and a ~200MB tarball per PR is storage for nothing.
+
+      # tar, not a plain directory upload: actions/upload-artifact follows
+      # symlinks, which would dereference pnpm's .pnpm store and break dependency
+      # resolution the same way cp -rL did. tar stores links as links.
+      - name: Package backend bundle
+        if: env.IS_DEPLOY == 'true'
+        run: tar -czf backend-deploy.tar.gz backend-deploy
+
+      - name: Upload backend bundle
+        if: env.IS_DEPLOY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-bundle
+          path: backend-deploy.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload web dist
+        if: env.IS_DEPLOY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: packages/web/dist
+          if-no-files-found: error
+          retention-days: 7
 
   deploy:
     name: Deploy to EC2
     needs: build
+    # Must match the IS_DEPLOY expression above — job-level `if` has no access
+    # to the `env` context, so it cannot reference it.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
+      # Nothing is built here; the checkout is only for nginx/ and deployment/,
+      # which are scp'd as-is. The web dist and the backend bundle come from the
+      # build job's artifacts so the exact tree that was tested is the tree that
+      # ships — and so install/generate/build are not paid for twice.
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download web dist
+        uses: actions/download-artifact@v4
         with:
-          node-version: 24
-          cache: 'pnpm'
+          name: web-dist
+          path: packages/web/dist
 
-      - name: Turborepo Cache
-        uses: actions/cache@v4
+      - name: Download backend bundle
+        uses: actions/download-artifact@v4
         with:
-          path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
+          name: backend-bundle
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Unpack backend bundle
+        run: tar -xzf backend-deploy.tar.gz
 
-      # No cache gate on the deploy path. pnpm generates the client into
-      # node_modules/.pnpm/@prisma+client@*/node_modules/.prisma, not
-      # packages/backend/node_modules/.prisma, so the cache never covered the
-      # real output — and gating on it risks shipping a stale client.
-      - name: Generate Prisma Client
-        run: |
-            cd packages/backend
-            npx prisma generate
+      # Re-checked after the artifact round trip: the unpacked tarball is what
+      # actually ships, and a tar/untar that dropped or rewrote a symlink would
+      # not show up in the build job's check.
+      - name: Verify bundle is self-contained
+        run: bash .github/scripts/verify-bundle.sh backend-deploy
 
-      - name: Build monorepo
-        run: pnpm build
+      # Every release gets its own directory, so nothing that is currently
+      # serving is ever mutated in place. The old flow `rm -rf`'d the live
+      # node_modules and dist before the first byte was copied, which meant any
+      # later failure — or a cancelled run — left the box unbootable with
+      # nothing to go back to.
+      - name: Compute release id
+        run: echo "RELEASE=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
 
       - name: Pre-deployment setup on EC2
         uses: appleboy/ssh-action@master
@@ -199,63 +259,37 @@ jobs:
           username: ec2-user
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           script: |
-            sudo mkdir -p /var/www/web/dist
-            sudo mkdir -p /var/www/backend
-            sudo chown -R ec2-user:ec2-user /var/www/web
-            sudo chown -R ec2-user:ec2-user /var/www/backend
+            # An empty RELEASE would turn the rm below into `rm -rf .../releases/`.
+            RELEASE="${{ env.RELEASE }}"
+            : "${RELEASE:?release id was not set}"
 
-            # scp-action untars without --overwrite, so anything already at a
-            # path blocks the incoming entry — "Cannot create symlink to
+            # Non-recursive: releases/ holds several node_modules trees and a
+            # recursive chown over them costs minutes for no benefit.
+            sudo mkdir -p /var/www/backend/releases /var/www/backend/shared /var/www/web/releases
+            sudo chown ec2-user:ec2-user \
+              /var/www/backend /var/www/backend/releases /var/www/backend/shared \
+              /var/www/web /var/www/web/releases
+
+            # .env is not in the repo and the box holds the only copy. Historically
+            # it lived at /var/www/backend/.env, which is now a release-independent
+            # path, so promote it into shared/ once.
+            if [ ! -f /var/www/backend/shared/.env ] && [ -f /var/www/backend/.env ]; then
+              cp /var/www/backend/.env /var/www/backend/shared/.env
+              echo "📦 Promoted legacy /var/www/backend/.env into shared/"
+            fi
+            if [ ! -f /var/www/backend/shared/.env ]; then
+              echo "❌ ERROR: /var/www/backend/shared/.env missing."
+              echo "SSH into the server and create it with DATABASE_URL."
+              exit 1
+            fi
+
+            # Fresh empty dirs for this release only. scp-action untars without
+            # --overwrite, so extraction has to land on a clean tree — that is
+            # what broke with "Cannot create symlink to
             # '.pnpm/hono@4.12.19/node_modules/hono': File exists" when a previous
             # release left a real directory where this one wants a store symlink.
-            # Layouts differ between pnpm versions and between --legacy and
-            # injected bundles, so the only reliable extraction is onto a clean
-            # tree. Both of these are fully owned by the bundle and are recreated
-            # by the two scp steps below; .env and .env.bak.* are deliberately
-            # left alone. This also stops stale files accumulating forever (M4).
-            sudo rm -rf /var/www/backend/node_modules /var/www/backend/dist
-
-      # pnpm 11's `deploy --legacy` symlinks workspace deps to their absolute
-      # path in the monorepo checkout, so @naru/shared dangles once the bundle
-      # is scp'd to EC2. Injecting copies the built package into the deploy
-      # dir's .pnpm store instead, which is self-contained. Set here rather
-      # than in pnpm-workspace.yaml so local dev keeps live symlinks.
-      - name: Create standalone backend
-        run: pnpm --config.inject-workspace-packages=true --filter @naru/backend deploy ./backend-deploy
-
-      # Guards the failure mode that took production down: a bundle whose
-      # symlinks resolve on the runner but not after scp. Checking for *broken*
-      # links is not enough — the @naru/shared link pointed at an absolute path
-      # that exists here and only dangled on EC2. The test that matters is
-      # whether every link resolves to somewhere inside the bundle.
-      #
-      # Do not "fix" a failure here by dereferencing the tree (cp -rL). That
-      # flattens pnpm's .pnpm store, after which packages can no longer resolve
-      # their own dependencies — prisma loses @prisma/engines.
-      - name: Verify bundle is self-contained
-        run: |
-          test -f backend-deploy/node_modules/@naru/shared/package.json || {
-            echo "::error::@naru/shared missing from bundle"; exit 1; }
-
-          # pwd -P, not pwd: readlink -f returns a fully resolved path, so a
-          # logical path would never match once any parent is itself a symlink.
-          ROOT=$(cd backend-deploy && pwd -P)
-          find backend-deploy -type l > /tmp/bundle-links.txt
-          : > /tmp/bundle-escaped.txt
-          while IFS= read -r link; do
-            target=$(readlink -f "$link" || true)
-            case "$target" in
-              "$ROOT"/*) ;;
-              *) printf '%s -> %s\n' "$link" "${target:-<broken>}" >> /tmp/bundle-escaped.txt ;;
-            esac
-          done < /tmp/bundle-links.txt
-
-          if [ -s /tmp/bundle-escaped.txt ]; then
-            echo "::error::bundle has symlinks resolving outside itself; these will dangle on EC2:"
-            head -20 /tmp/bundle-escaped.txt
-            exit 1
-          fi
-          echo "bundle self-contained: $(du -sh backend-deploy | cut -f1), $(wc -l < /tmp/bundle-links.txt) internal symlinks"
+            rm -rf "/var/www/backend/releases/$RELEASE" "/var/www/web/releases/$RELEASE"
+            mkdir -p "/var/www/backend/releases/$RELEASE" "/var/www/web/releases/$RELEASE"
 
       - name: Deploy Web to EC2
         uses: appleboy/scp-action@master
@@ -265,7 +299,7 @@ jobs:
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           port: 22
           source: "packages/web/dist/**"
-          target: "/var/www/web/dist"
+          target: "/var/www/web/releases/${{ env.RELEASE }}"
           strip_components: 3
 
       - name: Deploy Backend to EC2
@@ -276,7 +310,7 @@ jobs:
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           port: 22
           source: "backend-deploy/**"
-          target: "/var/www/backend"
+          target: "/var/www/backend/releases/${{ env.RELEASE }}"
           strip_components: 1
 
       - name: Deploy Nginx Config to EC2 (Temporary)
@@ -306,28 +340,74 @@ jobs:
           username: ec2-user
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           script: |
-            # Update Nginx config
-            sudo mv /tmp/nginx/naru.conf /etc/nginx/conf.d/naru.conf
-            sudo chown root:root /etc/nginx/conf.d/naru.conf
+            RELEASE="${{ env.RELEASE }}"
+            : "${RELEASE:?release id was not set}"
 
-            # Install systemd service
-            sudo mv /tmp/deployment/naru-backend.service /etc/systemd/system/naru-backend.service
-            sudo chown root:root /etc/systemd/system/naru-backend.service
-            sudo systemctl daemon-reload
-            sudo systemctl enable naru-backend
+            BACKEND=/var/www/backend
+            WEB=/var/www/web
+            NEW="$BACKEND/releases/$RELEASE"
+            KEEP=5
 
-            # Ensure PostgreSQL is running
+            # Relative link targets, so `readlink` yields "releases/<id>" and the
+            # whole tree stays relocatable. Empty on the very first deploy.
+            PREV_BACKEND=$(readlink "$BACKEND/current" 2>/dev/null || true)
+            PREV_WEB=$(readlink "$WEB/current" 2>/dev/null || true)
+
+            # rename(2) over the existing symlink, so there is no instant where
+            # `current` is missing. `ln -sfn` on its own unlinks first and would
+            # expose exactly that window to nginx and to systemd.
+            swap() {
+              ln -sfn "$2" "$1/current.tmp" && mv -Tf "$1/current.tmp" "$1/current"
+            }
+
+            wait_healthy() {
+              for attempt in $(seq 1 "$1"); do
+                if curl -sf -m 5 http://127.0.0.1:3000/api/health > /dev/null 2>&1 \
+                  || curl -sf -m 5 http://127.0.0.1:3000/health > /dev/null 2>&1; then
+                  echo "✅ Backend healthy (attempt $attempt)"
+                  return 0
+                fi
+                sleep 4
+              done
+              return 1
+            }
+
+            rollback() {
+              echo "↩️  Rolling back to the previous release..."
+              if [ -z "$PREV_BACKEND" ]; then
+                echo "⚠️  No previous release exists (first deploy) — nothing to roll back to."
+                exit 1
+              fi
+              swap "$BACKEND" "$PREV_BACKEND"
+              if [ -n "$PREV_WEB" ]; then swap "$WEB" "$PREV_WEB"; fi
+              sudo systemctl restart naru-backend
+              sudo systemctl reload nginx || sudo systemctl restart nginx
+              if wait_healthy 10; then
+                echo "✅ Rolled back to $PREV_BACKEND."
+              else
+                echo "❌ Rollback did not come up healthy. Manual intervention required."
+                sudo journalctl -u naru-backend -n 50 --no-pager || true
+              fi
+              # Schema migrations are NOT reverted: `prisma migrate deploy` has no
+              # down step. Migrations run before the cutover, so after a rollback
+              # the previous release runs against a schema one version ahead of it.
+              # That is fine for additive changes. A migration that drops or
+              # renames a column needs a forward fix — this rollback will not save
+              # it, and such a migration should be split into expand/contract.
+              exit 1
+            }
+
+            ## Phase 1 — build up the new release. Nothing that is currently
+            ## serving is touched, so any failure below exits with the old
+            ## release still live and intact.
+
+            # Release-independent secrets: dotenv (src/config.ts) and the prisma
+            # CLI both read ./.env relative to the cwd, which is the release dir.
+            ln -sfn ../../shared/.env "$NEW/.env"
+
             sudo systemctl start postgresql || true
 
-            # Run backend migrations
-            cd /var/www/backend
-            
-            echo "🔍 Verifying environment..."
-            if [ ! -f .env ]; then
-              echo "❌ ERROR: .env file missing in /var/www/backend"
-              echo "Please SSH into the server and create it with DATABASE_URL."
-              exit 1
-            fi
+            cd "$NEW"
 
             # Aurora Serverless v2 runs with MinCapacity=0, so the cluster pauses
             # after inactivity and takes ~15-20s to resume. A single connection
@@ -350,21 +430,21 @@ jobs:
               exit 1
             fi
 
-            # The deploy artifact merges into an existing node_modules, so the
-            # generated client at the path Node resolves can be older than the
-            # schema we just shipped. A stale client throws
-            # PrismaClientValidationError on every query naming a newer field
-            # (it broke Family/Child lists after the photos columns landed), so
-            # regenerate here where the resolution path is the real one.
+            # Each release now ships its own node_modules, so the old hazard —
+            # a client left behind by a previous deploy being older than the
+            # schema — is gone. Regenerating is kept anyway: it is cheap and it
+            # guarantees the client matches at the path Node actually resolves.
             echo "🔧 Regenerating Prisma client against the deployed schema..."
             if ! npx prisma generate; then
-              echo "❌ ERROR: Prisma client generation failed."
+              echo "❌ ERROR: Prisma client generation failed. Aborting before cutover."
               exit 1
             fi
 
+            # Before the swap on purpose: a migration failure then costs nothing,
+            # because the old release is still the one serving traffic.
             echo "🚀 Running migrations..."
             if ! npx prisma migrate deploy; then
-              echo "❌ ERROR: Prisma migration failed."
+              echo "❌ ERROR: Prisma migration failed. Aborting before cutover."
               exit 1
             fi
 
@@ -376,30 +456,73 @@ jobs:
             cp /tmp/deployment/check-prisma-client-drift.cjs ./check-prisma-client-drift.cjs
             if ! node ./check-prisma-client-drift.cjs prisma/schema.prisma; then
               rm -f ./check-prisma-client-drift.cjs
-              echo "❌ ERROR: Generated Prisma client does not match the schema."
+              echo "❌ ERROR: Generated Prisma client does not match the schema. Aborting before cutover."
               exit 1
             fi
             rm -f ./check-prisma-client-drift.cjs
 
-            # Restart services
-            sudo systemctl restart nginx
+            ## Phase 2 — cut over. Past this line, failure triggers a rollback.
+
+            # Both configs reference the `current` symlinks, so they are installed
+            # here and not earlier: on a first deploy `current` does not exist
+            # until the swap below, and an nginx reload before that point would
+            # start serving 404s from a root that is not there yet.
+            sudo cp /tmp/nginx/naru.conf /etc/nginx/conf.d/naru.conf
+            sudo chown root:root /etc/nginx/conf.d/naru.conf
+            if ! sudo nginx -t; then
+              echo "❌ ERROR: nginx config is invalid. Aborting before cutover."
+              exit 1
+            fi
+
+            sudo cp /tmp/deployment/naru-backend.service /etc/systemd/system/naru-backend.service
+            sudo chown root:root /etc/systemd/system/naru-backend.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable naru-backend
+
+            echo "🔀 Switching current -> releases/$RELEASE"
+            swap "$BACKEND" "releases/$RELEASE" || rollback
+            swap "$WEB" "releases/$RELEASE" || rollback
+
             sudo systemctl restart naru-backend
+            sudo systemctl reload nginx || sudo systemctl restart nginx
 
             # A green deploy that leaves the backend crash-looping is worse than a
             # red one, so gate success on the app actually answering.
             echo "🔍 Health check..."
-            HEALTHY=0
-            for attempt in $(seq 1 15); do
-              if curl -sf -m 5 http://127.0.0.1:3000/api/health > /dev/null 2>&1 \
-                || curl -sf -m 5 http://127.0.0.1:3000/health > /dev/null 2>&1; then
-                echo "✅ Backend healthy (attempt $attempt)"
-                HEALTHY=1
-                break
-              fi
-              sleep 4
-            done
-            if [ "$HEALTHY" -ne 1 ]; then
+            if ! wait_healthy 15; then
               echo "❌ ERROR: Backend did not become healthy within 60s."
               sudo journalctl -u naru-backend -n 50 --no-pager || true
-              exit 1
+              rollback
+            fi
+
+            ## Phase 3 — prune. Never removes the release `current` points at.
+            #
+            # find -printf, not `ls -1`: ls output is not a stable interface (an
+            # -F alias or a colour setting appends a classifier character, which
+            # silently breaks the exact-match exclusion below and would make the
+            # live release a deletion candidate). Release ids sort
+            # lexicographically by time, so `sort -r` puts the newest first.
+            prune() {
+              dir=$1
+              cur=$(readlink "$dir/current" 2>/dev/null | sed 's#^releases/##')
+              find "$dir/releases" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null \
+                | sort -r > /tmp/naru-releases.txt
+              if [ -n "$cur" ]; then
+                grep -vxF "$cur" /tmp/naru-releases.txt > /tmp/naru-prunable.txt || true
+              else
+                cp /tmp/naru-releases.txt /tmp/naru-prunable.txt
+              fi
+              tail -n +$((KEEP + 1)) /tmp/naru-prunable.txt | while read -r old; do
+                [ -n "$old" ] || continue
+                echo "🧹 Removing old release $dir/releases/$old"
+                rm -rf "${dir:?}/releases/${old:?}"
+              done
+            }
+            prune "$BACKEND"
+            prune "$WEB"
+
+            echo "✅ Deployed $RELEASE"
+            if [ -n "$PREV_BACKEND" ]; then
+              echo "   Previous release kept at $BACKEND/$PREV_BACKEND. Manual rollback:"
+              echo "   ln -sfn $PREV_BACKEND $BACKEND/current.tmp && mv -Tf $BACKEND/current.tmp $BACKEND/current && sudo systemctl restart naru-backend"
             fi

@@ -9,6 +9,7 @@ function renderCell(
   colKey: ColumnKey,
   family: FamilyRead,
   communityLookup: Record<number, string>,
+  siteLookup: Record<number, string>,
   t: (key: TranslationKey) => string
 ): React.ReactNode {
   switch (colKey) {
@@ -18,6 +19,12 @@ function renderCell(
       return (
         <div className="text-sm text-hv-charcoal">
           {family.communityId ? communityLookup[family.communityId] ?? 'Unknown' : t('family.none')}
+        </div>
+      );
+    case 'site':
+      return (
+        <div className="text-sm text-hv-charcoal">
+          {family.siteId ? siteLookup[family.siteId] ?? 'Unknown' : t('family.none')}
         </div>
       );
     case 'inCrisis':
@@ -58,6 +65,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
   const {
     searchTerm, setSearchTerm,
     selectedCommunityId, setSelectedCommunityId,
+    selectedSiteId, setSelectedSiteId,
     inCrisisFilter, setInCrisisFilter,
     currentPage, setCurrentPage,
     pageSize,
@@ -67,6 +75,8 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
     handleResizeMouseDown,
     communities, communitiesLoading,
     communityLookup,
+    sites, sitesLoading,
+    siteLookup,
     families, familiesLoading, isError, error,
     totalFamilies, totalPages,
     handleFilterChange,
@@ -80,7 +90,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
     <div>
       {/* Filters */}
       <div className={`bg-white ${compact ? 'p-4 mb-4' : 'p-6 mb-6'} rounded-xl border border-hv-border`}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label htmlFor="fam-search" className={labelClass}>{t('families.search_families')}</label>
             <input
@@ -104,6 +114,21 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
               <option value="">{t('families.all_communities')}</option>
               {communities.map((c) => (
                 <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="fam-site" className={labelClass}>{t('families.col_site')}</label>
+            <select
+              id="fam-site"
+              value={selectedSiteId}
+              onChange={(e) => { setSelectedSiteId(e.target.value ? Number(e.target.value) : ''); handleFilterChange(); }}
+              disabled={sitesLoading}
+              className={inputClass}
+            >
+              <option value="">{t('families.all_sites')}</option>
+              {sites.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
               ))}
             </select>
           </div>
@@ -224,7 +249,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
                           style={{ width: columnWidths[col.key], maxWidth: columnWidths[col.key] }}
                           className="px-4 py-4 whitespace-nowrap overflow-hidden"
                         >
-                          {renderCell(col.key, family, communityLookup, t)}
+                          {renderCell(col.key, family, communityLookup, siteLookup, t)}
                         </td>
                       ))}
                     </tr>

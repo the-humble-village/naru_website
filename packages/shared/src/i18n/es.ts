@@ -452,4 +452,7 @@ export const es = {
   'dash.total_children': 'Total de Hijos/as',
   'dash.recent_children_title': 'Hijos/as Actualizados Recientemente',
   'dash.no_data': 'No hay datos disponibles',
+  'dash.show_less': 'Ver menos',
+  'dash.more_communities': 'Ver {count} comunidades mas',
+  'families.all_sites': 'Todos los Sitios',
 } as const;

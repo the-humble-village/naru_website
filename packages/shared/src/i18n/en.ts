@@ -452,4 +452,7 @@ export const en = {
   'dash.total_children': 'Total Children',
   'dash.recent_children_title': 'Recently Updated Children',
   'dash.no_data': 'No data available',
+  'dash.show_less': 'Show less',
+  'dash.more_communities': 'See {count} more communities',
+  'families.all_sites': 'All Sites',
 } as const;

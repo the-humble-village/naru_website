@@ -204,6 +204,13 @@ jobs:
             sudo chown -R ec2-user:ec2-user /var/www/web
             sudo chown -R ec2-user:ec2-user /var/www/backend
 
+            # Older deploys left @naru/shared as a symlink to a path that was never
+            # shipped. Clear it so the incoming real directory extracts cleanly
+            # instead of tar trying to follow a dangling link.
+            if [ -L /var/www/backend/node_modules/@naru/shared ]; then
+              sudo rm -f /var/www/backend/node_modules/@naru/shared
+            fi
+
       # pnpm 11's `deploy --legacy` symlinks workspace deps to their absolute
       # path in the monorepo checkout, so @naru/shared dangles once the bundle
       # is scp'd to EC2. Injecting copies the built package into the deploy
@@ -211,6 +218,32 @@ jobs:
       # than in pnpm-workspace.yaml so local dev keeps live symlinks.
       - name: Create standalone backend
         run: pnpm --config.inject-workspace-packages=true --filter @naru/backend deploy ./backend-deploy
+
+      # pnpm leaves workspace deps as symlinks that escape the bundle —
+      # node_modules/@naru/shared -> ../../../packages/shared. scp ships the
+      # symlink, not its target, so the server resolves it to /var/www/packages/shared
+      # which does not exist and the backend dies on import. Dereference into real
+      # directories so the bundle is self-contained.
+      - name: Materialize workspace symlinks in the bundle
+        run: |
+          cp -rL backend-deploy backend-deploy-deref
+          rm -rf backend-deploy
+          mv backend-deploy-deref backend-deploy
+
+      # Fail here rather than after a broken deploy takes production down.
+      - name: Verify bundle is self-contained
+        run: |
+          if [ ! -d backend-deploy/node_modules/@naru/shared ]; then
+            echo "::error::@naru/shared missing from bundle"; exit 1
+          fi
+          if [ ! -f backend-deploy/node_modules/@naru/shared/package.json ]; then
+            echo "::error::@naru/shared present but has no package.json"; exit 1
+          fi
+          DANGLING=$(find backend-deploy -xtype l | head -20)
+          if [ -n "$DANGLING" ]; then
+            echo "::error::bundle contains dangling symlinks:"; echo "$DANGLING"; exit 1
+          fi
+          echo "bundle self-contained: $(du -sh backend-deploy | cut -f1)"
 
       - name: Deploy Web to EC2
         uses: appleboy/scp-action@master

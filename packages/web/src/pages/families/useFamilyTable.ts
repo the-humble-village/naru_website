@@ -108,7 +108,7 @@ export function useFamilyTable() {
   });
 
   const sites = useMemo(
-    () => Array.from(new Map(rawSites.map((s) => [s.title, s])).values()),
+    () => Array.from(new Map(rawSites.map((s) => [s.id, s])).values()),
     [rawSites]
   );
 

@@ -5,7 +5,11 @@ After=network.target postgresql.service
 [Service]
 Type=simple
 User=ec2-user
-WorkingDirectory=/var/www/backend
+# Releases are unpacked to /var/www/backend/releases/<id> and `current` is
+# swapped to point at one only after migrations and the drift check pass, so a
+# rollback is `ln -s` + `systemctl restart`. systemd resolves WorkingDirectory
+# at spawn time, so a restart always lands on whatever `current` points at now.
+WorkingDirectory=/var/www/backend/current
 ExecStart=/usr/bin/node dist/index.js
 Restart=always
 # Wait 10 seconds before restarting if it fails

@@ -1,0 +1,40 @@
+name: Branch Policy
+
+# main is the production branch — every push to it deploys to EC2. Work is
+# expected to accumulate on dev and reach main as a single integration PR, so
+# this rejects PRs opened against main from anywhere else.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: branch-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify-source-branch:
+    name: Verify PR source branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check head branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          # Allowed sources for a PR into main. Add hotfix/* here if you want an
+          # emergency path that skips dev.
+          case "$HEAD_REF" in
+            dev)
+              echo "✅ PR into main from '$HEAD_REF'."
+              ;;
+            *)
+              echo "::error title=Wrong source branch::PRs into main must come from 'dev', not '$HEAD_REF'."
+              echo ""
+              echo "Merge '$HEAD_REF' into dev first, then open a dev → main PR."
+              exit 1
+              ;;
+          esac

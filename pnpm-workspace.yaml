@@ -24,6 +24,6 @@ onlyBuiltDependencies:
   - bcrypt
   - esbuild
 
-overides:
+overrides:
   multer: ^2.1.1
-  tar": ^7.5.15
+  tar: ^7.5.15

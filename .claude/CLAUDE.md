@@ -214,7 +214,7 @@ Enforced via middleware: `auth` → `requireRole('supervisor')` in route files.
 
 ## Routing (App.tsx)
 
-- Public: `/login`, `/signup`
+- Public: `/login`, 
 - Protected (any role): `/`, `/families/**`, `/admin/language`
 - Supervisor+: `/admin`, `/admin/birthing-assistants`
 - Admin only: `/admin/users`, `/admin/:table` (lookup tables)

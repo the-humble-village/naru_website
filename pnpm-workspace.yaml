@@ -8,9 +8,22 @@ allowBuilds:
   esbuild: true
   prisma: true
 
+minimumReleaseAgeExclude:
+  - '@turbo/darwin-64@2.10.9'
+  - '@turbo/darwin-arm64@2.10.9'
+  - '@turbo/linux-64@2.10.9'
+  - '@turbo/linux-arm64@2.10.9'
+  - '@turbo/windows-64@2.10.9'
+  - '@turbo/windows-arm64@2.10.9'
+  - turbo@2.10.9
+
 onlyBuiltDependencies:
   - "@prisma/client"
   - "@prisma/engines"
   - prisma
   - bcrypt
   - esbuild
+
+overides:
+  multer: ^2.1.1
+  tar": ^7.5.15

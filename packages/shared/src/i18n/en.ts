@@ -11,16 +11,6 @@ export const en = {
   'login.hint_login': 'Username:',
   'login.hint_password': 'Password:',
   'login.button': 'Log In',
-  'login.create_account': 'New here? Create account',
-
-  // Signup
-  'signup.title': 'Register',
-  'signup.hint_login': 'Login:',
-  'signup.hint_email': 'Email:',
-  'signup.hint_password': 'Password:',
-  'signup.hint_confirm': 'Confirm Password:',
-  'signup.button': 'Sign Up',
-  'signup.have_account': 'I have an account already',
 
   // Profile
   'profile.title': 'Profile',

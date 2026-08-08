@@ -1,6 +1,5 @@
 // Auth pages
 export { default as LoginPage } from './auth/LoginPage';
-export { default as SignupPage } from './auth/SignupPage';
 
 // Family pages
 export { default as FamiliesPage } from './families/FamiliesPage';

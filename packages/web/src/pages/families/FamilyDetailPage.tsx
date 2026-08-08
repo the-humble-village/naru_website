@@ -13,7 +13,7 @@ import { sitesApi } from '../../api/sites';
 import { birthingAssistantsApi } from '../../api/birthing-assistants';
 import { FamilyUpdate, SiteRead } from '@naru/shared';
 import { PhotoUpload, PhotoGallery, ConfirmDialog, RoleGate } from '../../components';
-import { usePendingPhotoDeletions } from '../../hooks';
+import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 import { AlertTriangle, Users, Baby, CalendarCheck, Pencil, Trash2, Plus, ChevronRight, UserRound, PersonStanding, Heart, MapPin, X } from 'lucide-react';
 
 // Fix Leaflet default marker icons broken by bundlers
@@ -52,6 +52,7 @@ export const FamilyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<FamilyUpdate>({});
   const [mapSite, setMapSite] = useState<SiteRead | null>(null);
@@ -383,14 +384,14 @@ export const FamilyDetailPage: React.FC = () => {
                 disabled={updateFamilyMutation.isPending}
                 className="px-4 py-2 text-sm bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50"
               >
-                {updateFamilyMutation.isPending ? 'Saving...' : 'Save'}
+                {updateFamilyMutation.isPending ? t('common.saving') : t('common.save')}
               </button>
               <button
                 type="button"
                 onClick={handleCancel}
                 className="px-4 py-2 text-sm border border-hv-border rounded-md text-hv-charcoal hover:bg-hv-page transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
             {updateFamilyMutation.isError && (

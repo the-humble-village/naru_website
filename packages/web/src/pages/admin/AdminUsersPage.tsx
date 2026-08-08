@@ -7,6 +7,7 @@ import { UserRead, UserCreate, UserUpdate, Role } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useAuthStore } from '../../store/auth';
+import { useTranslation } from '../../hooks';
 
 interface UserFormData {
   login: string;
@@ -50,6 +51,7 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
  */
 export const AdminUsersPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
+  const { t } = useTranslation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRead | null>(null);
   const [formData, setFormData] = useState<UserFormData>(EMPTY_FORM);
@@ -418,7 +420,7 @@ export const AdminUsersPage: React.FC = () => {
                     onClick={cancelForm}
                     className="px-4 py-2 text-hv-gray border border-hv-border rounded-md hover:bg-hv-page transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="button"
@@ -427,10 +429,10 @@ export const AdminUsersPage: React.FC = () => {
                     className="px-4 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover disabled:opacity-50 transition-colors"
                   >
                     {isSaving
-                      ? 'Saving...'
+                      ? t('common.saving')
                       : editingUser
-                        ? 'Update User'
-                        : 'Create User'}
+                        ? t('common.update_user')
+                        : t('common.create_user')}
                   </button>
                 </div>
                 {formError && (

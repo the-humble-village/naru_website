@@ -6,12 +6,14 @@ import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
 import { birthingAssistantsApi } from '../../api/birthing-assistants';
 import { PhotoUpload } from '../../components';
+import { useTranslation } from '../../hooks';
 
 /**
  * AddFamilyPage - Form to create a new family
  */
 export const AddFamilyPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<FamilyCreate>({
     familyName: null,
     childrenEditable: 0,
@@ -297,14 +299,14 @@ export const AddFamilyPage: React.FC = () => {
             to="/families"
             className="px-4 py-2 text-hv-sage hover:text-hv-charcoal transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </Link>
           <button
             type="submit"
             disabled={createFamilyMutation.isPending}
             className="px-6 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {createFamilyMutation.isPending ? 'Creating...' : 'Create Family'}
+            {createFamilyMutation.isPending ? t('common.creating') : t('common.create_family')}
           </button>
         </div>
       </form>

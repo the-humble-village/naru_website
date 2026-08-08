@@ -6,7 +6,7 @@ import { parentsApi } from '../../api/parents';
 import { visitsApi } from '../../api/visits';
 import { ParentUpdate, ParentRead } from '@naru/shared';
 import { PhotoUpload, PhotoGallery, RoleGate, ConfirmDialog } from '../../components';
-import { usePendingPhotoDeletions } from '../../hooks';
+import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 
 /**
  * ParentDetailPage - Shows parent details with edit form
@@ -15,6 +15,7 @@ export const ParentDetailPage: React.FC = () => {
   const { id: familyId, pid: parentId } = useParams<{ id: string; pid: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<ParentUpdate>({});
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -352,14 +353,14 @@ export const ParentDetailPage: React.FC = () => {
                 disabled={updateParentMutation.isPending}
                 className="bg-hv-terracotta text-white px-4 py-2 rounded text-sm hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50"
               >
-                {updateParentMutation.isPending ? 'Saving...' : 'Save'}
+                {updateParentMutation.isPending ? t('common.saving') : t('common.save')}
               </button>
               <button
                 onClick={handleCancel}
                 disabled={updateParentMutation.isPending}
                 className="px-4 py-2 border border-hv-border rounded text-sm text-hv-charcoal hover:bg-hv-page transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
 

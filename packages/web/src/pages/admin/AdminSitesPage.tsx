@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sitesApi } from '../../api/sites';
 import { type SiteRead } from '@naru/shared';
 import { MapPicker, RoleGate, ConfirmDialog, type MapPickerValue } from '../../components';
+import { useTranslation } from '../../hooks';
 
 interface SiteFormProps {
   initial?: SiteRead;
@@ -13,6 +14,7 @@ interface SiteFormProps {
 
 const SiteForm: React.FC<SiteFormProps> = ({ initial, onSave, onCancel }) => {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const [title, setTitle] = useState(initial?.title ?? '');
   const [mapVal, setMapVal] = useState<MapPickerValue>({
     lat: initial?.lat ?? null,
@@ -71,14 +73,14 @@ const SiteForm: React.FC<SiteFormProps> = ({ initial, onSave, onCancel }) => {
           disabled={save.isPending}
           className="bg-hv-green text-white px-5 py-2 rounded hover:bg-hv-green-hover disabled:opacity-50 transition-colors"
         >
-          {save.isPending ? 'Saving...' : initial ? 'Update Site' : 'Create Site'}
+          {save.isPending ? t('common.saving') : initial ? t('common.update_site') : t('common.create_site')}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="bg-hv-gray text-white px-5 py-2 rounded hover:bg-gray-600 transition-colors"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </form>

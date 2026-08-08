@@ -6,6 +6,7 @@ import { LookupRead, LookupCreate, LookupUpdate } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ChevronUp, ChevronDown } from 'lucide-react';
+import { useTranslation } from '../../hooks';
 
 interface LookupFormData {
   title: string;
@@ -27,6 +28,7 @@ const DEFAULT_ITEMS: LookupRead[] = [];
 
 export const AdminLookupsPage: React.FC = () => {
   const { table } = useParams<{ table: string }>();
+  const { t } = useTranslation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingItem, setEditingItem] = useState<LookupRead | null>(null);
   const [formData, setFormData] = useState<LookupFormData>({ title: '' });
@@ -263,7 +265,11 @@ export const AdminLookupsPage: React.FC = () => {
                   }`}
                 >
                   {orderDirty && <span className="w-2 h-2 rounded-full bg-hv-terracotta shrink-0" />}
-                  {reorderMutation.isPending ? 'Saving...' : orderDirty ? 'Save Order' : 'Order saved'}
+                  {reorderMutation.isPending
+                    ? t('common.saving')
+                    : orderDirty
+                      ? t('common.save_order')
+                      : t('common.order_saved')}
                 </button>
               )}
               <button
@@ -304,17 +310,17 @@ export const AdminLookupsPage: React.FC = () => {
                     className="px-4 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover disabled:opacity-50 transition-colors"
                   >
                     {createItemMutation.isPending || updateItemMutation.isPending
-                      ? 'Saving...'
+                      ? t('common.saving')
                       : editingItem
-                        ? 'Update'
-                        : 'Create'}
+                        ? t('common.update')
+                        : t('common.create')}
                   </button>
                   <button
                     type="button"
                     onClick={resetForm}
                     className="px-4 py-2 text-hv-gray border border-hv-border rounded-md hover:bg-hv-page transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
                 {(createItemMutation.error || updateItemMutation.error) && (

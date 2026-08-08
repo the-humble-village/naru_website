@@ -7,6 +7,7 @@ import axios from 'axios';
 import { BirthingAssistantRead, BirthingAssistantCreate, BirthingAssistantUpdate } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { useTranslation } from '../../hooks';
 
 /**
  * Pull the server's message out of an API failure. The backend responds with
@@ -39,6 +40,7 @@ interface BAFormData {
  * AdminBirthingAssistantsPage - Birthing assistants management with multi-select UI
  */
 export const AdminBirthingAssistantsPage: React.FC = () => {
+  const { t } = useTranslation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingBA, setEditingBA] = useState<BirthingAssistantRead | null>(null);
   const [formData, setFormData] = useState<BAFormData>({
@@ -440,17 +442,17 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
                     className="px-4 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover disabled:opacity-50 transition-colors"
                   >
                     {createBAMutation.isPending || updateBAMutation.isPending
-                      ? 'Saving...'
+                      ? t('common.saving')
                       : editingBA
-                        ? 'Update'
-                        : 'Create'}
+                        ? t('common.update')
+                        : t('common.create')}
                   </button>
                   <button
                     type="button"
                     onClick={cancelForm}
                     className="px-4 py-2 text-hv-gray border border-hv-border rounded-md hover:bg-hv-page transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
                 {formError && (

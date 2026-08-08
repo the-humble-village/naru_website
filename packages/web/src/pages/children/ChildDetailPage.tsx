@@ -9,7 +9,7 @@ import { visitsApi } from '../../api/visits';
 import { ChildRead, ChildVisitRead, ChildUpdate, Sex } from '@naru/shared';
 import ZScoreBadge from '../../components/ZScoreBadge';
 import { PhotoGallery, PhotoUpload, ConfirmDialog, RoleGate } from '../../components';
-import { usePendingPhotoDeletions } from '../../hooks';
+import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 import { Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 
 interface ChildEditForm {
@@ -34,6 +34,7 @@ interface ChildWithZScores extends ChildRead {
 export const ChildDetailPage: React.FC = () => {
   const { id: familyId, cid: childId } = useParams<{ id: string; cid: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
   const childIdNum  = childId  ? parseInt(childId,  10) : 0;
@@ -364,14 +365,14 @@ export const ChildDetailPage: React.FC = () => {
                 disabled={updateChildMutation.isPending}
                 className="bg-hv-terracotta text-white px-4 py-2 rounded-md text-sm hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50"
               >
-                {updateChildMutation.isPending ? 'Saving...' : 'Save'}
+                {updateChildMutation.isPending ? t('common.saving') : t('common.save')}
               </button>
               <button
                 onClick={handleCancel}
                 disabled={updateChildMutation.isPending}
                 className="px-4 py-2 border border-hv-border rounded-md text-sm text-hv-charcoal hover:bg-hv-page transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
 

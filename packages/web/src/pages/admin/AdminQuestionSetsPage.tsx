@@ -6,6 +6,7 @@ import { adminApi, type LookupTableName } from '../../api/admin';
 import { type QuestionSetRead, type QuestionSetItemRead, type LookupRead } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { useTranslation } from '../../hooks';
 
 type VisitType = 'child' | 'parent' | 'family';
 
@@ -40,6 +41,7 @@ interface QuestionsPanelProps {
 
 const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ visitType, config }) => {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LookupRead | null>(null);
   const [title, setTitle] = useState('');
@@ -129,10 +131,14 @@ const QuestionsPanel: React.FC<QuestionsPanelProps> = ({ visitType, config }) =>
             disabled={!title.trim() || createMut.isPending || updateMut.isPending}
             className="bg-hv-terracotta text-white px-4 py-2 rounded hover:bg-hv-terracotta-hover disabled:opacity-50 transition-colors"
           >
-            {createMut.isPending || updateMut.isPending ? 'Saving...' : editing ? 'Update' : 'Create'}
+            {createMut.isPending || updateMut.isPending
+              ? t('common.saving')
+              : editing
+                ? t('common.update')
+                : t('common.create')}
           </button>
           <button type="button" onClick={resetForm} className="px-4 py-2 border border-hv-border rounded text-hv-gray hover:bg-hv-page transition-colors">
-            Cancel
+            {t('common.cancel')}
           </button>
         </form>
       )}
@@ -206,6 +212,7 @@ interface SetFormProps {
 
 const SetForm: React.FC<SetFormProps> = ({ visitType, availableQuestions, initial, onSave, onCancel }) => {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? '');
   // Order of this array is the sortOrder sent to the backend
   const [selectedIds, setSelectedIds] = useState<number[]>(
@@ -374,10 +381,10 @@ const SetForm: React.FC<SetFormProps> = ({ visitType, availableQuestions, initia
           disabled={save.isPending}
           className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover disabled:opacity-50 transition-colors"
         >
-          {save.isPending ? 'Saving...' : initial ? 'Update Set' : 'Create Set'}
+          {save.isPending ? t('common.saving') : initial ? t('common.update_set') : t('common.create_set')}
         </button>
         <button type="button" onClick={onCancel} className="bg-hv-gray text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </form>

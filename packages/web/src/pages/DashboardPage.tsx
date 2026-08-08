@@ -253,7 +253,6 @@ export const DashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [showAddVisitModal, setShowAddVisitModal] = useState(false);
   const [showAllCommunities, setShowAllCommunities] = useState(false);
-  const [showAllCrisisCommunities, setShowAllCrisisCommunities] = useState(false);
   const table = useFamilyTable();
 
   const { data: dashboardData, isLoading: dashLoading } = useQuery({
@@ -360,34 +359,12 @@ export const DashboardPage: React.FC = () => {
             <div className="text-xs text-hv-sage mt-1 uppercase tracking-wide">Families in Crisis</div>
             {!dashLoading && crisisByCommunity.length > 0 && (
               <div className="mt-3 space-y-1 border-t border-hv-border pt-2">
-                {(showAllCrisisCommunities
-                  ? crisisByCommunity
-                  : crisisByCommunity.slice(0, COMMUNITY_COLLAPSED_COUNT)
-                ).map(([community, count]) => (
+                {crisisByCommunity.map(([community, count]) => (
                   <div key={community} className="flex justify-between text-xs text-hv-charcoal">
                     <span className="truncate mr-2 text-hv-sage">{community}</span>
                     <span className="font-medium text-hv-crisis shrink-0">{count}</span>
                   </div>
                 ))}
-                {crisisByCommunity.length > COMMUNITY_COLLAPSED_COUNT && (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); setShowAllCrisisCommunities(v => !v); }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShowAllCrisisCommunities(v => !v);
-                      }
-                    }}
-                    className="block pt-0.5 text-xs text-hv-terracotta hover:underline cursor-pointer"
-                  >
-                    {showAllCrisisCommunities
-                      ? 'Show less'
-                      : `See ${crisisByCommunity.length - COMMUNITY_COLLAPSED_COUNT} more communities`}
-                  </span>
-                )}
               </div>
             )}
           </button>

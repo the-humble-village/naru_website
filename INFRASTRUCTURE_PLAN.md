@@ -68,7 +68,10 @@ aws ssm start-session --target i-025ab3760f2dc2ae1
 | M2 | `build` job's output is discarded; `deploy` rebuilds from scratch | `pipeline.yml:110-197` |
 | M3 | `on: push`/`pull_request` with no branch filters → duplicate CI runs | `pipeline.yml:4-6` |
 | M4 | scp never deletes — stale files accumulate in `dist/` and `backend/` forever | `pipeline.yml:214-234` |
-| M5 | No health check after restart — a crash-looping backend still reports green | `pipeline.yml:299-301` |
+| M5 | ~~No health check after restart~~ — **FIXED 2026-08-02**, deploy now polls `/health` for 60s | `pipeline.yml` |
+| M12 | ~~DB pre-check lost the race against Aurora's ~16s resume from pause, and masked the real error~~ — **FIXED 2026-08-02**, retries 12× | `pipeline.yml` |
+| M13 | 47 Dependabot advisories on the default branch (2 critical, 10 high, 33 moderate, 2 low) | GitHub security tab |
+| M14 | `pnpm deploy` ships `.env.example` and `.env.test` to `/var/www/backend` — harmless but noise | observed 2026-08-02 |
 | M6 | Migrations apply *before* the service restart — old code briefly sees new schema | `pipeline.yml:294` then `:301` |
 | M7 | No rollback path of any kind | — |
 | M8 | Every deploy causes downtime (single instance, hard restart) | — |
@@ -254,9 +257,11 @@ Confirm `/usr/bin/node` resolves to v24 — `naru-backend.service:9` hardcodes t
 3. Verify:
    ```bash
    aws ssm start-session --target i-025ab3760f2dc2ae1
-   cd /var/www/backend && npx prisma migrate status   # expect 9 applied
+   cd /var/www/backend && npx prisma migrate status   # expect "up to date"
    systemctl is-active naru-backend
-   curl -sf localhost:3000/api/health || journalctl -u naru-backend -n 50 --no-pager
+   # NOTE: /health (app.ts:88) is the health endpoint. /api/health only mounts
+   # POST /api/health/zscore, so GET /api/health returns 404 by design.
+   curl -sf localhost:3000/health || journalctl -u naru-backend -n 50 --no-pager
    ```
 4. Smoke test a full photo round-trip through the UI — upload, view, delete. This is the path that
    exercises S3 presigning, the instance role, and the new `photos` JSON columns together.
@@ -393,7 +398,59 @@ aws ssm get-parameter --name /naru/prod/JWT_REFRESH_SECRET --with-decryption \
 
 ## Phase 3 — Remaining hardening
 
-### 3.1 Encrypt Aurora at rest (C6)
+### 3.0 Cut database cost ~75% and encrypt, in one move (C6 + cost)
+
+Measured 2026-08-02 via Cost Explorer and CloudWatch:
+
+| | |
+|---|---|
+| RDS spend | May **$88.54** · June **$57.65** · July **$59.55** |
+| Database size | **9 MB** — 22 families, 21 children, 22 parents, 0 files |
+| Storage type | `aurora-iopt1` (I/O-Optimized) while actual I/O bills **$0.004/mo** |
+| MultiAZ | `false` — no failover being paid for |
+| Auto-pause | Works; cluster pauses ~5 min after idle, resumes in ~16 s |
+
+You are paying Aurora's premium for none of Aurora's benefits: no failover, no
+read replicas, no scale requirement. ~$59/mo for 9 MB and 65 rows.
+
+**Step 1 — free money, one command.** I/O-Optimized charges ~30% more per ACU-hour and only
+pays off when I/O exceeds ~25% of the bill. Yours is 0.007%.
+
+```bash
+aws rds modify-db-cluster --region us-east-1 --db-cluster-identifier naru \
+  --storage-type aurora --apply-immediately
+```
+
+(AWS permits the I/O-Optimized → Standard switch once per calendar month.)
+
+**Step 2 — migrate to plain RDS PostgreSQL `db.t4g.micro`.** Roughly **$14/mo vs $59**, always-on
+so cold starts disappear entirely, and **create it encrypted** — which closes C6 in the same
+operation instead of needing its own snapshot/copy/restore cycle. At 9 MB the dump/restore takes
+seconds.
+
+```bash
+aws rds create-db-instance --region us-east-1 \
+  --db-instance-identifier naru-pg --db-instance-class db.t4g.micro \
+  --engine postgres --allocated-storage 20 --storage-type gp3 \
+  --storage-encrypted --kms-key-id alias/aws/rds \
+  --backup-retention-period 30 --no-publicly-accessible \
+  --deletion-protection \
+  --vpc-security-group-ids sg-0d58abe554c5f920b \
+  --master-username <user> --master-user-password <pw> --db-name naru
+```
+
+Then `pg_dump` from Aurora → `pg_restore` into the new instance, repoint `DATABASE_URL`, restart,
+verify, and delete the Aurora cluster. Keep `naru-pre-s3-migration` and take a fresh snapshot
+first.
+
+Trade-off to accept deliberately: you lose Aurora's fast-failover story. Given `MultiAZ: false`
+you never had it, so this is giving up something you weren't getting.
+
+Prices are list-rate estimates — sanity-check against your bill.
+
+### 3.1 Encrypt Aurora at rest (C6) — only if staying on Aurora
+
+If you keep Aurora rather than doing 3.0 Step 2, encryption still needs fixing separately.
 
 Cannot be enabled in place. Requires snapshot → copy with a KMS key → restore → cut over:
 
@@ -468,10 +525,11 @@ events into something queryable.
 
 ## Suggested sequencing
 
-| When | Items |
-|---|---|
-| Before any deploy | 0.1 – 0.7 |
-| Deploy day | Phase 1 |
-| Next sprint | 2.1 – 2.6, 3.2, 3.3, 3.5 |
-| Scheduled window | 3.1 (Aurora encryption) |
-| Ongoing | 3.4 |
+| When | Items | Status |
+|---|---|---|
+| Before any deploy | 0.1 – 0.7 | **done 2026-08-02** |
+| Deploy day | Phase 1 | **done 2026-08-02** — 9/9 migrations applied, `photo_id` dropped, Node 24, healthy. Photo round-trip smoke test still outstanding. |
+| Now (one command) | 3.0 Step 1 — I/O-Optimized → Standard | pending |
+| Next sprint | 2.1 – 2.6, 3.2, 3.3, 3.5, M13 (Dependabot) | pending |
+| Scheduled window | 3.0 Step 2 — RDS `t4g.micro` + encryption (supersedes 3.1) | pending |
+| Ongoing | 3.4 | pending |

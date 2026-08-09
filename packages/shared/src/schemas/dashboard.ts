@@ -3,10 +3,12 @@ import { FamilyReadSchema } from './family.js';
 import { ChildReadSchema } from './child.js';
 import { ChildVisitReadSchema } from './child-visit.js';
 import { FamilyVisitReadSchema } from './family-visit.js';
+import { ParentReadSchema } from './parent.js';
+import { ParentVisitReadSchema } from './parent-visit.js';
 
 // Dashboard response schema
 export const DashboardResponseSchema = z.object({
-  // Recent visits (both child and family visits combined)
+  // Recent visits (child, family and parent visits combined)
   recentVisits: z.object({
     childVisits: z.array(ChildVisitReadSchema.extend({
       child: ChildReadSchema.pick({ id: true, name: true, familyId: true }),
@@ -14,6 +16,9 @@ export const DashboardResponseSchema = z.object({
     familyVisits: z.array(FamilyVisitReadSchema.extend({
       family: FamilyReadSchema.pick({ id: true, familyName: true }),
     })),
+    parentVisits: z.array(ParentVisitReadSchema.extend({
+      parent: ParentReadSchema.pick({ id: true, name: true, familyId: true }),
+    })).default([]),
   }),
 
   // Recently updated children (with latest measurements)
@@ -38,6 +43,7 @@ export const DashboardResponseSchema = z.object({
   stats: z.object({
     totalFamilies: z.number().int(),
     totalChildren: z.number().int(),
+    totalCommunities: z.number().int().default(0),
     familiesInCrisis: z.number().int(),
     visitsThisMonth: z.number().int(),
   }),

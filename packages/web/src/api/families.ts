@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { FamilyRead, FamilyCreate, FamilyUpdate } from '@naru/shared';
+import { FamilyRead, FamilyListItem, FamilyCreate, FamilyUpdate } from '@naru/shared';
 
 /**
  * List families with pagination and filtering options
@@ -14,7 +14,7 @@ export interface ListFamiliesParams {
 }
 
 export interface ListFamiliesResponse {
-  families: FamilyRead[];
+  families: FamilyListItem[];
   total: number;
   skip: number;
   limit: number;

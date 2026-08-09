@@ -33,7 +33,14 @@ export const FamilyReadSchema = z.object({
   // Note: deletedAt is never exposed to clients
 });
 
+// List rows carry the date of the family's most recent family visit so the families
+// table can show "Last Visited" without a request per row.
+export const FamilyListItemSchema = FamilyReadSchema.extend({
+  lastVisitDate: z.string().datetime().nullable(),
+});
+
 // Inferred types for TypeScript
 export type FamilyCreate = z.infer<typeof FamilyCreateSchema>;
 export type FamilyUpdate = z.infer<typeof FamilyUpdateSchema>;
 export type FamilyRead = z.infer<typeof FamilyReadSchema>;
+export type FamilyListItem = z.infer<typeof FamilyListItemSchema>;

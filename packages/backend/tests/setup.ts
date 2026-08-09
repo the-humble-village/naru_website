@@ -36,15 +36,20 @@ beforeAll(async () => {
     throw error
   }
 
-  // Check if tables exist and provide helpful error message
+  // Check the schema is current and provide a helpful error message.
+  // P2021 = table missing (never migrated), P2022 = column missing (stale schema,
+  // i.e. a migration landed on main that this database has not caught up with).
   try {
     await testDb.user.count()
   } catch (error: any) {
-    if (error.code === 'P2021' || error.message.includes('does not exist')) {
-      console.error('❌ Test database tables do not exist.')
-      console.error('Please set up the test database by running:')
-      console.error('DATABASE_URL="postgresql://postgres@127.0.0.1:5432/naru_test" npx prisma migrate deploy')
-      throw new Error('Test database tables do not exist. Run migrations first.')
+    if (error.code === 'P2021' || error.code === 'P2022' || error.message.includes('does not exist')) {
+      const detail = error.code === 'P2022'
+        ? 'Test database schema is out of date (a column is missing).'
+        : 'Test database tables do not exist.'
+      console.error(`❌ ${detail}`)
+      console.error('Bring it up to date by running, from packages/backend:')
+      console.error(`DATABASE_URL="${process.env.DATABASE_URL}" npx prisma migrate deploy`)
+      throw new Error(`${detail} Run migrations first.`)
     }
     throw error
   }

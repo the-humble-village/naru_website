@@ -48,6 +48,22 @@ PORT=3000
 ```
 Replace `<your-pg-username>` and `<your-pg-password>` with your local PostgreSQL username and password (password can be omitted if your setup uses peer/ident authentication). For many macOS local installs the username is your macOS username — run `whoami` if unsure.
 
+### 4. Apply database migrations
+
+Both databases start empty. Create the schema in each:
+
+```bash
+cd packages/backend
+
+# Development database (uses DATABASE_URL from .env)
+npx prisma migrate dev
+
+# Test database — the suite defaults to your OS username, not "postgres"
+DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrate deploy
+```
+
+Re-run both whenever you pull a branch that adds a migration. If the test suite
+reports that a table or column is missing, this is the fix.
 
 ### 5. Build and verify
 

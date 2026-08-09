@@ -1,14 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Columns2 } from 'lucide-react';
-import { type FamilyRead, type TranslationKey } from '@naru/shared';
+import { type FamilyListItem, type TranslationKey } from '@naru/shared';
 import { useTranslation } from '../../hooks';
 import { formatDate } from '../../utils/datetime';
 import { ALL_COLUMNS, SORTABLE, type ColumnKey, type SortColumn, type FamilyTableState } from './useFamilyTable';
 
 function renderCell(
   colKey: ColumnKey,
-  family: FamilyRead,
+  family: FamilyListItem,
   communityLookup: Record<number, string>,
   siteLookup: Record<number, string>,
   t: (key: TranslationKey) => string
@@ -46,6 +46,12 @@ function renderCell(
       );
     case 'childrenEditable':
       return <div className="text-sm text-hv-charcoal">{family.childrenEditable}</div>;
+    case 'lastVisitDate':
+      return (
+        <div className="text-sm text-hv-charcoal">
+          {family.lastVisitDate ? formatDate(family.lastVisitDate) : '—'}
+        </div>
+      );
     case 'updatedAt':
       return <div className="text-sm text-hv-charcoal">{formatDate(family.updatedAt)}</div>;
   }
@@ -104,21 +110,6 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
             />
           </div>
           <div>
-            <label htmlFor="fam-community" className={labelClass}>{t('families.col_community')}</label>
-            <select
-              id="fam-community"
-              value={selectedCommunityId}
-              onChange={(e) => { setSelectedCommunityId(e.target.value ? Number(e.target.value) : ''); handleFilterChange(); }}
-              disabled={communitiesLoading}
-              className={inputClass}
-            >
-              <option value="">{t('families.all_communities')}</option>
-              {communities.map((c) => (
-                <option key={c.id} value={c.id}>{c.title}</option>
-              ))}
-            </select>
-          </div>
-          <div>
             <label htmlFor="fam-site" className={labelClass}>{t('families.col_site')}</label>
             <select
               id="fam-site"
@@ -134,24 +125,33 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
             </select>
           </div>
           <div>
-            <label htmlFor="fam-crisis" className={labelClass}>{t('families.crisis_status')}</label>
+            <label htmlFor="fam-community" className={labelClass}>{t('families.col_community')}</label>
             <select
-              id="fam-crisis"
-              value={inCrisisFilter.toString()}
-              onChange={(e) => { const v = e.target.value; setInCrisisFilter(v === '' ? '' : v === 'true'); handleFilterChange(); }}
+              id="fam-community"
+              value={selectedCommunityId}
+              onChange={(e) => { setSelectedCommunityId(e.target.value ? Number(e.target.value) : ''); handleFilterChange(); }}
+              disabled={communitiesLoading}
               className={inputClass}
             >
-              <option value="">{t('families.all_families')}</option>
-              <option value="true">{t('families.col_crisis')}</option>
-              <option value="false">{t('families.not_in_crisis')}</option>
+              <option value="">{t('families.all_communities')}</option>
+              {communities.map((c) => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
             </select>
           </div>
-          <div className="flex items-end">
-            <p className="text-sm text-hv-gray">
-              {familiesLoading
-                ? t('common.loading')
-                : t('families.found').replace('{count}', totalFamilies.toString())}
-            </p>
+          <div>
+            <span className={labelClass}>{t('families.crisis_status')}</span>
+            {/* Checked filters to families in crisis; unchecked means no crisis filter at all */}
+            <label htmlFor="fam-crisis" className="flex items-center gap-2 py-2 cursor-pointer">
+              <input
+                id="fam-crisis"
+                type="checkbox"
+                checked={inCrisisFilter === true}
+                onChange={(e) => { setInCrisisFilter(e.target.checked ? true : ''); handleFilterChange(); }}
+                className="h-4 w-4 rounded border-hv-border-input text-hv-terracotta focus:ring-2 focus:ring-hv-accent"
+              />
+              <span className={`${compact ? 'text-sm' : ''} text-hv-charcoal`}>{t('families.col_crisis')}</span>
+            </label>
           </div>
         </div>
       </div>
@@ -215,7 +215,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
                         <th
                           key={col.key}
                           style={{ width: columnWidths[col.key], minWidth: 60 }}
-                          className="relative px-4 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider"
+                          className="relative px-4 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider whitespace-nowrap"
                         >
                           <span
                             className={`inline-flex items-center gap-1 ${isSortable ? 'cursor-pointer hover:text-hv-charcoal select-none' : ''}`}
@@ -247,7 +247,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({
                       {activeColumns.map((col) => (
                         <td
                           key={col.key}
-                          style={{ width: columnWidths[col.key], maxWidth: columnWidths[col.key] }}
+                          style={columnWidths[col.key] ? { width: columnWidths[col.key], maxWidth: columnWidths[col.key] } : undefined}
                           className="px-4 py-4 whitespace-nowrap overflow-hidden"
                         >
                           {renderCell(col.key, family, communityLookup, siteLookup, t)}

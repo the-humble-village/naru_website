@@ -289,6 +289,7 @@ export const en = {
   'dash.recent_visits': 'Recent Visits',
   'dash.recent_children': 'Recently Updated',
   'dash.crisis': 'Families in Crisis',
+  'dash.crisis_short': 'Crisis',
   'dash.no_visits': 'No recent visits',
   'dash.no_children': 'No recently updated children',
   'dash.no_crisis': 'No families in crisis',
@@ -366,6 +367,7 @@ export const en = {
   'common.you': 'you',
 
   'common.loading': 'Loading...',
+  'common.unknown': 'Unknown',
   'common.add_visit': 'Add Visit',
 
   // Error page
@@ -436,6 +438,7 @@ export const en = {
   'families.none_found': 'No families found',
   'families.none_matching': 'No families found matching your criteria.',
   'families.col_updated': 'Last Updated',
+  'families.col_last_visit': 'Last Visited',
   'families.col_notes': 'Notes',
   'families.columns': 'Columns',
   'families.toggle_columns': 'Toggle Columns',
@@ -450,6 +453,8 @@ export const en = {
   'dash.days_ago': '{days} days ago',
   'dash.total_families': 'Total Families',
   'dash.total_children': 'Total Children',
+  'dash.total_communities': 'Total Communities',
+  'dash.add_community': 'Add Community',
   'dash.recent_children_title': 'Recently Updated Children',
   'dash.no_data': 'No data available',
   'dash.show_less': 'Show less',

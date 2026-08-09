@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import dashboardRoutes from '../src/routes/dashboard';
-import { testDb, createTestUser, createTestFamily, createTestChild } from './setup';
+import { testDb, createTestUser, createTestFamily, createTestChild, createTestParent, createTestParentVisit } from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with dashboard routes and error handler
@@ -97,13 +97,17 @@ describe('Dashboard Routes', () => {
       expect(data).toHaveProperty('recentVisits');
       expect(data.recentVisits).toHaveProperty('childVisits');
       expect(data.recentVisits).toHaveProperty('familyVisits');
+      expect(data.recentVisits).toHaveProperty('parentVisits');
       expect(data).toHaveProperty('recentlyUpdatedChildren');
       expect(data).toHaveProperty('familiesInCrisis');
       expect(data).toHaveProperty('stats');
+      expect(data.stats).toHaveProperty('totalCommunities');
+      expect(typeof data.stats.totalCommunities).toBe('number');
 
       // Check that we have data
       expect(Array.isArray(data.recentVisits.childVisits)).toBe(true);
       expect(Array.isArray(data.recentVisits.familyVisits)).toBe(true);
+      expect(Array.isArray(data.recentVisits.parentVisits)).toBe(true);
       expect(Array.isArray(data.recentlyUpdatedChildren)).toBe(true);
       expect(Array.isArray(data.familiesInCrisis)).toBe(true);
 
@@ -134,6 +138,7 @@ describe('Dashboard Routes', () => {
 
       expect(data.recentVisits.childVisits).toEqual([]);
       expect(data.recentVisits.familyVisits).toEqual([]);
+      expect(data.recentVisits.parentVisits).toEqual([]);
       expect(data.recentlyUpdatedChildren).toEqual([]);
       expect(data.familiesInCrisis).toEqual([]);
 
@@ -196,6 +201,41 @@ describe('Dashboard Routes', () => {
       expect(familyVisit).toHaveProperty('family');
       expect(familyVisit.family).toHaveProperty('id', family.id);
       expect(familyVisit.family).toHaveProperty('familyName', 'Test Family');
+    });
+
+    it('should include parent details in recent parent visits', async () => {
+      const family = await createTestFamily({ familyName: 'Test Family' });
+      const parent = await createTestParent(family.id, 'Test Parent');
+
+      await createTestParentVisit(family.id, parent.id, {
+        notes: 'Test parent visit with details',
+      });
+
+      const response = await testClient.get('/', accessToken);
+      const data = await response.json();
+
+      expect(data.recentVisits.parentVisits.length).toBeGreaterThan(0);
+      const parentVisit = data.recentVisits.parentVisits[0];
+      expect(parentVisit).toHaveProperty('familyId', family.id);
+      expect(parentVisit).toHaveProperty('parentId', parent.id);
+      expect(parentVisit).toHaveProperty('parent');
+      expect(parentVisit.parent).toHaveProperty('id', parent.id);
+      expect(parentVisit.parent).toHaveProperty('name', 'Test Parent');
+      expect(parentVisit.parent).toHaveProperty('familyId', family.id);
+      expect(parentVisit).not.toHaveProperty('deletedAt');
+    });
+
+    it('should count parent visits in visitsThisMonth', async () => {
+      const family = await createTestFamily();
+      const parent = await createTestParent(family.id);
+
+      const before = await testClient.get('/', accessToken).then(r => r.json());
+
+      await createTestParentVisit(family.id, parent.id, { visitDate: new Date() });
+
+      const after = await testClient.get('/', accessToken).then(r => r.json());
+
+      expect(after.stats.visitsThisMonth).toBe(before.stats.visitsThisMonth + 1);
     });
 
     it('should include latest visit info for recently updated children', async () => {

@@ -4,26 +4,32 @@ import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
 import { type TranslationKey } from '@naru/shared';
 
-export type SortColumn = 'familyName' | 'community' | 'site' | 'inCrisis' | 'updatedAt' | 'childrenEditable';
+export type SortColumn = 'familyName' | 'community' | 'site' | 'lastVisitDate' | 'inCrisis' | 'updatedAt' | 'childrenEditable';
 export type SortDirection = 'asc' | 'desc';
-export type ColumnKey = 'familyName' | 'community' | 'site' | 'inCrisis' | 'notes' | 'childrenEditable' | 'updatedAt';
+export type ColumnKey =
+  | 'familyName' | 'site' | 'community' | 'lastVisitDate' | 'inCrisis'
+  | 'notes' | 'childrenEditable' | 'updatedAt';
 
 export const SORTABLE: Set<ColumnKey> = new Set([
-  'familyName', 'community', 'site', 'inCrisis', 'updatedAt', 'childrenEditable',
+  'familyName', 'community', 'site', 'lastVisitDate', 'inCrisis', 'updatedAt', 'childrenEditable',
 ]);
 
 export const ALL_COLUMNS: { key: ColumnKey; labelKey: TranslationKey; defaultWidth: number; defaultVisible: boolean }[] = [
-  { key: 'familyName',       labelKey: 'families.col_name',      defaultWidth: 200, defaultVisible: true  },
-  { key: 'community',        labelKey: 'families.col_community', defaultWidth: 150, defaultVisible: true  },
-  { key: 'site',             labelKey: 'families.col_site',      defaultWidth: 150, defaultVisible: false },
-  { key: 'inCrisis',         labelKey: 'families.crisis_status', defaultWidth: 130, defaultVisible: true  },
-  { key: 'updatedAt',        labelKey: 'families.col_updated',   defaultWidth: 130, defaultVisible: true  },
-  { key: 'notes',            labelKey: 'families.col_notes',     defaultWidth: 220, defaultVisible: false },
-  { key: 'childrenEditable', labelKey: 'families.col_children',  defaultWidth: 100, defaultVisible: false },
+  { key: 'familyName',       labelKey: 'families.col_name',       defaultWidth: 200, defaultVisible: true  },
+  { key: 'site',             labelKey: 'families.col_site',       defaultWidth: 150, defaultVisible: true  },
+  { key: 'community',        labelKey: 'families.col_community',  defaultWidth: 150, defaultVisible: true  },
+  { key: 'lastVisitDate',    labelKey: 'families.col_last_visit', defaultWidth: 130, defaultVisible: true  },
+  { key: 'inCrisis',         labelKey: 'families.crisis_status',  defaultWidth: 130, defaultVisible: true  },
+  { key: 'updatedAt',        labelKey: 'families.col_updated',    defaultWidth: 130, defaultVisible: false },
+  { key: 'notes',            labelKey: 'families.col_notes',      defaultWidth: 220, defaultVisible: false },
+  { key: 'childrenEditable', labelKey: 'families.col_children',   defaultWidth: 100, defaultVisible: false },
 ];
 
 const DEFAULT_VISIBLE = ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);
-const DEFAULT_WIDTHS = Object.fromEntries(
+
+// Widths start empty so the browser sizes each column to its widest cell. An entry only
+// appears once the user drags a column's resize handle, which pins that one column.
+const FALLBACK_WIDTHS = Object.fromEntries(
   ALL_COLUMNS.map((c) => [c.key, c.defaultWidth])
 ) as Record<ColumnKey, number>;
 
@@ -37,7 +43,7 @@ export function useFamilyTable() {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(DEFAULT_VISIBLE);
-  const [columnWidths, setColumnWidths] = useState<Record<ColumnKey, number>>(DEFAULT_WIDTHS);
+  const [columnWidths, setColumnWidths] = useState<Partial<Record<ColumnKey, number>>>({});
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const columnPickerRef = useRef<HTMLDivElement>(null);
   const resizingRef = useRef<{ colKey: ColumnKey; startX: number; startWidth: number } | null>(null);
@@ -67,7 +73,9 @@ export function useFamilyTable() {
     (e: React.MouseEvent, colKey: ColumnKey) => {
       e.preventDefault();
       e.stopPropagation();
-      const startWidth = columnWidths[colKey] ?? DEFAULT_WIDTHS[colKey];
+      // Start from the column's rendered width so the first drag doesn't jump
+      const th = (e.currentTarget as HTMLElement).closest('th');
+      const startWidth = columnWidths[colKey] ?? th?.offsetWidth ?? FALLBACK_WIDTHS[colKey];
       resizingRef.current = { colKey, startX: e.clientX, startWidth };
       const onMouseMove = (ev: MouseEvent) => {
         if (!resizingRef.current) return;
@@ -168,6 +176,10 @@ export function useFamilyTable() {
         case 'site':
           aVal = (a.siteId ? siteLookup[a.siteId] ?? '' : '').toLowerCase();
           bVal = (b.siteId ? siteLookup[b.siteId] ?? '' : '').toLowerCase();
+          break;
+        case 'lastVisitDate':
+          aVal = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;
+          bVal = b.lastVisitDate ? new Date(b.lastVisitDate).getTime() : 0;
           break;
         case 'inCrisis':
           aVal = a.inCrisis ? 1 : 0;

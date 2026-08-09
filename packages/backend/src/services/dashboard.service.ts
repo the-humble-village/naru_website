@@ -5,6 +5,7 @@ import {
   type FamilyVisitQuestion,
   type TrainingReceived,
   type ResourceReceived,
+  type ParentVisitQuestion,
 } from '@naru/shared';
 import prisma from '../db.js';
 
@@ -94,6 +95,41 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
         select: {
           id: true,
           familyName: true,
+        },
+      },
+    },
+  });
+
+  // Get recent parent visits (last 10)
+  const recentParentVisits = await prisma.parentVisit.findMany({
+    where: {
+      parent: {
+        family: familyFilter
+      }
+    },
+    take: 10,
+    orderBy: {
+      visitDate: 'desc',
+    },
+    select: {
+      id: true,
+      localId: true,
+      familyId: true,
+      parentId: true,
+      visitDate: true,
+      weight: true,
+      trainingsReceived: true,
+      resourcesReceived: true,
+      questions: true,
+      photos: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      parent: {
+        select: {
+          id: true,
+          name: true,
+          familyId: true,
         },
       },
     },
@@ -202,7 +238,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
   }));
 
   // Get summary statistics (crisis count derived from already-fetched familiesInCrisis)
-  const [totalFamilies, totalChildren, visitsThisMonth] = await Promise.all([
+  const [totalFamilies, totalChildren, totalCommunities, visitsThisMonth] = await Promise.all([
     prisma.family.count({
       where: familyFilter,
     }),
@@ -211,6 +247,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
         family: familyFilter,
       },
     }),
+    prisma.community.count(),
     Promise.all([
       prisma.childVisit.count({
         where: {
@@ -224,22 +261,31 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
           deletedAt: null,
         },
       }),
-    ]).then(([childVisits, familyVisits]) => childVisits + familyVisits),
+      prisma.parentVisit.count({
+        where: {
+          visitDate: { gte: startOfMonth },
+          deletedAt: null,
+        },
+      }),
+    ]).then(([childVisits, familyVisits, parentVisits]) => childVisits + familyVisits + parentVisits),
   ]);
   const familiesInCrisisCount = familiesInCrisis.length;
 
   // Count visits per month for the last 6 months
   const visitsPerMonth = await Promise.all(
     monthSlots.map(async ({ label, start, end }) => {
-      const [child, family] = await Promise.all([
+      const [child, family, parent] = await Promise.all([
         prisma.childVisit.count({
           where: { visitDate: { gte: start, lt: end }, deletedAt: null },
         }),
         prisma.familyVisit.count({
           where: { visitDate: { gte: start, lt: end }, deletedAt: null },
         }),
+        prisma.parentVisit.count({
+          where: { visitDate: { gte: start, lt: end }, deletedAt: null },
+        }),
       ]);
-      return { month: label, count: child + family };
+      return { month: label, count: child + family + parent };
     })
   );
 
@@ -285,6 +331,26 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
         family: {
           id: visit.family!.id,
           familyName: visit.family!.familyName,
+        },
+      })),
+      parentVisits: recentParentVisits.map((visit: any) => ({
+        id: visit.id,
+        localId: visit.localId,
+        familyId: visit.familyId,
+        parentId: visit.parentId,
+        visitDate: visit.visitDate.toISOString(),
+        weight: visit.weight,
+        trainingsReceived: Array.isArray(visit.trainingsReceived) ? visit.trainingsReceived as unknown as TrainingReceived[] : [],
+        resourcesReceived: Array.isArray(visit.resourcesReceived) ? visit.resourcesReceived as unknown as ResourceReceived[] : [],
+        questions: Array.isArray(visit.questions) ? visit.questions as unknown as ParentVisitQuestion[] : [],
+        photos: Array.isArray(visit.photos) ? visit.photos as number[] : [],
+        notes: visit.notes,
+        createdAt: visit.createdAt.toISOString(),
+        updatedAt: visit.updatedAt.toISOString(),
+        parent: {
+          id: visit.parent!.id,
+          name: visit.parent!.name,
+          familyId: visit.parent!.familyId,
         },
       })),
     },
@@ -335,6 +401,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
     stats: {
       totalFamilies,
       totalChildren,
+      totalCommunities,
       familiesInCrisis: familiesInCrisisCount,
       visitsThisMonth,
     },

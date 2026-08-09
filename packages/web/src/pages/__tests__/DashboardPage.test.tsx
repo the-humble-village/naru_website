@@ -93,6 +93,28 @@ const mockDashboardData: DashboardResponse = {
         },
       },
     ],
+    parentVisits: [
+      {
+        id: 1,
+        localId: null,
+        familyId: 3,
+        parentId: 5,
+        visitDate: '2024-03-13T09:00:00Z',
+        weight: 60,
+        trainingsReceived: [],
+        resourcesReceived: [],
+        questions: [],
+        photos: [],
+        notes: null,
+        createdAt: '2024-03-13T09:00:00Z',
+        updatedAt: '2024-03-13T09:00:00Z',
+        parent: {
+          id: 5,
+          name: 'Ana Perez',
+          familyId: 3,
+        },
+      },
+    ],
   },
   recentlyUpdatedChildren: [
     {
@@ -144,6 +166,7 @@ const mockDashboardData: DashboardResponse = {
   stats: {
     totalFamilies: 25,
     totalChildren: 45,
+    totalCommunities: 7,
     familiesInCrisis: 3,
     visitsThisMonth: 12,
   },
@@ -226,7 +249,10 @@ describe('DashboardPage', () => {
       // Check statistics
       expect(screen.getByText('25')).toBeInTheDocument(); // Total Families
       expect(screen.getByText('45')).toBeInTheDocument(); // Total Children
-      expect(screen.getByText('3')).toBeInTheDocument(); // Families in Crisis
+      expect(screen.getByText('7')).toBeInTheDocument(); // Total Communities
+      expect(screen.getByText('Total Communities')).toBeInTheDocument();
+      // "3" also appears as the Recent Visits section badge (child + family + parent)
+      expect(screen.getAllByText('3').length).toBeGreaterThan(0); // Families in Crisis
       expect(screen.getByText('12')).toBeInTheDocument(); // Visits This Month
 
       // Check section headers
@@ -242,7 +268,7 @@ describe('DashboardPage', () => {
       expect(screen.getByText(/Lopez Family/)).toBeInTheDocument();
 
       // Families in crisis shown as count in stat card only (no individual family names in overview)
-      expect(screen.getByText('3')).toBeInTheDocument();
+      expect(screen.queryByText('Crisis Family')).not.toBeInTheDocument();
     });
   });
 
@@ -251,12 +277,14 @@ describe('DashboardPage', () => {
       recentVisits: {
         childVisits: [],
         familyVisits: [],
+        parentVisits: [],
       },
       recentlyUpdatedChildren: [],
       familiesInCrisis: [],
       stats: {
         totalFamilies: 0,
         totalChildren: 0,
+        totalCommunities: 0,
         familiesInCrisis: 0,
         visitsThisMonth: 0,
       },
@@ -272,6 +300,18 @@ describe('DashboardPage', () => {
       // Check that empty state messages are shown
       expect(screen.getByText('No recent visits')).toBeInTheDocument();
       expect(screen.getByText('No recently updated children')).toBeInTheDocument();
+      // Crisis stat is always shown, reading 0 when no family is in crisis
+      expect(screen.getByRole('button', { name: /Families in Crisis/ })).toBeInTheDocument();
+    });
+  });
+
+  it('should show the crisis stat next to the other totals', async () => {
+    vi.mocked(dashboardApi.fetchDashboardData).mockResolvedValue(mockDashboardData);
+
+    renderWithQueryClient(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Families in Crisis/ })).toBeInTheDocument();
     });
   });
 
@@ -284,6 +324,18 @@ describe('DashboardPage', () => {
       // Dates are shown as relative time (e.g., "X days ago"), grouped by visit type
       expect(screen.getByText(/Child Visit/)).toBeInTheDocument();
       expect(screen.getByText(/Family Visit/)).toBeInTheDocument();
+      expect(screen.getByText(/Parent Visit/)).toBeInTheDocument();
+    });
+  });
+
+  it('should link recent parent visits to the parent visit detail page', async () => {
+    vi.mocked(dashboardApi.fetchDashboardData).mockResolvedValue(mockDashboardData);
+
+    renderWithQueryClient(<DashboardPage />);
+
+    await waitFor(() => {
+      const link = screen.getByText('Ana Perez').closest('a');
+      expect(link).toHaveAttribute('href', '/families/3/parents/5/visits/1');
     });
   });
 

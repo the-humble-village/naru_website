@@ -3,6 +3,7 @@ import {
   type FamilyCreate,
   type FamilyUpdate,
   type FamilyRead,
+  type FamilyListItem,
   type UserRead
 } from '@naru/shared';
 import prisma from '../db.js';
@@ -19,7 +20,7 @@ export async function listFamilies(options: {
   siteId?: string;
   inCrisis?: string;
   user: UserRead;
-} = {} as any): Promise<{ families: FamilyRead[]; total: number }> {
+} = {} as any): Promise<{ families: FamilyListItem[]; total: number }> {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 20)); // Max 100 per page
 
@@ -80,6 +81,11 @@ export async function listFamilies(options: {
         createdAt: true,
         updatedAt: true,
         // Explicitly exclude deletedAt
+        familyVisits: {
+          take: 1,
+          orderBy: { visitDate: 'desc' },
+          select: { visitDate: true },
+        },
       },
       orderBy: {
         updatedAt: 'desc',
@@ -88,12 +94,13 @@ export async function listFamilies(options: {
     prisma.family.count({ where }),
   ]);
 
-  // Transform dates to ISO strings
-  const familiesRead: FamilyRead[] = families.map((family: any) => ({
+  // Transform dates to ISO strings; familyVisits is a lookup detail, not part of the row
+  const familiesRead: FamilyListItem[] = families.map(({ familyVisits, ...family }: any) => ({
     ...family,
     photos: family.photos as number[],
     createdAt: family.createdAt.toISOString(),
     updatedAt: family.updatedAt.toISOString(),
+    lastVisitDate: familyVisits?.[0]?.visitDate.toISOString() ?? null,
   }));
 
   return {

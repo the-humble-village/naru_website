@@ -1,7 +1,9 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { HTTPException } from 'hono/http-exception';
+import { ZodError } from 'zod';
 import {
+  TokenPayloadSchema,
   type Login,
   type AuthResponse,
   type UserRead,
@@ -75,8 +77,11 @@ export async function login(data: Login): Promise<AuthResponse> {
  */
 export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
   try {
-    // Verify refresh token
-    const decoded = jwt.verify(refreshToken, appConfig.JWT_REFRESH_SECRET) as TokenPayload;
+    // Verify refresh token. Parsed rather than cast so a validly signed but
+    // malformed payload is a 401 here, not an unhandled 500 downstream.
+    const decoded = TokenPayloadSchema.parse(
+      jwt.verify(refreshToken, appConfig.JWT_REFRESH_SECRET, { algorithms: ['HS256'] })
+    );
 
     // Fetch current user data
     const user = await prisma.user.findUnique({
@@ -115,10 +120,17 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
       ...tokens,
     };
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
-      if (error instanceof jwt.JsonWebTokenError) {
-        console.error(`Refresh JWT Error: ${error.message}`);
-      }
+    // 401s raised inside the try (e.g. "User not found") must pass through intact.
+    if (error instanceof HTTPException) {
+      throw error;
+    }
+    // TokenExpiredError extends JsonWebTokenError, so one check covers both.
+    if (error instanceof jwt.JsonWebTokenError) {
+      console.warn(`Refresh rejected: ${error.message}`);
+      throw new HTTPException(401, { message: 'Invalid refresh token' });
+    }
+    if (error instanceof ZodError) {
+      console.warn('Refresh rejected: malformed token payload');
       throw new HTTPException(401, { message: 'Invalid refresh token' });
     }
     throw error;
@@ -136,10 +148,12 @@ function generateTokens(user: UserRead): { accessToken: string; refreshToken: st
   };
 
   const accessToken = jwt.sign(payload, appConfig.JWT_SECRET, {
+    algorithm: 'HS256',
     expiresIn: ACCESS_TOKEN_EXPIRY,
   });
 
   const refreshToken = jwt.sign(payload, appConfig.JWT_REFRESH_SECRET, {
+    algorithm: 'HS256',
     expiresIn: REFRESH_TOKEN_EXPIRY,
   });
 

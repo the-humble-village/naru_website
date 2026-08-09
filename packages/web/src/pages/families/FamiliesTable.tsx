@@ -49,7 +49,7 @@ function renderCell(
     case 'lastVisitDate':
       return (
         <div className="text-sm text-hv-charcoal">
-          {family.lastVisitDate ? new Date(family.lastVisitDate).toLocaleDateString() : '—'}
+          {family.lastVisitDate ? formatDate(family.lastVisitDate) : '—'}
         </div>
       );
     case 'updatedAt':

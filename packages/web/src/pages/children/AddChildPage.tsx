@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChildCreate, ChildCreateSchema } from '@naru/shared';
 import { childrenApi } from '../../api/children';
-import { PhotoUpload } from '../../components';
+import { PhotoUpload, NameInput } from '../../components';
 import { useTranslation } from '../../hooks';
 
 /**
@@ -116,8 +116,7 @@ export const AddChildPage: React.FC = () => {
           <label htmlFor="name" className="block text-sm font-medium text-hv-charcoal mb-2">
             Name <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
+          <NameInput
             id="name"
             name="name"
             value={formData.name}

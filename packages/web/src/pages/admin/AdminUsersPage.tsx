@@ -6,8 +6,10 @@ import { usersApi } from '../../api/users';
 import { UserRead, UserCreate, UserUpdate, Role } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { NameInput } from '../../components/ui/NameInput';
 import { useAuthStore } from '../../store/auth';
 import { useTranslation } from '../../hooks';
+import { formatDate } from '../../utils/datetime';
 
 interface UserFormData {
   login: string;
@@ -338,9 +340,8 @@ export const AdminUsersPage: React.FC = () => {
                     <label htmlFor="user-firstName" className="block text-sm font-medium text-hv-charcoal mb-1">
                       {t('common.first_name')}
                     </label>
-                    <input
+                    <NameInput
                       id="user-firstName"
-                      type="text"
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
@@ -350,9 +351,8 @@ export const AdminUsersPage: React.FC = () => {
                     <label htmlFor="user-lastName" className="block text-sm font-medium text-hv-charcoal mb-1">
                       {t('common.last_name')}
                     </label>
-                    <input
+                    <NameInput
                       id="user-lastName"
-                      type="text"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                       className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
@@ -506,7 +506,7 @@ export const AdminUsersPage: React.FC = () => {
                       {user.lang === 'en' ? t('lang.english') : t('lang.spanish')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {formatDate(user.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-3">
                       <button

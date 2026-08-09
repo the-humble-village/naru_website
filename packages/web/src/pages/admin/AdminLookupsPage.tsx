@@ -5,8 +5,10 @@ import { adminApi, LookupTableName } from '../../api/admin';
 import { LookupRead, LookupCreate, LookupUpdate, type TranslationKey } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { NameInput } from '../../components/ui/NameInput';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useTranslation } from '../../hooks';
+import { formatDate } from '../../utils/datetime';
 
 interface LookupFormData {
   title: string;
@@ -59,6 +61,11 @@ export const AdminLookupsPage: React.FC = () => {
     : null;
 
   const isQuestionTable = !!lookupTable && QUESTION_TABLES.has(lookupTable);
+
+  // Community, site, resource and training titles are proper nouns - keyboard autocorrect
+  // rewrites real names like "Choc" into dictionary words. Question titles are prose, so
+  // they keep autocorrect on.
+  const TitleInput = isQuestionTable ? 'input' : NameInput;
 
   // Fetch lookup table data
   const { data: items = DEFAULT_ITEMS, isLoading, error } = useQuery({
@@ -298,7 +305,7 @@ export const AdminLookupsPage: React.FC = () => {
                   <label htmlFor="lookup-title" className="block text-sm font-medium text-hv-charcoal mb-1">
                     {t('common.col_title')} <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <TitleInput
                     id="lookup-title"
                     type="text"
                     value={formData.title}
@@ -391,10 +398,10 @@ export const AdminLookupsPage: React.FC = () => {
                       <div className="font-medium text-hv-charcoal">{item.title}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
-                      {new Date(item.createdAt).toLocaleDateString()}
+                      {formatDate(item.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
-                      {new Date(item.updatedAt).toLocaleDateString()}
+                      {formatDate(item.updatedAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-3">
                       <button

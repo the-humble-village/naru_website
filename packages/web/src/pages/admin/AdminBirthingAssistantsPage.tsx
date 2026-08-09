@@ -7,7 +7,9 @@ import axios from 'axios';
 import { BirthingAssistantRead, BirthingAssistantCreate, BirthingAssistantUpdate } from '@naru/shared';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { NameInput } from '../../components/ui/NameInput';
 import { useTranslation } from '../../hooks';
+import { formatDate } from '../../utils/datetime';
 
 /**
  * Pull the server's message out of an API failure. The backend responds with
@@ -329,9 +331,8 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
                   <label htmlFor="ba-name" className="block text-sm font-medium text-hv-charcoal mb-1">
                     Name <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <NameInput
                     id="ba-name"
-                    type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
@@ -507,7 +508,7 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
-                      {new Date(ba.createdAt).toLocaleDateString()}
+                      {formatDate(ba.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-3">
                       <button

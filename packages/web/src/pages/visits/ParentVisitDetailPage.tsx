@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react';
 import { visitsApi } from '../../api/visits';
 import { PhotoGallery, RoleGate, ConfirmDialog } from '../../components';
 import { useTranslation } from '../../hooks';
+import { formatDate, formatDateUTC, formatDateTime } from '../../utils/datetime';
 
 /**
  * ParentVisitDetailPage - Shows full details of a single parent visit
@@ -51,7 +52,7 @@ export const ParentVisitDetailPage: React.FC = () => {
     <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
         <h1 className="text-2xl font-serif font-bold text-hv-charcoal">
-          Parent Visit &mdash; {new Date(visit.visitDate).toLocaleDateString()}
+          Parent Visit &mdash; {formatDateUTC(visit.visitDate)}
         </h1>
         <div className="flex gap-4 shrink-0">
           <Link
@@ -93,7 +94,7 @@ export const ParentVisitDetailPage: React.FC = () => {
       <ConfirmDialog
         open={confirmDeleteOpen}
         title="Delete parent visit"
-        message={`Delete the visit recorded on ${new Date(visit.visitDate).toLocaleDateString()}?`}
+        message={`Delete the visit recorded on ${formatDateUTC(visit.visitDate)}?`}
         warning="Measurements, trainings, resources, question answers and photos recorded on this visit will be removed too."
         busy={deleteVisitMutation.isPending}
         onConfirm={() => deleteVisitMutation.mutate()}
@@ -107,7 +108,7 @@ export const ParentVisitDetailPage: React.FC = () => {
             <div className="px-5 py-4">
               <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Visit Date</div>
               <div className="text-sm font-medium text-hv-charcoal">
-                {new Date(visit.visitDate).toLocaleString()}
+                {formatDateTime(visit.visitDate)}
               </div>
             </div>
             <div className="px-5 py-4">
@@ -119,7 +120,7 @@ export const ParentVisitDetailPage: React.FC = () => {
             <div className="px-5 py-4">
               <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Recorded</div>
               <div className="text-sm font-medium text-hv-charcoal">
-                {new Date(visit.createdAt).toLocaleDateString()}
+                {formatDate(visit.createdAt)}
               </div>
             </div>
           </div>

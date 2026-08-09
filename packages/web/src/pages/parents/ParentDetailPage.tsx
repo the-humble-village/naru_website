@@ -5,8 +5,9 @@ import { Trash2 } from 'lucide-react';
 import { parentsApi } from '../../api/parents';
 import { visitsApi } from '../../api/visits';
 import { ParentUpdate, ParentRead } from '@naru/shared';
-import { PhotoUpload, PhotoGallery, RoleGate, ConfirmDialog } from '../../components';
+import { PhotoUpload, PhotoGallery, RoleGate, ConfirmDialog, NameInput } from '../../components';
 import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
+import { formatDate, formatDateUTC } from '../../utils/datetime';
 
 /**
  * ParentDetailPage - Shows parent details with edit form
@@ -136,13 +137,6 @@ export const ParentDetailPage: React.FC = () => {
     updateParentMutation.mutate(dataToSave);
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '—';
-    // Calendar dates are stored as UTC midnight; render in UTC so they don't
-    // shift back a day in local timezones.
-    return new Date(dateString).toLocaleDateString(undefined, { timeZone: 'UTC' });
-  };
-
   const formatRole = (role: string | null) => {
     if (!role) return '—';
     // Capitalize first letter
@@ -248,8 +242,7 @@ export const ParentDetailPage: React.FC = () => {
               <label htmlFor="name" className="block text-sm font-medium text-hv-charcoal mb-1">
                 Name
               </label>
-              <input
-                type="text"
+              <NameInput
                 id="name"
                 value={editData.name || ''}
                 onChange={(e) => setEditData({ ...editData, name: e.target.value })}
@@ -387,19 +380,19 @@ export const ParentDetailPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-hv-charcoal">Birth Date</label>
-                <p className="text-hv-charcoal">{formatDate(parent.birthDate)}</p>
+                <p className="text-hv-charcoal">{formatDateUTC(parent.birthDate) || '—'}</p>
               </div>
 
               <div>
                 <label className="text-sm font-medium text-hv-charcoal">Date Entered Program</label>
-                <p className="text-hv-charcoal">{formatDate(parent.dateEntered)}</p>
+                <p className="text-hv-charcoal">{formatDateUTC(parent.dateEntered) || '—'}</p>
               </div>
             </div>
 
             {parent.dueDate && (
               <div>
                 <label className="text-sm font-medium text-hv-charcoal">Due Date</label>
-                <p className="text-hv-charcoal">{formatDate(parent.dueDate)}</p>
+                <p className="text-hv-charcoal">{formatDateUTC(parent.dueDate)}</p>
               </div>
             )}
 
@@ -458,7 +451,7 @@ export const ParentDetailPage: React.FC = () => {
               >
                 <div>
                   <span className="text-sm font-medium text-hv-charcoal">
-                    {formatDate(visit.visitDate)}
+                    {formatDateUTC(visit.visitDate)}
                   </span>
                   {visit.weight > 0 && (
                     <span className="text-sm text-hv-sage ml-3">

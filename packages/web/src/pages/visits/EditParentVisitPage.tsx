@@ -8,7 +8,7 @@ import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoUpload } from '../../components';
-import { toDateTimeLocal, fromDateTimeLocal, nowDateTimeLocal } from '../../utils/datetime';
+import { toDateTimeLocal, fromDateTimeLocal, nowDateTimeLocal, formatDateUTC } from '../../utils/datetime';
 import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 
 export const EditParentVisitPage: React.FC = () => {
@@ -238,7 +238,7 @@ export const EditParentVisitPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-serif font-bold text-hv-charcoal">Edit Parent Visit</h1>
           <p className="text-hv-gray mt-1">
-            {visit ? new Date(visit.visitDate).toLocaleDateString() : ''}
+            {visit ? formatDateUTC(visit.visitDate) : ''}
           </p>
         </div>
         <Link

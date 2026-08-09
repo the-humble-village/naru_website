@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Columns2 } from 'lucide-react';
 import { type FamilyRead, type TranslationKey } from '@naru/shared';
 import { useTranslation } from '../../hooks';
+import { formatDate } from '../../utils/datetime';
 import { ALL_COLUMNS, SORTABLE, type ColumnKey, type SortColumn, type FamilyTableState } from './useFamilyTable';
 
 function renderCell(
@@ -46,7 +47,7 @@ function renderCell(
     case 'childrenEditable':
       return <div className="text-sm text-hv-charcoal">{family.childrenEditable}</div>;
     case 'updatedAt':
-      return <div className="text-sm text-hv-charcoal">{new Date(family.updatedAt).toLocaleDateString()}</div>;
+      return <div className="text-sm text-hv-charcoal">{formatDate(family.updatedAt)}</div>;
   }
 }
 

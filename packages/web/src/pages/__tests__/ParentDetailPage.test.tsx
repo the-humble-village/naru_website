@@ -144,12 +144,12 @@ describe('ParentDetailPage', () => {
 
       // Check parent details
       expect(screen.getByText('Mother')).toBeInTheDocument(); // Capitalized role
-      expect(screen.getByText(/3\/1[45]\/1985/)).toBeInTheDocument(); // Birth date formatted (could be 14 or 15 depending on timezone)
+      expect(screen.getByText('15/3/1985')).toBeInTheDocument(); // Birth date formatted as D/M/YYYY
       // Find the Date Entered Program label and check its sibling paragraph
       const dateEnteredLabel = screen.getByText('Date Entered Program');
       const dateEnteredSection = dateEnteredLabel.parentElement;
-      expect(dateEnteredSection).toHaveTextContent(/1\/1?[09]\/2024/);
-      expect(screen.getByText(/9\/1[45]\/2024/)).toBeInTheDocument(); // Due date formatted
+      expect(dateEnteredSection).toHaveTextContent('10/1/2024');
+      expect(screen.getByText('15/9/2024')).toBeInTheDocument(); // Due date formatted as D/M/YYYY
       expect(screen.getByText('Expecting second child')).toBeInTheDocument();
       expect(screen.getByText('Attends all appointments regularly')).toBeInTheDocument();
     });
@@ -352,12 +352,12 @@ describe('ParentDetailPage', () => {
       renderWithProviders();
 
       await waitFor(() => {
-        expect(screen.getByText(/3\/1[45]\/1985/)).toBeInTheDocument();
+        expect(screen.getByText('15/3/1985')).toBeInTheDocument();
         // Find the Date Entered Program label and check its sibling paragraph
         const dateEnteredLabel = screen.getByText('Date Entered Program');
         const dateEnteredSection = dateEnteredLabel.parentElement;
-        expect(dateEnteredSection).toHaveTextContent(/1\/1?[09]\/2024/);
-        expect(screen.getByText(/9\/1[45]\/2024/)).toBeInTheDocument();
+        expect(dateEnteredSection).toHaveTextContent('10/1/2024');
+        expect(screen.getByText('15/9/2024')).toBeInTheDocument();
       });
     });
 

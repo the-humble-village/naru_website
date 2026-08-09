@@ -33,87 +33,22 @@ const testClient = {
 };
 
 describe('Auth Routes', () => {
+  // Self-service registration was removed: unauthenticated, it handed any caller
+  // a CASEWORKER token and with it read access to every family's health records.
+  // Accounts are created by an admin via POST /api/users. Guard against the route
+  // being reintroduced by accident.
   describe('POST /register', () => {
-    it('should register a new user successfully', async () => {
-      const userData = {
+    it('is not exposed', async () => {
+      const response = await testClient.post('/auth/register', {
         login: 'newuser',
         email: 'newuser@example.com',
-        firstName: 'New',
-        lastName: 'User',
         password: 'password123',
-        lang: 'en',
-      };
-
-      const response = await testClient.post('/auth/register', userData);
-      const result = await response.json();
-
-      expect(response.status).toBe(201);
-      expect(result.user).toBeDefined();
-      expect(result.user.login).toBe(userData.login);
-      expect(result.user.email).toBe(userData.email);
-      expect(result.user.firstName).toBe(userData.firstName);
-      expect(result.user.lastName).toBe(userData.lastName);
-      expect(result.user.role).toBe('CASEWORKER');
-      expect(result.user.lang).toBe('en');
-      expect(result.accessToken).toBeDefined();
-      expect(result.refreshToken).toBeDefined();
-
-      // Verify user was created in database
-      const dbUser = await testDb.user.findUnique({
-        where: { login: userData.login },
-      });
-      expect(dbUser).toBeTruthy();
-      expect(dbUser?.login).toBe(userData.login);
-
-      // Verify password was hashed
-      const isValidPassword = await bcrypt.compare(userData.password, dbUser!.passwordHash);
-      expect(isValidPassword).toBe(true);
-    });
-
-    it('should return 400 if user already exists', async () => {
-      // Create a user first
-      await testDb.user.create({
-        data: {
-          login: 'existinguser',
-          email: 'existing@example.com',
-          passwordHash: await bcrypt.hash('password', 10),
-          role: 'CASEWORKER',
-        },
       });
 
-      const userData = {
-        login: 'existinguser',
-        password: 'password123',
-      };
+      expect(response.status).toBe(404);
 
-      const response = await testClient.post('/auth/register', userData);
-
-      expect(response.status).toBe(400);
-
-      if (response.headers.get('content-type')?.includes('application/json')) {
-        const result = await response.json();
-        expect(result.message).toContain('already exists');
-      }
-    });
-
-    it('should validate required fields', async () => {
-      const response = await testClient.post('/auth/register', {
-        // Missing login and password
-        email: 'test@example.com',
-      });
-
-      expect(response.status).toBe(400);
-    });
-
-    it('should validate password minimum length', async () => {
-      const userData = {
-        login: 'testuser',
-        password: '123', // Too short
-      };
-
-      const response = await testClient.post('/auth/register', userData);
-
-      expect(response.status).toBe(400);
+      const dbUser = await testDb.user.findUnique({ where: { login: 'newuser' } });
+      expect(dbUser).toBeNull();
     });
   });
 

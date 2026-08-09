@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Role enum for validation
 export const RoleSchema = z.enum(['ADMIN', 'SUPERVISOR', 'CASEWORKER']);
 
-// User creation schema (for registration and admin create)
+// User creation schema (admin create only — there is no self-service signup)
 export const UserCreateSchema = z.object({
   login: z.string().min(1).max(255),
   email: z.string().email().optional().nullable(),
@@ -54,16 +54,6 @@ export const LoginSchema = z.object({
   password: z.string().min(1),
 });
 
-// Registration request schema
-export const RegisterSchema = UserCreateSchema.pick({
-  login: true,
-  email: true,
-  firstName: true,
-  lastName: true,
-  password: true,
-  lang: true,
-});
-
 // JWT token payload schema
 export const TokenPayloadSchema = z.object({
   userId: z.number().int().positive(),
@@ -73,7 +63,7 @@ export const TokenPayloadSchema = z.object({
   exp: z.number().optional(),
 });
 
-// Auth API response schema (for login/register/refresh)
+// Auth API response schema (for login/refresh)
 export const AuthResponseSchema = z.object({
   user: UserReadSchema,
   accessToken: z.string(),
@@ -87,6 +77,5 @@ export type UserUpdate = z.infer<typeof UserUpdateSchema>;
 export type UserPasswordReset = z.infer<typeof UserPasswordResetSchema>;
 export type UserRead = z.infer<typeof UserReadSchema>;
 export type Login = z.infer<typeof LoginSchema>;
-export type Register = z.infer<typeof RegisterSchema>;
 export type TokenPayload = z.infer<typeof TokenPayloadSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;

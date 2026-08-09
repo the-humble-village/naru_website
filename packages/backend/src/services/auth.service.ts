@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { HTTPException } from 'hono/http-exception';
 import {
-  type Register,
   type Login,
   type AuthResponse,
   type UserRead,
@@ -15,63 +14,9 @@ const BCRYPT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = '1h';
 const REFRESH_TOKEN_EXPIRY = '30d';
 
-/**
- * Register a new user account
- */
-export async function register(data: Register): Promise<AuthResponse> {
-  // Check if user already exists
-  const existingUser = await prisma.user.findUnique({
-    where: { login: data.login },
-  });
-
-  if (existingUser) {
-    throw new HTTPException(400, { message: 'User with this login already exists' });
-  }
-
-  // Hash password
-  const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
-
-  // Create user
-  const user = await prisma.user.create({
-    data: {
-      login: data.login,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      passwordHash,
-      role: 'CASEWORKER', // Default role for registration
-      lang: data.lang || 'en',
-    },
-    select: {
-      id: true,
-      localId: true,
-      login: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      role: true,
-      lang: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude passwordHash and deletedAt
-    },
-  });
-
-  // Transform dates to ISO strings
-  const userRead: UserRead = {
-    ...user,
-    createdAt: user.createdAt.toISOString(),
-    updatedAt: user.updatedAt.toISOString(),
-  };
-
-  // Generate tokens
-  const tokens = generateTokens(userRead);
-
-  return {
-    user: userRead,
-    ...tokens,
-  };
-}
+// Account creation lives in user.service.ts createUser(), behind admin auth.
+// There is no self-service registration: it could only ever mint CASEWORKERs,
+// and being unauthenticated it handed any caller read access to patient data.
 
 /**
  * Login with existing credentials

@@ -117,7 +117,7 @@ packages/backend/
 │   │   ├── role.ts             # requireRole(role) factory, requireAdmin, requireSupervisor, requireCaseworker
 │   │   └── soft-delete.ts      # Prisma middleware that auto-filters deletedAt on reads and converts deletes to soft-deletes
 │   ├── routes/
-│   │   ├── auth.ts             # POST /api/auth/login, /register, /refresh — no auth required
+│   │   ├── auth.ts             # POST /api/auth/login, /refresh — no auth required (no signup: accounts are admin-created)
 │   │   ├── families.ts         # CRUD /api/families and /api/families/:id
 │   │   ├── children.ts         # CRUD /api/families/:familyId/children and /:id
 │   │   ├── parents.ts          # CRUD /api/families/:familyId/parents and /:id
@@ -134,7 +134,7 @@ packages/backend/
 │   │   ├── sites.ts            # CRUD /api/sites — ADMIN only
 │   │   ├── sync.ts             # POST /api/sync — mobile offline sync endpoint
 │   └── services/
-│       ├── auth.service.ts             # register(), login(), refresh() — password hashing, token generation
+│       ├── auth.service.ts             # login(), refresh() — password verification, token generation
 │       ├── family.service.ts           # list(), fetch(), create(), update(), softDelete()
 │       ├── child.service.ts            # list(), fetch(), create(), update(), softDelete()
 │       ├── parent.service.ts           # list(), fetch(), create(), update(), softDelete()
@@ -184,7 +184,7 @@ packages/web/src/
 ├── App.tsx                     # React Router v6 route definitions — all routes live here
 ├── api/
 │   ├── client.ts               # Axios instance configured with /api base URL, JWT Authorization header interceptor, silent 401 refresh logic
-│   ├── auth.ts                 # authApi.login(), .register(), .refresh()
+│   ├── auth.ts                 # authApi.login(), .refresh()
 │   ├── families.ts             # familiesApi.list(), .fetch(), .create(), .update(), .delete()
 │   ├── children.ts             # childrenApi.list(), .fetch(), .create(), .update(), .delete()
 │   ├── parents.ts              # parentsApi.list(), .fetch(), .create(), .update(), .delete()

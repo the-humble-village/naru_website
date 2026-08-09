@@ -8,9 +8,10 @@ import { childrenApi } from '../../api/children';
 import { visitsApi } from '../../api/visits';
 import { ChildRead, ChildVisitRead, ChildUpdate, Sex } from '@naru/shared';
 import ZScoreBadge from '../../components/ZScoreBadge';
-import { PhotoGallery, PhotoUpload, ConfirmDialog, RoleGate } from '../../components';
+import { PhotoGallery, PhotoUpload, ConfirmDialog, RoleGate, NameInput } from '../../components';
 import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 import { Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { formatDateUTC } from '../../utils/datetime';
 
 interface ChildEditForm {
   name: string;
@@ -149,11 +150,6 @@ export const ChildDetailPage: React.FC = () => {
   if (isLoading) return <div className="text-hv-gray">Loading...</div>;
   if (error || !child) return <div className="text-red-500">Child not found</div>;
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString();
-  // Calendar dates (birthDate, visitDate) are stored as UTC midnight, so render
-  // them in UTC to avoid the local-timezone shift that pushes them back a day.
-  const formatDateOnly = (d: string) => new Date(d).toLocaleDateString(undefined, { timeZone: 'UTC' });
-
   const ageInMonths = (() => {
     const birth = new Date(child.birthDate);
     const now = new Date();
@@ -175,7 +171,7 @@ export const ChildDetailPage: React.FC = () => {
     ? [...visitsResponse]
         .sort((a, b) => new Date(a.visitDate).getTime() - new Date(b.visitDate).getTime())
         .map(v => ({
-          date: new Date(v.visitDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+          date: formatDateUTC(v.visitDate),
           weight: parseFloat(v.weight.toFixed(2)),
           muac:   v.armCircumference > 0 ? parseFloat((v.armCircumference / 10).toFixed(1)) : null,
           height: v.height > 0          ? parseFloat((v.height / 10).toFixed(1))           : null,
@@ -254,8 +250,7 @@ export const ChildDetailPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-hv-charcoal mb-1">Name</label>
-                <input
-                  type="text"
+                <NameInput
                   id="name"
                   value={editData.name}
                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
@@ -391,7 +386,7 @@ export const ChildDetailPage: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-hv-border">
           <div className="px-4 py-3">
             <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Birth Date</div>
-            <div className="text-sm font-medium text-hv-charcoal">{formatDateOnly(child.birthDate)}</div>
+            <div className="text-sm font-medium text-hv-charcoal">{formatDateUTC(child.birthDate)}</div>
           </div>
           <div className="px-4 py-3">
             <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Weight</div>
@@ -403,7 +398,7 @@ export const ChildDetailPage: React.FC = () => {
           </div>
           <div className="px-4 py-3">
             <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Date Entered</div>
-            <div className="text-sm font-medium text-hv-charcoal">{child.dateEntered ? formatDate(child.dateEntered) : '—'}</div>
+            <div className="text-sm font-medium text-hv-charcoal">{formatDateUTC(child.dateEntered) || '—'}</div>
           </div>
         </div>
 
@@ -527,7 +522,7 @@ export const ChildDetailPage: React.FC = () => {
                               ? <ChevronDown size={14} />
                               : <ChevronRight size={14} />}
                           </td>
-                          <td className="px-4 py-2.5 text-sm text-hv-charcoal">{formatDateOnly(visit.visitDate)}</td>
+                          <td className="px-4 py-2.5 text-sm text-hv-charcoal">{formatDateUTC(visit.visitDate)}</td>
                           <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.weight.toFixed(2)}</td>
                           <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.armCircumference > 0 ? (visit.armCircumference / 10).toFixed(1) : '—'}</td>
                           <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.height > 0 ? (visit.height / 10).toFixed(1) : '—'}</td>

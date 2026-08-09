@@ -12,9 +12,10 @@ import { adminApi } from '../../api/admin';
 import { sitesApi } from '../../api/sites';
 import { birthingAssistantsApi } from '../../api/birthing-assistants';
 import { FamilyUpdate, SiteRead } from '@naru/shared';
-import { PhotoUpload, PhotoGallery, ConfirmDialog, RoleGate } from '../../components';
+import { PhotoUpload, PhotoGallery, ConfirmDialog, RoleGate, NameInput } from '../../components';
 import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 import { AlertTriangle, Users, Baby, CalendarCheck, Pencil, Trash2, Plus, ChevronRight, UserRound, PersonStanding, Heart, MapPin, X } from 'lucide-react';
+import { formatDate, formatDateUTC } from '../../utils/datetime';
 
 // Fix Leaflet default marker icons broken by bundlers
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
@@ -33,10 +34,6 @@ function ageLabel(dateStr: string | null): string {
   if (months < 24) return `${months} mo`;
   return `${Math.floor(months / 12)} yr`;
 }
-
-// Calendar dates (birthDate, dueDate, visitDate) are stored as UTC midnight, so
-// render them in UTC to avoid the local-timezone shift that pushes them back a day.
-const formatDateOnly = (d: string) => new Date(d).toLocaleDateString(undefined, { timeZone: 'UTC' });
 
 function roleIcon(role: string | null) {
   const r = (role ?? '').toLowerCase();
@@ -275,9 +272,8 @@ export const FamilyDetailPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label htmlFor="familyName" className="block text-xs font-medium text-hv-charcoal mb-1">{t('families.col_name')}</label>
-                <input
+                <NameInput
                   id="familyName"
-                  type="text"
                   value={editData.familyName || ''}
                   onChange={(e) => setEditData({ ...editData, familyName: e.target.value })}
                   className="w-full px-3 py-2 text-sm border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
@@ -431,7 +427,7 @@ export const FamilyDetailPage: React.FC = () => {
             </div>
             <div className="px-4 py-3">
               <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Updated</div>
-              <div className="text-sm font-medium text-hv-charcoal">{new Date(family.updatedAt).toLocaleDateString()}</div>
+              <div className="text-sm font-medium text-hv-charcoal">{formatDate(family.updatedAt)}</div>
             </div>
           </div>
           {family.notes && (
@@ -498,10 +494,10 @@ export const FamilyDetailPage: React.FC = () => {
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-hv-sage pl-10">
                       {parent.birthDate && (
-                        <span>{formatDateOnly(parent.birthDate)} · {ageLabel(parent.birthDate)}</span>
+                        <span>{formatDateUTC(parent.birthDate)} · {ageLabel(parent.birthDate)}</span>
                       )}
                       {parent.dueDate && (
-                        <span className="text-hv-terracotta">Due {formatDateOnly(parent.dueDate)}</span>
+                        <span className="text-hv-terracotta">Due {formatDateUTC(parent.dueDate)}</span>
                       )}
                     </div>
                     {parent.notes && (
@@ -548,7 +544,7 @@ export const FamilyDetailPage: React.FC = () => {
                         {child.name}
                       </span>
                       <span className="ml-2 text-xs text-hv-sage">
-                        {child.sex} • {ageLabel(child.birthDate)} • {formatDateOnly(child.birthDate)}
+                        {child.sex} • {ageLabel(child.birthDate)} • {formatDateUTC(child.birthDate)}
                         {child.weight > 0 && ` • ${child.weight.toFixed(1)} kg`}
                       </span>
                     </div>
@@ -590,7 +586,7 @@ export const FamilyDetailPage: React.FC = () => {
                   >
                     <div>
                       <div className="text-sm font-medium text-hv-charcoal group-hover:text-hv-green transition-colors">
-                        {formatDateOnly(visit.visitDate)}
+                        {formatDateUTC(visit.visitDate)}
                       </div>
                       <div className="text-xs text-hv-sage mt-0.5">
                         {[

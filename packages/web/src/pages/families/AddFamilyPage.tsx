@@ -5,7 +5,7 @@ import { FamilyCreate, FamilyCreateSchema } from '@naru/shared';
 import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
 import { birthingAssistantsApi } from '../../api/birthing-assistants';
-import { PhotoUpload } from '../../components';
+import { PhotoUpload, NameInput } from '../../components';
 import { useTranslation } from '../../hooks';
 
 /**
@@ -138,8 +138,7 @@ export const AddFamilyPage: React.FC = () => {
           <label htmlFor="familyName" className="block text-sm font-medium text-hv-charcoal mb-2">
             {t('families.col_name')}
           </label>
-          <input
-            type="text"
+          <NameInput
             id="familyName"
             name="familyName"
             value={formData.familyName || ''}

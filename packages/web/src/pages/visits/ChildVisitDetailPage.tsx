@@ -10,7 +10,7 @@ import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoGallery, PhotoUpload, ConfirmDialog, RoleGate } from '../../components';
 import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
-import { toDateTimeLocal, fromDateTimeLocal } from '../../utils/datetime';
+import { toDateTimeLocal, fromDateTimeLocal, formatDateUTC } from '../../utils/datetime';
 
 /**
  * Inline edit form state. Numeric measurements are held as strings so the inputs can be
@@ -222,7 +222,7 @@ export const ChildVisitDetailPage: React.FC = () => {
   if (isError || !visit) return <div className="text-red-500">Visit not found</div>;
 
   const fields: { label: string; value: React.ReactNode }[] = [
-    { label: 'Visit Date', value: new Date(visit.visitDate).toLocaleDateString() },
+    { label: 'Visit Date', value: formatDateUTC(visit.visitDate) },
     { label: 'Weight', value: visit.weight > 0 ? `${visit.weight.toFixed(2)} kg` : '—' },
     { label: 'Arm Circumference (MUAC)', value: visit.armCircumference > 0 ? `${(visit.armCircumference / 10).toFixed(1)} cm` : '—' },
     { label: 'Height', value: visit.height > 0 ? `${(visit.height / 10).toFixed(1)} cm` : '—' },
@@ -250,7 +250,7 @@ export const ChildVisitDetailPage: React.FC = () => {
             ← {child?.name ?? 'Child'}
           </Link>
           <h1 className="text-2xl font-serif font-bold text-hv-charcoal mt-1">
-            Visit — {new Date(visit.visitDate).toLocaleDateString()}
+            Visit — {formatDateUTC(visit.visitDate)}
           </h1>
         </div>
         <div className="flex items-center gap-2 mt-1">
@@ -278,7 +278,7 @@ export const ChildVisitDetailPage: React.FC = () => {
       <ConfirmDialog
         open={confirmDeleteOpen}
         title="Delete visit"
-        message={`Delete the visit recorded on ${new Date(visit.visitDate).toLocaleDateString()}? Its measurements, answers and photos go with it.`}
+        message={`Delete the visit recorded on ${formatDateUTC(visit.visitDate)}? Its measurements, answers and photos go with it.`}
         busy={deleteVisitMutation.isPending}
         onConfirm={() => deleteVisitMutation.mutate()}
         onCancel={() => setConfirmDeleteOpen(false)}

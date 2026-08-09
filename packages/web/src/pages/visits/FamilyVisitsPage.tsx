@@ -5,11 +5,9 @@ import { CalendarCheck, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { visitsApi } from '../../api/visits';
 import { familiesApi } from '../../api/families';
 import { useTranslation } from '../../hooks';
+import { formatDateUTC } from '../../utils/datetime';
 
 const PAGE_SIZE = 20;
-
-/** Visit dates are stored as UTC timestamps; pin the display so the day never drifts. */
-const formatDateOnly = (d: string) => new Date(d).toLocaleDateString(undefined, { timeZone: 'UTC' });
 
 /**
  * FamilyVisitsPage - The full, paginated list of a family's visits.
@@ -93,7 +91,7 @@ export const FamilyVisitsPage: React.FC = () => {
               >
                 <div>
                   <div className="text-sm font-medium text-hv-charcoal group-hover:text-hv-green transition-colors">
-                    {formatDateOnly(visit.visitDate)}
+                    {formatDateUTC(visit.visitDate)}
                   </div>
                   <div className="text-xs text-hv-sage mt-0.5">
                     {[

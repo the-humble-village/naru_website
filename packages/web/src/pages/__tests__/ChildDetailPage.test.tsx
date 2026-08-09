@@ -203,10 +203,10 @@ describe('ChildDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
       });
 
-      // Birth date should be formatted
-      expect(screen.getByText(/1\/15\/2023/)).toBeInTheDocument();
+      // Birth date should be formatted as D/M/YYYY
+      expect(screen.getByText(/15\/1\/2023/)).toBeInTheDocument();
       // Date entered should be formatted (using selector to avoid collision with visit table)
-      expect(screen.getByText(/2\/1\/2023/, { selector: 'div' })).toBeInTheDocument();
+      expect(screen.getByText(/1\/2\/2023/, { selector: 'div' })).toBeInTheDocument();
     });
 
     it('should calculate age correctly', async () => {

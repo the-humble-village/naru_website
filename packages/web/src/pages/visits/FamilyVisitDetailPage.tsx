@@ -15,7 +15,7 @@ import { questionSetsApi } from '../../api/question-sets';
 import { VisitQuestionsPanel } from './VisitQuestionsPanel';
 import { PhotoUpload, PhotoGallery, ConfirmDialog, RoleGate } from '../../components';
 import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
-import { toDateTimeLocal, fromDateTimeLocal } from '../../utils/datetime';
+import { toDateTimeLocal, fromDateTimeLocal, formatDate, formatDateUTC, formatDateTime } from '../../utils/datetime';
 
 /** Local shape of the inline edit form (visitDate held as a datetime-local value). */
 interface VisitEditData {
@@ -239,14 +239,14 @@ export const FamilyVisitDetailPage: React.FC = () => {
   }
 
   const deleteMessage =
-    `Delete the family visit recorded on ${new Date(visit.visitDate).toLocaleDateString()}? ` +
+    `Delete the family visit recorded on ${formatDateUTC(visit.visitDate)}? ` +
     'Its trainings, resources, question answers, notes and photos are removed with it. This cannot be undone.';
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
         <h1 className="text-2xl font-serif font-bold text-hv-charcoal">
-          Family Visit — {new Date(visit.visitDate).toLocaleDateString()}
+          Family Visit — {formatDateUTC(visit.visitDate)}
         </h1>
         <div className="flex items-center gap-2 shrink-0">
           {!isEditing && (
@@ -457,13 +457,13 @@ export const FamilyVisitDetailPage: React.FC = () => {
               <div className="px-5 py-4">
                 <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Visit Date</div>
                 <div className="text-sm font-medium text-hv-charcoal">
-                  {new Date(visit.visitDate).toLocaleString()}
+                  {formatDateTime(visit.visitDate)}
                 </div>
               </div>
               <div className="px-5 py-4">
                 <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Recorded</div>
                 <div className="text-sm font-medium text-hv-charcoal">
-                  {new Date(visit.createdAt).toLocaleDateString()}
+                  {formatDate(visit.createdAt)}
                 </div>
               </div>
             </div>

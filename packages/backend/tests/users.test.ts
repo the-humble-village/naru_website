@@ -646,6 +646,67 @@ describe('User Routes', () => {
     });
   });
 
+  // A password change must invalidate every token already out there. Anything that
+  // is not a password change must not, or benign edits would sign people out.
+  describe('tokenVersion bumping', () => {
+    const versionOf = async (id: number) =>
+      (await testDb.user.findUnique({ where: { id } }))!.tokenVersion;
+
+    it('bumps on POST /users/:id/password', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.post(
+        `/users/${caseworkerUser.id}/password`,
+        { password: 'reset-password-1' },
+        adminToken
+      );
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before + 1);
+    });
+
+    it('bumps on PUT /users/:id when a password is supplied', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { password: 'brand-new-password' },
+        adminToken
+      );
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before + 1);
+    });
+
+    it('does not bump on PUT /users/:id without a password', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { firstName: 'Renamed', email: 'renamed@example.com' },
+        adminToken
+      );
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before);
+    });
+
+    // Authorization is re-read from the row on every request, so a demotion already
+    // takes effect immediately. Bumping here would only sign users out on promotion.
+    it('does not bump on a role change', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.put(`/users/${caseworkerUser.id}`, { role: 'SUPERVISOR' }, adminToken);
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before);
+    });
+
+    it('does not bump on PATCH /users/me/language', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.patch('/users/me/language', { lang: 'en' }, caseworkerToken);
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before);
+    });
+  });
+
   describe('DELETE /users/:id', () => {
     it('should soft-delete a user for admin', async () => {
       const response = await testClient.delete(`/users/${caseworkerUser.id}`, adminToken);

@@ -189,6 +189,12 @@ export async function updateUser(
       role: data.role,
       lang: data.lang,
       passwordHash,
+      // Mirrors the hash: a password change revokes every existing session, while
+      // `undefined` is a Prisma no-op so a lang/email/role-only edit leaves the
+      // user signed in. Role changes deliberately do not bump — authorization is
+      // re-derived from this row on every request, so a demotion already takes
+      // effect immediately.
+      tokenVersion: passwordHash ? { increment: 1 } : undefined,
       updatedAt: new Date(),
     },
     select: USER_SELECT,
@@ -218,6 +224,8 @@ export async function resetUserPassword(id: number, password: string): Promise<U
     where: { id, deletedAt: null },
     data: {
       passwordHash,
+      // Signs the user out everywhere — the whole point of a reset.
+      tokenVersion: { increment: 1 },
       updatedAt: new Date(),
     },
     select: USER_SELECT,

@@ -258,4 +258,72 @@ describe('Auth Routes', () => {
       expect(result.user.deletedAt).toBeUndefined();
     });
   });
+
+  describe('token revocation (tokenVersion)', () => {
+    let userId: number;
+
+    beforeEach(async () => {
+      const user = await testDb.user.create({
+        data: {
+          login: 'testuser',
+          passwordHash: await bcrypt.hash('password123', 10),
+          role: 'CASEWORKER',
+          lang: 'en',
+          tokenVersion: 2,
+        },
+      });
+      userId = user.id;
+    });
+
+    it('stamps the current tokenVersion onto tokens issued by login', async () => {
+      const response = await testClient.post('/auth/login', {
+        login: 'testuser',
+        password: 'password123',
+      });
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect((jwt.verify(result.accessToken, appConfig.JWT_SECRET) as any).tokenVersion).toBe(2);
+      expect(
+        (jwt.verify(result.refreshToken, appConfig.JWT_REFRESH_SECRET) as any).tokenVersion
+      ).toBe(2);
+      // Internal counter — must never reach the client on the user object.
+      expect(result.user.tokenVersion).toBeUndefined();
+    });
+
+    // The half that matters: without this a refresh token stolen before a password
+    // reset stays usable for its full 30 days and keeps minting access tokens.
+    it('rejects a refresh token minted before the counter was bumped', async () => {
+      const staleToken = jwt.sign(
+        { userId, role: 'CASEWORKER', lang: 'en', tokenVersion: 2 },
+        appConfig.JWT_REFRESH_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      await testDb.user.update({
+        where: { id: userId },
+        data: { tokenVersion: { increment: 1 } },
+      });
+
+      const response = await testClient.post('/auth/refresh', { refreshToken: staleToken });
+
+      expect(response.status).toBe(401);
+      expect((await response.json()).message).toContain('Session expired');
+    });
+
+    it('accepts a refresh token whose version still matches', async () => {
+      const token = jwt.sign(
+        { userId, role: 'CASEWORKER', lang: 'en', tokenVersion: 2 },
+        appConfig.JWT_REFRESH_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      const response = await testClient.post('/auth/refresh', { refreshToken: token });
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.user.tokenVersion).toBeUndefined();
+      expect((jwt.verify(result.accessToken, appConfig.JWT_SECRET) as any).tokenVersion).toBe(2);
+    });
+  });
 });

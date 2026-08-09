@@ -37,6 +37,7 @@ export async function login(data: Login): Promise<AuthResponse> {
       role: true,
       lang: true,
       passwordHash: true,
+      tokenVersion: true,
       createdAt: true,
       updatedAt: true,
       // Explicitly exclude deletedAt
@@ -53,8 +54,9 @@ export async function login(data: Login): Promise<AuthResponse> {
     throw new HTTPException(401, { message: 'Invalid credentials' });
   }
 
-  // Remove passwordHash from response
-  const { passwordHash, ...userWithoutPassword } = user;
+  // Strip both before building the response. tokenVersion is an internal
+  // revocation counter and is not part of UserRead.
+  const { passwordHash, tokenVersion, ...userWithoutPassword } = user;
 
   // Transform dates to ISO strings
   const userRead: UserRead = {
@@ -64,7 +66,7 @@ export async function login(data: Login): Promise<AuthResponse> {
   };
 
   // Generate tokens
-  const tokens = generateTokens(userRead);
+  const tokens = generateTokens(userRead, tokenVersion);
 
   return {
     user: userRead,
@@ -95,6 +97,7 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
         lastName: true,
         role: true,
         lang: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
         // Explicitly exclude passwordHash and deletedAt
@@ -105,15 +108,24 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
       throw new HTTPException(401, { message: 'User not found' });
     }
 
+    // Refresh has to check the counter too — this is the half that matters. A
+    // refresh token stolen before a password reset would otherwise stay valid for
+    // its full 30 days and could mint fresh access tokens indefinitely.
+    if ((decoded.tokenVersion ?? 0) !== user.tokenVersion) {
+      throw new HTTPException(401, { message: 'Session expired. Please sign in again.' });
+    }
+
+    const { tokenVersion, ...userWithoutTokenVersion } = user;
+
     // Transform dates to ISO strings
     const userRead: UserRead = {
-      ...user,
+      ...userWithoutTokenVersion,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
 
     // Generate new tokens
-    const tokens = generateTokens(userRead);
+    const tokens = generateTokens(userRead, tokenVersion);
 
     return {
       user: userRead,
@@ -138,13 +150,21 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
 }
 
 /**
- * Generate access and refresh tokens for a user
+ * Generate access and refresh tokens for a user.
+ *
+ * `tokenVersion` is passed separately rather than read off `user` on purpose:
+ * UserRead is the API response contract, and the revocation counter must never
+ * appear in a payload sent to a client.
  */
-function generateTokens(user: UserRead): { accessToken: string; refreshToken: string } {
+function generateTokens(
+  user: UserRead,
+  tokenVersion: number
+): { accessToken: string; refreshToken: string } {
   const payload: TokenPayload = {
     userId: user.id,
     role: user.role,
     lang: user.lang,
+    tokenVersion,
   };
 
   const accessToken = jwt.sign(payload, appConfig.JWT_SECRET, {

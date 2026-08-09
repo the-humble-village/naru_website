@@ -63,10 +63,12 @@ export async function auth(c: Context, next: Next): Promise<void> {
       lastName: true,
       role: true,
       lang: true,
+      tokenVersion: true,
       createdAt: true,
       updatedAt: true,
       // Explicitly exclude passwordHash and deletedAt. GET /users/me returns this
-      // object verbatim, so anything added here ships to the client.
+      // object verbatim, so anything added here ships to the client — which is why
+      // tokenVersion is destructured back out below.
     },
   });
 
@@ -74,9 +76,18 @@ export async function auth(c: Context, next: Next): Promise<void> {
     throw new HTTPException(401, { message: 'User not found' });
   }
 
+  // Revocation check. Tokens minted before this claim existed carry no
+  // tokenVersion; absent means 0, matching the column default.
+  if ((payload.tokenVersion ?? 0) !== user.tokenVersion) {
+    console.warn(`Auth rejected: stale token version for user ${user.id}`);
+    throw new HTTPException(401, { message: 'Session expired. Please sign in again.' });
+  }
+
+  const { tokenVersion, ...userWithoutTokenVersion } = user;
+
   // Transform dates to ISO strings to match UserRead schema
   const userRead: UserRead = {
-    ...user,
+    ...userWithoutTokenVersion,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

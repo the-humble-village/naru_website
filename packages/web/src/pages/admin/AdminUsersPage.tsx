@@ -376,6 +376,7 @@ export const AdminUsersPage: React.FC = () => {
                     {editingUser && (
                       <p className="text-xs text-hv-gray mt-1">
                         Leave blank to keep the current password. At least 6 characters to reset it.
+                        Resetting a password signs the user out on all devices.
                       </p>
                     )}
                   </div>

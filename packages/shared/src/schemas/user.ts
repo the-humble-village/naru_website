@@ -59,6 +59,10 @@ export const TokenPayloadSchema = z.object({
   userId: z.number().int().positive(),
   role: RoleSchema,
   lang: z.string(),
+  // Revocation counter, compared against users.token_version on every request.
+  // Optional so tokens minted before this claim existed still parse; absent is
+  // treated as 0, which is the column default.
+  tokenVersion: z.number().int().nonnegative().optional(),
   iat: z.number().optional(),
   exp: z.number().optional(),
 });

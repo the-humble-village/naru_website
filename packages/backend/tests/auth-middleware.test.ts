@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import jwt from 'jsonwebtoken';
 import app from '../src/app';
-import { createTestUser } from './setup';
+import { createTestUser, testDb } from './setup';
 import { appConfig } from '../src/config';
 
 // Exercises the real app so the global onError, the security headers and the auth
@@ -85,6 +85,57 @@ describe('auth middleware', () => {
     )}.`;
 
     expect((await get('/api/users/me', unsigned)).status).toBe(401);
+  });
+});
+
+describe('token revocation (tokenVersion)', () => {
+  let userId: number;
+
+  const sign = (claims: Record<string, unknown>) =>
+    jwt.sign({ userId, role: 'CASEWORKER', lang: 'en', ...claims }, appConfig.JWT_SECRET, {
+      expiresIn: '15m',
+    });
+
+  beforeEach(async () => {
+    const user = await createTestUser({ login: 'revoke', email: 'revoke@example.com' });
+    userId = user.id;
+  });
+
+  it('accepts a token whose version matches the stored counter', async () => {
+    await testDb.user.update({ where: { id: userId }, data: { tokenVersion: 3 } });
+
+    expect((await get('/api/users/me', sign({ tokenVersion: 3 }))).status).toBe(200);
+  });
+
+  it('rejects a token minted before the counter was bumped', async () => {
+    const token = sign({ tokenVersion: 0 });
+    await testDb.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } });
+
+    const response = await get('/api/users/me', token);
+
+    expect(response.status).toBe(401);
+    expect((await response.json()).error).toBe('Session expired. Please sign in again.');
+  });
+
+  // The claim is optional so the tokens hand-signed across this suite — and any
+  // token issued before the column existed — keep working while the counter is 0.
+  it('treats an absent tokenVersion claim as 0', async () => {
+    expect((await get('/api/users/me', sign({}))).status).toBe(200);
+  });
+
+  it('rejects an absent tokenVersion claim once the counter has moved', async () => {
+    const token = sign({});
+    await testDb.user.update({ where: { id: userId }, data: { tokenVersion: 1 } });
+
+    expect((await get('/api/users/me', token)).status).toBe(401);
+  });
+
+  // GET /users/me returns c.var.user verbatim, so a missed destructure would ship
+  // the internal counter to every client.
+  it('does not expose tokenVersion on GET /users/me', async () => {
+    const response = await get('/api/users/me', sign({}));
+
+    expect(Object.keys(await response.json())).not.toContain('tokenVersion');
   });
 });
 

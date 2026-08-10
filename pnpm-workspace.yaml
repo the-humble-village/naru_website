@@ -1,6 +1,9 @@
 packages:
   - "packages/*"
 
+# Don't block on the interactive "remove node_modules?" prompt — git hooks and CI have no TTY.
+confirmModulesPurge: false
+
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true

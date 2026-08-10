@@ -60,10 +60,20 @@ sudo systemctl start naru-backend
 Create a `.env` file in `/var/www/backend` with your production secrets:
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/naru
-JWT_SECRET=your-production-secret
-JWT_REFRESH_SECRET=your-production-refresh-secret
+JWT_SECRET=<openssl rand -base64 48>
+JWT_REFRESH_SECRET=<a second, different openssl rand -base64 48>
 PORT=3000
 ```
+
+The backend validates both JWT secrets at boot: each must be at least 32
+characters and the two must differ. A violation logs one line and exits 1, which
+systemd sees as a crash loop and the deploy health check reports as a failure —
+so fix the `.env` before restarting, not after.
+
+Rotating either secret invalidates every access and refresh token in
+circulation, signing all users out. Do it outside working hours and tell staff
+first. Back up the old `.env`, keep the file `chmod 600`, and confirm
+`/api/health` answers before considering the restart done.
 
 ## How the Workflow Works
 

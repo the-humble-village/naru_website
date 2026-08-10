@@ -10,12 +10,22 @@ import { assertTestDatabaseUrl } from './assert-test-database'
 // trusting that config: a wrong value destroys real data.
 assertTestDatabaseUrl(process.env.DATABASE_URL, 'the test environment')
 
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only'
-process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-for-testing-only'
+// Assigned unconditionally, not `||`-defaulted. Vitest loads packages/backend/.env
+// into process.env, so a `||` here hands the suite whatever secret the developer
+// happens to have locally — different on every machine, and different again in CI.
+// Same hazard as DATABASE_URL above, minus the data loss.
+//
+// validateAuthConfig() enforces a 32-character floor. The access secret below is
+// exactly 32 — zero margin, so shortening it by even one character breaks
+// tests/config-validation.test.ts. The same applies to .env.test and to
+// pipeline.yml, which carry copies of these literals.
+process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only'
+process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only'
 
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { prisma as testDb } from '../src/db'
+import { resetAllRateLimits } from '../src/middleware/rate-limit'
 
 // Export it so tests can use it
 export { testDb }
@@ -36,15 +46,20 @@ beforeAll(async () => {
     throw error
   }
 
-  // Check if tables exist and provide helpful error message
+  // Check the schema is current and provide a helpful error message.
+  // P2021 = table missing (never migrated), P2022 = column missing (stale schema,
+  // i.e. a migration landed on main that this database has not caught up with).
   try {
     await testDb.user.count()
   } catch (error: any) {
-    if (error.code === 'P2021' || error.message.includes('does not exist')) {
-      console.error('❌ Test database tables do not exist.')
-      console.error('Please set up the test database by running:')
-      console.error('DATABASE_URL="postgresql://postgres@127.0.0.1:5432/naru_test" npx prisma migrate deploy')
-      throw new Error('Test database tables do not exist. Run migrations first.')
+    if (error.code === 'P2021' || error.code === 'P2022' || error.message.includes('does not exist')) {
+      const detail = error.code === 'P2022'
+        ? 'Test database schema is out of date (a column is missing).'
+        : 'Test database tables do not exist.'
+      console.error(`❌ ${detail}`)
+      console.error('Bring it up to date by running, from packages/backend:')
+      console.error(`DATABASE_URL="${process.env.DATABASE_URL}" npx prisma migrate deploy`)
+      throw new Error(`${detail} Run migrations first.`)
     }
     throw error
   }
@@ -56,6 +71,11 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await cleanupDatabase()
+  // vitest.config.ts runs everything in a single fork, so every test file shares
+  // one instance of the limiter's Map. Without this, failed-login assertions
+  // accumulate across the suite and eventually 429 for reasons unrelated to the
+  // test that trips it.
+  resetAllRateLimits()
 })
 
 // Helper functions for tests

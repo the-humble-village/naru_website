@@ -3,13 +3,13 @@ import { z } from 'zod';
 // Role enum for validation
 export const RoleSchema = z.enum(['ADMIN', 'SUPERVISOR', 'CASEWORKER']);
 
-// User creation schema (for registration and admin create)
+// User creation schema (admin create only — there is no self-service signup)
 export const UserCreateSchema = z.object({
   login: z.string().min(1).max(255),
   email: z.string().email().optional().nullable(),
   firstName: z.string().max(255).optional().nullable(),
   lastName: z.string().max(255).optional().nullable(),
-  password: z.string().min(6), // Plain password for creation
+  password: z.string().min(12), // Plain password for creation
   role: RoleSchema.default('CASEWORKER'),
   lang: z.string().max(5).default('en'),
   localId: z.string().uuid().optional(), // For offline-created records
@@ -25,12 +25,12 @@ export const UserUpdateSchema = z.object({
   lastName: z.string().max(255).optional().nullable(),
   role: RoleSchema.optional(),
   lang: z.string().max(5).optional(),
-  password: z.string().min(6).optional(),
+  password: z.string().min(12).optional(),
 }).partial();
 
 // Dedicated password reset payload (admin resetting another user's password)
 export const UserPasswordResetSchema = z.object({
-  password: z.string().min(6),
+  password: z.string().min(12),
 });
 
 // User read schema (what's returned from API - never includes passwordHash)
@@ -48,20 +48,16 @@ export const UserReadSchema = z.object({
   // Note: deletedAt and passwordHash are never exposed
 });
 
-// Login request schema
+// Login request schema.
+//
+// `password` stays min(1) on purpose. The 12-character minimum above applies to
+// setting a password, not to presenting one: raising it here would reject every
+// account created under the old rule with a validation error rather than
+// "Invalid credentials" — locking those users out, and telling an attacker which
+// accounts have a short password.
 export const LoginSchema = z.object({
   login: z.string().min(1),
   password: z.string().min(1),
-});
-
-// Registration request schema
-export const RegisterSchema = UserCreateSchema.pick({
-  login: true,
-  email: true,
-  firstName: true,
-  lastName: true,
-  password: true,
-  lang: true,
 });
 
 // JWT token payload schema
@@ -69,11 +65,15 @@ export const TokenPayloadSchema = z.object({
   userId: z.number().int().positive(),
   role: RoleSchema,
   lang: z.string(),
+  // Revocation counter, compared against users.token_version on every request.
+  // Optional so tokens minted before this claim existed still parse; absent is
+  // treated as 0, which is the column default.
+  tokenVersion: z.number().int().nonnegative().optional(),
   iat: z.number().optional(),
   exp: z.number().optional(),
 });
 
-// Auth API response schema (for login/register/refresh)
+// Auth API response schema (for login/refresh)
 export const AuthResponseSchema = z.object({
   user: UserReadSchema,
   accessToken: z.string(),
@@ -87,6 +87,5 @@ export type UserUpdate = z.infer<typeof UserUpdateSchema>;
 export type UserPasswordReset = z.infer<typeof UserPasswordResetSchema>;
 export type UserRead = z.infer<typeof UserReadSchema>;
 export type Login = z.infer<typeof LoginSchema>;
-export type Register = z.infer<typeof RegisterSchema>;
 export type TokenPayload = z.infer<typeof TokenPayloadSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;

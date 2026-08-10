@@ -364,7 +364,7 @@ describe('User Routes', () => {
         email: 'newuser@example.com',
         firstName: 'New',
         lastName: 'User',
-        password: 'password123',
+        password: 'password12345',
         role: 'SUPERVISOR',
         lang: 'es',
       };
@@ -387,14 +387,14 @@ describe('User Routes', () => {
       expect(dbUser?.email).toBe('newuser@example.com');
 
       // Verify password was hashed
-      const isValidPassword = await bcrypt.compare('password123', dbUser!.passwordHash);
+      const isValidPassword = await bcrypt.compare('password12345', dbUser!.passwordHash);
       expect(isValidPassword).toBe(true);
     });
 
     it('should return 400 if user already exists', async () => {
       const userData = {
         login: 'admin', // Already exists
-        password: 'password123',
+        password: 'password12345',
       };
 
       const response = await testClient.post('/users', userData, adminToken);
@@ -423,7 +423,7 @@ describe('User Routes', () => {
     it('should use default values', async () => {
       const userData = {
         login: 'defaultuser',
-        password: 'password123',
+        password: 'password12345',
       };
 
       const response = await testClient.post('/users', userData, adminToken);
@@ -437,7 +437,7 @@ describe('User Routes', () => {
     it('should return 401 for unauthenticated requests', async () => {
       const response = await testClient.post('/users', {
         login: 'test',
-        password: 'password123',
+        password: 'password12345',
       });
       expect(response.status).toBe(401);
     });
@@ -445,7 +445,7 @@ describe('User Routes', () => {
     it('should return 403 for non-admin users', async () => {
       const response = await testClient.post('/users', {
         login: 'test',
-        password: 'password123',
+        password: 'password12345',
       }, caseworkerToken);
       expect(response.status).toBe(403);
     });
@@ -455,7 +455,7 @@ describe('User Routes', () => {
 
       const response = await testClient.post('/users', {
         login: 'caseworker',
-        password: 'password123',
+        password: 'password12345',
       }, adminToken);
 
       expect(response.status).toBe(400);
@@ -500,13 +500,23 @@ describe('User Routes', () => {
       expect(await bcrypt.compare('password123', dbUser!.passwordHash)).toBe(false);
     });
 
-    it('should reject a password shorter than 6 characters', async () => {
+    // 11 characters — one below the minimum, so this fails if the floor slips.
+    it('should reject a password shorter than 12 characters', async () => {
       const response = await testClient.put(
         `/users/${caseworkerUser.id}`,
-        { password: '12345' },
+        { password: 'eleven-char' },
         adminToken
       );
       expect(response.status).toBe(400);
+    });
+
+    it('should accept a password of exactly 12 characters', async () => {
+      const response = await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { password: 'twelve-chars' },
+        adminToken
+      );
+      expect(response.status).toBe(200);
     });
 
     it('should return 400 when an admin demotes themselves out of ADMIN', async () => {
@@ -618,21 +628,21 @@ describe('User Routes', () => {
     it('should validate the minimum password length', async () => {
       const response = await testClient.post(
         `/users/${caseworkerUser.id}/password`,
-        { password: 'abc' },
+        { password: 'eleven-char' }, // 11 — one below the minimum
         adminToken
       );
       expect(response.status).toBe(400);
     });
 
     it('should return 404 for a non-existent user', async () => {
-      const response = await testClient.post('/users/99999/password', { password: 'password123' }, adminToken);
+      const response = await testClient.post('/users/99999/password', { password: 'password12345' }, adminToken);
       expect(response.status).toBe(404);
     });
 
     it('should return 403 for non-admin users', async () => {
       const response = await testClient.post(
         `/users/${caseworkerUser.id}/password`,
-        { password: 'password123' },
+        { password: 'password12345' },
         supervisorToken
       );
       expect(response.status).toBe(403);
@@ -640,9 +650,70 @@ describe('User Routes', () => {
 
     it('should return 401 for unauthenticated requests', async () => {
       const response = await testClient.post(`/users/${caseworkerUser.id}/password`, {
-        password: 'password123',
+        password: 'password12345',
       });
       expect(response.status).toBe(401);
+    });
+  });
+
+  // A password change must invalidate every token already out there. Anything that
+  // is not a password change must not, or benign edits would sign people out.
+  describe('tokenVersion bumping', () => {
+    const versionOf = async (id: number) =>
+      (await testDb.user.findUnique({ where: { id } }))!.tokenVersion;
+
+    it('bumps on POST /users/:id/password', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.post(
+        `/users/${caseworkerUser.id}/password`,
+        { password: 'reset-password-1' },
+        adminToken
+      );
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before + 1);
+    });
+
+    it('bumps on PUT /users/:id when a password is supplied', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { password: 'brand-new-password' },
+        adminToken
+      );
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before + 1);
+    });
+
+    it('does not bump on PUT /users/:id without a password', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { firstName: 'Renamed', email: 'renamed@example.com' },
+        adminToken
+      );
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before);
+    });
+
+    // Authorization is re-read from the row on every request, so a demotion already
+    // takes effect immediately. Bumping here would only sign users out on promotion.
+    it('does not bump on a role change', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.put(`/users/${caseworkerUser.id}`, { role: 'SUPERVISOR' }, adminToken);
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before);
+    });
+
+    it('does not bump on PATCH /users/me/language', async () => {
+      const before = await versionOf(caseworkerUser.id);
+
+      await testClient.patch('/users/me/language', { lang: 'en' }, caseworkerToken);
+
+      expect(await versionOf(caseworkerUser.id)).toBe(before);
     });
   });
 

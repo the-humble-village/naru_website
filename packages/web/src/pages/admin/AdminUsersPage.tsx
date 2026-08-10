@@ -2,8 +2,17 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { z } from 'zod';
 import { usersApi } from '../../api/users';
-import { UserRead, UserCreate, UserUpdate, Role } from '@naru/shared';
+import {
+  UserRead,
+  UserCreate,
+  UserUpdate,
+  UserCreateSchema,
+  UserPasswordResetSchema,
+  Role,
+} from '@naru/shared';
+import { parseZodErrors } from '../../hooks/useFieldErrors';
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { NameInput } from '../../components/ui/NameInput';
@@ -46,6 +55,26 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
+};
+
+/**
+ * Validate against the shared schema before hitting the network, returning the
+ * first problem as a display string, or null if the payload is good.
+ *
+ * The save button is an onClick, not a submit, so the `minLength` attributes on
+ * these inputs never trigger browser validation — without this the first sign
+ * that a password is too short is a 400 from the server. Reusing the schema
+ * keeps the client rule from drifting away from the server's.
+ */
+const preflight = <T,>(schema: z.ZodType<T>, data: unknown): string | null => {
+  const result = schema.safeParse(data);
+  if (result.success) return null;
+
+  const entries = Object.entries(parseZodErrors(result.error));
+  if (entries.length === 0) return 'Please check the form and try again';
+
+  const [field, message] = entries[0];
+  return `${field}: ${message}`;
 };
 
 /**
@@ -127,6 +156,12 @@ export const AdminUsersPage: React.FC = () => {
       role: formData.role,
       lang: formData.lang,
     };
+    const invalid = preflight(UserCreateSchema, createData);
+    if (invalid) {
+      setFormError(invalid);
+      return;
+    }
+
     try {
       await createUserMutation.mutateAsync(createData);
       closeForm();
@@ -158,6 +193,16 @@ export const AdminUsersPage: React.FC = () => {
     }
     if (formData.lang !== editingUser.lang) {
       dataToSave.lang = formData.lang;
+    }
+
+    // Checked before the update fires, so a too-short password cannot leave the
+    // other field edits already saved while the reset half fails.
+    if (formData.password) {
+      const invalid = preflight(UserPasswordResetSchema, { password: formData.password });
+      if (invalid) {
+        setFormError(invalid);
+        return;
+      }
     }
 
     try {
@@ -369,16 +414,17 @@ export const AdminUsersPage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
                       required={!editingUser}
-                      minLength={6}
+                      minLength={12}
                       autoComplete="new-password"
                       placeholder={editingUser ? 'Leave blank to keep current password' : ''}
                     />
-                    {editingUser && (
-                      <p className="text-xs text-hv-gray mt-1">
-                        Leave blank to keep the current password. At least 6 characters to reset it.
-                        Resetting a password signs the user out on all devices.
-                      </p>
-                    )}
+                    {/* The create case needs its own hint: the edit-only version below
+                        meant a new user's first sign that 12 is required was a 400. */}
+                    <p className="text-xs text-hv-gray mt-1">
+                      {editingUser
+                        ? 'Leave blank to keep the current password. At least 12 characters to reset it. Resetting a password signs the user out on all devices.'
+                        : 'At least 12 characters.'}
+                    </p>
                   </div>
                   <div>
                     <label htmlFor="user-role" className="block text-sm font-medium text-hv-charcoal mb-1">

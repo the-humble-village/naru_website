@@ -42,11 +42,19 @@ Edit `packages/backend/.env`:
 
 ```env
 DATABASE_URL=postgresql://<your-pg-username>:<your-pg-password>@127.0.0.1:5432/naru
-JWT_SECRET=pick-any-secret-string
-JWT_REFRESH_SECRET=pick-a-different-secret-string
+JWT_SECRET=<paste the first generated secret>
+JWT_REFRESH_SECRET=<paste the second generated secret>
 PORT=3000
 ```
 Replace `<your-pg-username>` and `<your-pg-password>` with your local PostgreSQL username and password (password can be omitted if your setup uses peer/ident authentication). For many macOS local installs the username is your macOS username — run `whoami` if unsure.
+
+Generate the two secrets — run this twice and use a different output for each:
+
+```bash
+openssl rand -base64 48
+```
+
+The server checks both at boot and exits with a message if either is under 32 characters or if the two are identical, so made-up placeholder strings will not start it.
 
 ### 4. Apply database migrations
 

@@ -9,7 +9,7 @@ export const UserCreateSchema = z.object({
   email: z.string().email().optional().nullable(),
   firstName: z.string().max(255).optional().nullable(),
   lastName: z.string().max(255).optional().nullable(),
-  password: z.string().min(6), // Plain password for creation
+  password: z.string().min(12), // Plain password for creation
   role: RoleSchema.default('CASEWORKER'),
   lang: z.string().max(5).default('en'),
   localId: z.string().uuid().optional(), // For offline-created records
@@ -25,12 +25,12 @@ export const UserUpdateSchema = z.object({
   lastName: z.string().max(255).optional().nullable(),
   role: RoleSchema.optional(),
   lang: z.string().max(5).optional(),
-  password: z.string().min(6).optional(),
+  password: z.string().min(12).optional(),
 }).partial();
 
 // Dedicated password reset payload (admin resetting another user's password)
 export const UserPasswordResetSchema = z.object({
-  password: z.string().min(6),
+  password: z.string().min(12),
 });
 
 // User read schema (what's returned from API - never includes passwordHash)
@@ -48,7 +48,13 @@ export const UserReadSchema = z.object({
   // Note: deletedAt and passwordHash are never exposed
 });
 
-// Login request schema
+// Login request schema.
+//
+// `password` stays min(1) on purpose. The 12-character minimum above applies to
+// setting a password, not to presenting one: raising it here would reject every
+// account created under the old rule with a validation error rather than
+// "Invalid credentials" — locking those users out, and telling an attacker which
+// accounts have a short password.
 export const LoginSchema = z.object({
   login: z.string().min(1),
   password: z.string().min(1),

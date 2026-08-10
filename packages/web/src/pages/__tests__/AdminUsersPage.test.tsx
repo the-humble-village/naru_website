@@ -235,7 +235,7 @@ describe('AdminUsersPage', () => {
     await user.type(screen.getByLabelText(/Email/), 'new@test.com');
     await user.type(screen.getByLabelText(/First Name/), 'New');
     await user.type(screen.getByLabelText(/Last Name/), 'User');
-    await user.type(screen.getByLabelText(/Password/), 'password123');
+    await user.type(screen.getByLabelText(/Password/), 'password12345');
 
     // Submit form
     fireEvent.click(screen.getByText('Create User'));
@@ -247,7 +247,7 @@ describe('AdminUsersPage', () => {
           email: 'new@test.com',
           firstName: 'New',
           lastName: 'User',
-          password: 'password123',
+          password: 'password12345',
           role: 'CASEWORKER', // Default
           lang: 'en', // Default
         },
@@ -269,7 +269,7 @@ describe('AdminUsersPage', () => {
 
     fireEvent.click(screen.getByText('Add User'));
     await user.type(screen.getByLabelText(/Login/), 'minimal');
-    await user.type(screen.getByLabelText(/Password/), 'password123');
+    await user.type(screen.getByLabelText(/Password/), 'password12345');
     fireEvent.click(screen.getByText('Create User'));
 
     await waitFor(() => {
@@ -283,6 +283,32 @@ describe('AdminUsersPage', () => {
         expect.anything(),
       );
     });
+  });
+
+  // The save button is an onClick rather than a submit, so the input's
+  // minLength never fires. Without the schema pre-flight the first sign that a
+  // password is too short would be a 400 from the server.
+  it('rejects a short password before calling the API', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add User'));
+    await user.type(screen.getByLabelText(/Login/), 'shortpass');
+    await user.type(screen.getByLabelText(/Password/), 'eleven-char'); // 11
+    fireEvent.click(screen.getByText('Create User'));
+
+    // The static field hint also says "at least 12 characters", so match the
+    // error banner specifically.
+    await waitFor(() => {
+      expect(screen.getByText(/Failed to create user/i)).toBeInTheDocument();
+    });
+    expect(usersApi.createUser).not.toHaveBeenCalled();
   });
 
   it('should show edit form when edit button clicked', async () => {

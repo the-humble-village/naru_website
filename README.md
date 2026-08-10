@@ -26,9 +26,11 @@ pnpm build
 
 ```bash
 # Create packages/backend/.env with:
+# (both JWT secrets must be >= 32 chars and different from each other —
+#  generate each with: openssl rand -base64 48)
 DATABASE_URL=postgresql://user:pass@localhost:5432/naru
-JWT_SECRET=your-secret
-JWT_REFRESH_SECRET=your-refresh-secret
+JWT_SECRET=<openssl rand -base64 48>
+JWT_REFRESH_SECRET=<a second, different openssl rand -base64 48>
 PORT=3000
 
 # Run migrations and generate Prisma client
@@ -272,8 +274,8 @@ Communicates with the backend via `POST /api/sync` for offline-first data entry.
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Access token signing key |
-| `JWT_REFRESH_SECRET` | Refresh token signing key |
+| `JWT_SECRET` | Access token signing key. Minimum 32 characters; checked at boot |
+| `JWT_REFRESH_SECRET` | Refresh token signing key. Minimum 32 characters, and must differ from `JWT_SECRET` |
 | `PORT` | HTTP port (default: 3000) |
 
 ---

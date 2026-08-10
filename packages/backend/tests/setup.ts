@@ -10,12 +10,22 @@ import { assertTestDatabaseUrl } from './assert-test-database'
 // trusting that config: a wrong value destroys real data.
 assertTestDatabaseUrl(process.env.DATABASE_URL, 'the test environment')
 
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only'
-process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-for-testing-only'
+// Assigned unconditionally, not `||`-defaulted. Vitest loads packages/backend/.env
+// into process.env, so a `||` here hands the suite whatever secret the developer
+// happens to have locally — different on every machine, and different again in CI.
+// Same hazard as DATABASE_URL above, minus the data loss.
+//
+// validateAuthConfig() enforces a 32-character floor. The access secret below is
+// exactly 32 — zero margin, so shortening it by even one character breaks
+// tests/config-validation.test.ts. The same applies to .env.test and to
+// pipeline.yml, which carry copies of these literals.
+process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only'
+process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only'
 
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { prisma as testDb } from '../src/db'
+import { resetAllRateLimits } from '../src/middleware/rate-limit'
 
 // Export it so tests can use it
 export { testDb }
@@ -61,6 +71,11 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await cleanupDatabase()
+  // vitest.config.ts runs everything in a single fork, so every test file shares
+  // one instance of the limiter's Map. Without this, failed-login assertions
+  // accumulate across the suite and eventually 429 for reasons unrelated to the
+  // test that trips it.
+  resetAllRateLimits()
 })
 
 // Helper functions for tests

@@ -225,13 +225,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download web dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: web-dist
           path: packages/web/dist
 
       - name: Download backend bundle
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: backend-bundle
 

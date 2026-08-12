@@ -13,7 +13,7 @@
     "@naru/shared": "workspace:*",
     "@tanstack/react-query": "^5.100.10",
     "@types/leaflet": "^1.9.21",
-    "axios": "^1.16.1",
+    "axios": "^1.18.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
     "react": "^18.3.1",

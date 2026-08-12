@@ -193,7 +193,7 @@ jobs:
 
       - name: Upload backend bundle
         if: env.IS_DEPLOY == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-bundle
           path: backend-deploy.tar.gz
@@ -202,7 +202,7 @@ jobs:
 
       - name: Upload web dist
         if: env.IS_DEPLOY == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-dist
           path: packages/web/dist

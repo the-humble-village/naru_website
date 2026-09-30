@@ -5,6 +5,7 @@ import { SUBJECT_FK, type SubjectType } from '@naru/shared';
 import { mothersApi } from '../api/mothers';
 import { childrenApi } from '../api/children';
 import { peopleApi } from '../api/people';
+import { familiesApi } from '../api/families';
 import { programsApi } from '../api/programs';
 import { dashboardApi } from '../api/dashboard';
 import { adminApi } from '../api/admin';
@@ -13,7 +14,7 @@ import { useTranslation } from '../hooks';
 
 const PAGE_SIZE = 25;
 
-type TabKey = 'ALL' | 'MOTHER' | 'CHILD' | 'PERSON';
+type TabKey = 'ALL' | 'MOTHER' | 'CHILD' | 'PERSON' | 'FAMILY';
 
 interface WorklistRow {
   type: SubjectType;
@@ -68,6 +69,7 @@ export const UnenrolledPage: React.FC = () => {
   const wantMothers = tab === 'ALL' || tab === 'MOTHER';
   const wantChildren = tab === 'ALL' || tab === 'CHILD';
   const wantPeople = tab === 'ALL' || tab === 'PERSON';
+  const wantFamilies = tab === 'ALL' || tab === 'FAMILY';
 
   const mothersQuery = useQuery({
     queryKey: ['mothers', listParams],
@@ -83,6 +85,11 @@ export const UnenrolledPage: React.FC = () => {
     queryKey: ['people', listParams],
     queryFn: () => peopleApi.listPeople(listParams),
     enabled: wantPeople,
+  });
+  const familiesQuery = useQuery({
+    queryKey: ['families', listParams],
+    queryFn: () => familiesApi.listFamilies(listParams),
+    enabled: wantFamilies,
   });
 
   const communityTitle = useMemo(() => {
@@ -135,8 +142,28 @@ export const UnenrolledPage: React.FC = () => {
         })
       );
     }
+    if (wantFamilies) {
+      (familiesQuery.data?.families ?? []).forEach((family) =>
+        collected.push({
+          type: 'FAMILY',
+          id: family.id,
+          name: family.familyName || t('common.unnamed'),
+          communityId: family.communityId,
+        })
+      );
+    }
     return collected;
-  }, [wantMothers, wantChildren, wantPeople, mothersQuery.data, childrenQuery.data, peopleQuery.data]);
+  }, [
+    wantMothers,
+    wantChildren,
+    wantPeople,
+    wantFamilies,
+    mothersQuery.data,
+    childrenQuery.data,
+    peopleQuery.data,
+    familiesQuery.data,
+    t,
+  ]);
 
   const pagesFor = (total: number | undefined) => Math.ceil((total ?? 0) / PAGE_SIZE);
   const totalPages = Math.max(
@@ -144,14 +171,16 @@ export const UnenrolledPage: React.FC = () => {
     Math.max(
       wantMothers ? pagesFor(mothersQuery.data?.total) : 0,
       wantChildren ? pagesFor(childrenQuery.data?.total) : 0,
-      wantPeople ? pagesFor(peopleQuery.data?.total) : 0
+      wantPeople ? pagesFor(peopleQuery.data?.total) : 0,
+      wantFamilies ? pagesFor(familiesQuery.data?.total) : 0
     )
   );
 
   const isLoading =
     (wantMothers && mothersQuery.isLoading) ||
     (wantChildren && childrenQuery.isLoading) ||
-    (wantPeople && peopleQuery.isLoading);
+    (wantPeople && peopleQuery.isLoading) ||
+    (wantFamilies && familiesQuery.isLoading);
 
   const programsFor = (type: SubjectType) =>
     (programs?.items ?? []).filter((program) => program.subjectType === type);
@@ -166,6 +195,7 @@ export const UnenrolledPage: React.FC = () => {
     { key: 'MOTHER', label: t('nav.mothers'), count: counts?.mothers },
     { key: 'CHILD', label: t('nav.children'), count: counts?.children },
     { key: 'PERSON', label: t('nav.persons'), count: counts?.people },
+    { key: 'FAMILY', label: t('nav.families'), count: counts?.families },
   ];
 
   const enrollControl = (row: WorklistRow) => {
@@ -305,15 +335,6 @@ export const UnenrolledPage: React.FC = () => {
             </div>
           </div>
         </>
-      )}
-
-      {(counts?.families ?? 0) > 0 && (
-        <p className="text-sm text-hv-gray mt-6">
-          {t('unenrolled.families_note')}{' '}
-          <Link to="/families" className="text-hv-terracotta hover:underline">
-            {t('nav.families')}
-          </Link>
-        </p>
       )}
     </div>
   );

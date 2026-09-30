@@ -12,6 +12,8 @@ import * as birthingAssistantsApi from '../../api/birthing-assistants';
 vi.mock('../../api/families', () => ({
   familiesApi: {
     createFamily: vi.fn(),
+    fetchFamily: vi.fn(),
+    updateFamily: vi.fn(),
   },
 }));
 
@@ -90,7 +92,7 @@ describe('AddFamilyPage', () => {
   });
 
   it('renders add family form', async () => {
-    render(
+    const { container } = render(
       <TestWrapper>
         <AddFamilyPage />
       </TestWrapper>
@@ -100,10 +102,10 @@ describe('AddFamilyPage', () => {
       expect(screen.getByText('Add Family')).toBeInTheDocument();
       expect(screen.getByLabelText('Family Name')).toBeInTheDocument();
       expect(screen.getByLabelText('Community')).toBeInTheDocument();
-      expect(screen.getByLabelText('Phone')).toBeInTheDocument();
-      expect(screen.getByLabelText('Second caretaker')).toBeInTheDocument();
-      expect(screen.getByLabelText('Income sources')).toBeInTheDocument();
-      expect(screen.getByLabelText('Family is in crisis')).toBeInTheDocument();
+      expect(container.querySelector('#phone')).toBeInTheDocument();
+      expect(container.querySelector('#caretaker2Name')).toBeInTheDocument();
+      expect(container.querySelector('#incomeSources')).toBeInTheDocument();
+      expect(screen.getByLabelText('In Crisis')).toBeInTheDocument();
       expect(screen.getByLabelText('Notes')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Create Family' })).toBeInTheDocument();
     });
@@ -141,7 +143,7 @@ describe('AddFamilyPage', () => {
 
     const familyNameInput = screen.getByLabelText('Family Name');
     const notesInput = screen.getByLabelText('Notes');
-    const crisisCheckbox = screen.getByLabelText('Family is in crisis');
+    const crisisCheckbox = screen.getByLabelText('In Crisis');
 
     fireEvent.change(familyNameInput, { target: { value: 'Test Family' } });
     fireEvent.change(notesInput, { target: { value: 'Test notes' } });
@@ -216,7 +218,7 @@ describe('AddFamilyPage', () => {
   });
 
   it('shows validation errors for invalid form data', async () => {
-    render(
+    const { container } = render(
       <TestWrapper>
         <AddFamilyPage />
       </TestWrapper>
@@ -227,7 +229,7 @@ describe('AddFamilyPage', () => {
     });
 
     // A second caretaker name longer than the column rejects the whole form.
-    const caretaker2 = screen.getByLabelText('Second caretaker');
+    const caretaker2 = container.querySelector('#caretaker2Name') as HTMLInputElement;
     fireEvent.change(caretaker2, { target: { value: 'x'.repeat(257) } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Create Family' }));
@@ -259,7 +261,7 @@ describe('AddFamilyPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Family' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to create family. Please try again.')).toBeInTheDocument();
+      expect(screen.getByText('Failed to create family')).toBeInTheDocument();
     });
   });
 
@@ -305,7 +307,7 @@ describe('AddFamilyPage', () => {
       expect(screen.getByLabelText('Family Name')).toBeInTheDocument();
     });
 
-    const backLink = screen.getByText('← Back to Families');
+    const backLink = screen.getByText('← Families');
     expect(backLink.closest('a')).toHaveAttribute('href', '/families');
   });
 

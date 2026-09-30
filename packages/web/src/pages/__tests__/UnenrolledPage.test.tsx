@@ -8,6 +8,7 @@ import { UnenrolledPage } from '../UnenrolledPage';
 import { mothersApi } from '../../api/mothers';
 import { childrenApi } from '../../api/children';
 import { peopleApi } from '../../api/people';
+import { familiesApi } from '../../api/families';
 import { programsApi } from '../../api/programs';
 import { dashboardApi } from '../../api/dashboard';
 import { adminApi } from '../../api/admin';
@@ -38,6 +39,15 @@ vi.mock('../../api/people', () => ({
     createPerson: vi.fn(),
     updatePerson: vi.fn(),
     deletePerson: vi.fn(),
+  },
+}));
+vi.mock('../../api/families', () => ({
+  familiesApi: {
+    listFamilies: vi.fn(),
+    fetchFamily: vi.fn(),
+    createFamily: vi.fn(),
+    updateFamily: vi.fn(),
+    deleteFamily: vi.fn(),
   },
 }));
 vi.mock('../../api/programs', () => ({
@@ -82,8 +92,8 @@ describe('UnenrolledPage', () => {
       children: 1,
       mothers: 1,
       people: 0,
-      families: 0,
-      total: 2,
+      families: 1,
+      total: 3,
     });
     vi.mocked(adminApi.fetchCommunities).mockResolvedValue([
       {
@@ -118,8 +128,45 @@ describe('UnenrolledPage', () => {
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
+        {
+          id: 4,
+          name: 'Family PAF',
+          kind: 'FAMILY_PAF',
+          subjectType: 'FAMILY',
+          description: null,
+          minAgeMonths: null,
+          maxAgeMonths: null,
+          visitIntervalDays: null,
+          active: true,
+          sortOrder: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      total: 2,
+    });
+    vi.mocked(familiesApi.listFamilies).mockResolvedValue({
+      families: [
+        {
+          id: 11,
+          localId: null,
+          familyName: 'Ramirez Family',
+          communityId: 3,
+          siteId: 9,
+          phone: null,
+          caretaker2Name: null,
+          incomeSources: null,
+          deathsNotes: null,
+          inCrisis: false,
+          notes: null,
+          lastVisitDate: null,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       ],
       total: 1,
+      skip: 0,
+      limit: 25,
     });
     vi.mocked(mothersApi.listMothers).mockResolvedValue({
       items: [
@@ -196,6 +243,29 @@ describe('UnenrolledPage', () => {
     const childSelects = screen.getAllByLabelText('unenrolled.enroll: Jose Ramirez');
     expect(childSelects[0]).toHaveTextContent('Nutrition Infant');
     expect(screen.getAllByText('unenrolled.no_program').length).toBeGreaterThan(0);
+  });
+
+  it('lists unenrolled families alongside the other subjects', async () => {
+    renderPage();
+
+    expect((await screen.findAllByRole('link', { name: 'Ramirez Family' }))[0]).toHaveAttribute(
+      'href',
+      '/families/11'
+    );
+    expect(screen.getAllByText('subject_type.family').length).toBeGreaterThan(0);
+    expect(familiesApi.listFamilies).toHaveBeenCalledWith(
+      expect.objectContaining({ unenrolled: true })
+    );
+  });
+
+  it('offers only FAMILY-subject programs on a family row', async () => {
+    renderPage();
+
+    await screen.findAllByRole('link', { name: 'Ramirez Family' });
+
+    const [select] = screen.getAllByLabelText('unenrolled.enroll: Ramirez Family');
+    expect(select).toHaveTextContent('Family PAF');
+    expect(select).not.toHaveTextContent('Nutrition Infant');
   });
 
   it('navigates to the enroll wizard carrying the subject FK', async () => {

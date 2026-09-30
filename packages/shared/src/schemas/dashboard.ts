@@ -1,66 +1,71 @@
 import { z } from 'zod';
+import { DateOnlySchema, LocationTypeEnum, ProgramKindEnum, SubjectTypeEnum } from './enums.js';
 import { FamilyReadSchema } from './family.js';
-import { ChildReadSchema } from './child.js';
-import { ChildVisitReadSchema } from './child-visit.js';
-import { FamilyVisitReadSchema } from './family-visit.js';
-import { ParentReadSchema } from './parent.js';
-import { ParentVisitReadSchema } from './parent-visit.js';
 
-// Dashboard response schema
+// A visit row flattened for display: the subject's name and their program,
+// resolved through the enrollment so the client needs no follow-up requests.
+export const DashboardVisitSchema = z.object({
+  id: z.number().int().positive(),
+  enrollmentId: z.number().int().positive(),
+  visitDate: DateOnlySchema,
+  locationType: LocationTypeEnum,
+  siteId: z.number().int().nullable(),
+  programId: z.number().int().positive(),
+  programName: z.string(),
+  programKind: ProgramKindEnum,
+  subjectType: SubjectTypeEnum,
+  subjectId: z.number().int().positive(),
+  subjectName: z.string().nullable(),
+});
+
 export const DashboardResponseSchema = z.object({
-  // Recent visits (child, family and parent visits combined)
-  recentVisits: z.object({
-    childVisits: z.array(ChildVisitReadSchema.extend({
-      child: ChildReadSchema.pick({ id: true, name: true, familyId: true }),
-    })),
-    familyVisits: z.array(FamilyVisitReadSchema.extend({
-      family: FamilyReadSchema.pick({ id: true, familyName: true }),
-    })),
-    parentVisits: z.array(ParentVisitReadSchema.extend({
-      parent: ParentReadSchema.pick({ id: true, name: true, familyId: true }),
-    })).default([]),
-  }),
+  recentVisits: z.array(DashboardVisitSchema),
 
-  // Recently updated children (with latest measurements)
-  recentlyUpdatedChildren: z.array(ChildReadSchema.extend({
-    family: FamilyReadSchema.pick({ id: true, familyName: true }),
-    latestVisit: ChildVisitReadSchema.pick({
-      id: true,
-      visitDate: true,
-      weight: true,
-      height: true,
-      armCircumference: true,
-    }).nullable(),
+  // Active enrollment counts per program — the census the church asks for,
+  // measured as of now.
+  enrollmentsByProgram: z.array(z.object({
+    programId: z.number().int().positive(),
+    programName: z.string(),
+    programKind: ProgramKindEnum,
+    active: z.number().int(),
   })),
 
-  // Families currently in crisis
   familiesInCrisis: z.array(FamilyReadSchema.extend({
     childrenCount: z.number().int(),
-    lastVisitDate: z.string().datetime().nullable(),
+    lastVisitDate: DateOnlySchema.nullable(),
   })),
 
-  // Summary statistics
   stats: z.object({
-    totalFamilies: z.number().int(),
+    activeEnrollments: z.number().int(),
     totalChildren: z.number().int(),
-    totalCommunities: z.number().int().default(0),
+    totalMothers: z.number().int(),
+    totalPeople: z.number().int(),
+    totalFamilies: z.number().int(),
+    totalCommunities: z.number().int(),
     familiesInCrisis: z.number().int(),
     visitsThisMonth: z.number().int(),
+    // Subjects with no active enrollment — the shrinking worklist from §9.4.
+    unenrolledSubjects: z.number().int(),
   }),
 
-  // Monthly visit counts for the past 6 months (oldest → newest)
+  // Oldest → newest, six months.
   visitsPerMonth: z.array(z.object({
-    month: z.string(),   // e.g. "Jan", "Feb"
+    month: z.string(),
     count: z.number().int(),
   })),
 
-  // Families and children broken down by community
+  newcomersPerMonth: z.array(z.object({
+    month: z.string(),
+    count: z.number().int(),
+  })),
+
   communityBreakdown: z.array(z.object({
     communityId: z.number().int().nullable(),
     families: z.number().int(),
     children: z.number().int(),
+    activeEnrollments: z.number().int(),
   })),
 });
 
-// Inferred types for TypeScript
+export type DashboardVisit = z.infer<typeof DashboardVisitSchema>;
 export type DashboardResponse = z.infer<typeof DashboardResponseSchema>;

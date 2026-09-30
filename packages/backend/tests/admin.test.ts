@@ -114,22 +114,8 @@ const createTestTraining = async (title: string = 'Test Training') => {
   });
 };
 
-const createTestChildVisitQuestion = async (title: string = 'Test Child Question') => {
-  return testDb.childVisitQuestion.create({
-    data: { title },
-    select: { id: true, title: true, createdAt: true, updatedAt: true },
-  });
-};
-
-const createTestParentVisitQuestion = async (title: string = 'Test Parent Question') => {
-  return testDb.parentVisitQuestion.create({
-    data: { title },
-    select: { id: true, title: true, createdAt: true, updatedAt: true },
-  });
-};
-
-const createTestFamilyVisitQuestion = async (title: string = 'Test Family Question') => {
-  return testDb.familyVisitQuestion.create({
+const createTestExaminationType = async (title: string = 'Test Examination Type') => {
+  return testDb.examinationType.create({
     data: { title },
     select: { id: true, title: true, createdAt: true, updatedAt: true },
   });
@@ -188,9 +174,7 @@ describe('Admin Routes', () => {
         'sites',
         'resources',
         'training',
-        'child-visit-questions',
-        'parent-visit-questions',
-        'family-visit-questions'
+        'examination-types'
       ];
 
       for (const table of tables) {
@@ -265,9 +249,7 @@ describe('Admin Routes', () => {
         { table: 'sites', title: 'Test Site' },
         { table: 'resources', title: 'Test Resource' },
         { table: 'training', title: 'Test Training' },
-        { table: 'child-visit-questions', title: 'Test Child Question' },
-        { table: 'parent-visit-questions', title: 'Test Parent Question' },
-        { table: 'family-visit-questions', title: 'Test Family Question' },
+        { table: 'examination-types', title: 'Test Examination Type' },
       ];
 
       for (const { table, title } of testData) {
@@ -359,9 +341,7 @@ describe('Admin Routes', () => {
         { table: 'sites', creator: createTestSite },
         { table: 'resources', creator: createTestResource },
         { table: 'training', creator: createTestTraining },
-        { table: 'child-visit-questions', creator: createTestChildVisitQuestion },
-        { table: 'parent-visit-questions', creator: createTestParentVisitQuestion },
-        { table: 'family-visit-questions', creator: createTestFamilyVisitQuestion },
+        { table: 'examination-types', creator: createTestExaminationType },
       ];
 
       for (const { table, creator } of testData) {
@@ -461,9 +441,7 @@ describe('Admin Routes', () => {
         { table: 'sites', creator: createTestSite },
         { table: 'resources', creator: createTestResource },
         { table: 'training', creator: createTestTraining },
-        { table: 'child-visit-questions', creator: createTestChildVisitQuestion },
-        { table: 'parent-visit-questions', creator: createTestParentVisitQuestion },
-        { table: 'family-visit-questions', creator: createTestFamilyVisitQuestion },
+        { table: 'examination-types', creator: createTestExaminationType },
       ];
 
       for (const { table, creator } of testData) {

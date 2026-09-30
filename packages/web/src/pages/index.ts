@@ -10,29 +10,22 @@ export { default as AddFamilyPage } from './families/AddFamilyPage';
 export { default as AddChildPage } from './children/AddChildPage';
 export { default as ChildDetailPage } from './children/ChildDetailPage';
 
-// Parent pages
-export { default as AddParentPage } from './parents/AddParentPage';
-export { default as ParentDetailPage } from './parents/ParentDetailPage';
-
-// Visit pages
-export { default as AddChildVisitPage } from './visits/AddChildVisitPage';
-export { default as AddFamilyVisitPage } from './visits/AddFamilyVisitPage';
-export { default as AddParentVisitPage } from './visits/AddParentVisitPage';
-export { default as FamilyVisitsPage } from './visits/FamilyVisitsPage';
-export { default as FamilyVisitDetailPage } from './visits/FamilyVisitDetailPage';
-export { default as ChildVisitDetailPage } from './visits/ChildVisitDetailPage';
-export { default as ParentVisitDetailPage } from './visits/ParentVisitDetailPage';
-export { default as EditParentVisitPage } from './visits/EditParentVisitPage';
-
 // Admin pages
 export { default as AdminPage } from './admin/AdminPage';
 export { default as AdminUsersPage } from './admin/AdminUsersPage';
 export { default as AdminLookupsPage } from './admin/AdminLookupsPage';
 export { default as AdminBirthingAssistantsPage } from './admin/AdminBirthingAssistantsPage';
-export { default as AdminQuestionSetsPage } from './admin/AdminQuestionSetsPage';
 export { default as AdminSitesPage } from './admin/AdminSitesPage';
+export { default as AdminProgramsPage } from './admin/AdminProgramsPage';
+export { default as AdminQuestionSetsPage } from './admin/AdminQuestionSetsPage';
+
+// Event pages
+export { default as EventsPage } from './events/EventsPage';
+export { default as AddEventPage } from './events/AddEventPage';
+export { default as EventDetailPage } from './events/EventDetailPage';
 
 // Root-level pages
 export { default as DashboardPage } from './DashboardPage';
 export { default as LanguagePage } from './LanguagePage';
+export { default as PlaceholderPage } from './PlaceholderPage';
 export { default as ErrorPage } from './ErrorPage';

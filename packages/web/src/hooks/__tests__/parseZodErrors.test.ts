@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { UserCreateSchema, ParentCreateSchema } from '@naru/shared';
+import { UserCreateSchema, ChildCreateSchema } from '@naru/shared';
 import { parseZodErrors } from '../useFieldErrors';
 
 describe('parseZodErrors', () => {
@@ -39,8 +39,8 @@ describe('parseZodErrors', () => {
   });
 
   it('all error values are strings', () => {
-    const result = ParentCreateSchema.safeParse({
-      firstName: '',
+    const result = ChildCreateSchema.safeParse({
+      name: '',
       familyId: -1,
     });
     expect(result.success).toBe(false);

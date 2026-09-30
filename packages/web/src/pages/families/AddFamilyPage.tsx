@@ -4,8 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { FamilyCreate, FamilyCreateSchema } from '@naru/shared';
 import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
-import { birthingAssistantsApi } from '../../api/birthing-assistants';
-import { PhotoUpload, NameInput } from '../../components';
+import { NameInput } from '../../components';
 import { useTranslation } from '../../hooks';
 
 /**
@@ -16,13 +15,13 @@ export const AddFamilyPage: React.FC = () => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState<FamilyCreate>({
     familyName: null,
-    childrenEditable: 0,
     inCrisis: false,
     notes: null,
     communityId: null,
-    siteId: null,
-    birthingAssistantId: null,
-    photos: [],
+    phone: null,
+    caretaker2Name: null,
+    incomeSources: null,
+    deathsNotes: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -30,16 +29,6 @@ export const AddFamilyPage: React.FC = () => {
   const { data: communities = [], isLoading: loadingCommunities } = useQuery({
     queryKey: ['communities'],
     queryFn: adminApi.fetchCommunities,
-  });
-
-  const { data: sites = [], isLoading: loadingSites } = useQuery({
-    queryKey: ['sites'],
-    queryFn: adminApi.fetchSites,
-  });
-
-  const { data: birthingAssistants = [], isLoading: loadingBAs } = useQuery({
-    queryKey: ['birthing-assistants'],
-    queryFn: birthingAssistantsApi.fetchBirthingAssistants,
   });
 
   // Create family mutation
@@ -65,7 +54,7 @@ export const AddFamilyPage: React.FC = () => {
       processedValue = value === '' ? '' : Number(value);
     } else if (e.target.tagName === 'SELECT') {
       // For select elements, convert empty strings to null for nullable fields
-      if (['communityId', 'siteId', 'birthingAssistantId'].includes(name)) {
+      if (name === 'communityId') {
         processedValue = value === '' ? null : Number(value);
       } else {
         processedValue = value === '' ? null : value;
@@ -92,10 +81,7 @@ export const AddFamilyPage: React.FC = () => {
 
     try {
       // Validate form data with Zod schema
-      const validatedData = FamilyCreateSchema.parse({
-        ...formData,
-        childrenEditable: Number(formData.childrenEditable) || 0,
-      });
+      const validatedData = FamilyCreateSchema.parse(formData);
       createFamilyMutation.mutate(validatedData);
     } catch (error: any) {
       const fieldErrors: Record<string, string> = {};
@@ -110,7 +96,7 @@ export const AddFamilyPage: React.FC = () => {
     }
   };
 
-  const isLoading = loadingCommunities || loadingSites || loadingBAs;
+  const isLoading = loadingCommunities;
 
   if (isLoading) {
     return (
@@ -176,72 +162,58 @@ export const AddFamilyPage: React.FC = () => {
           )}
         </div>
 
-        {/* Site */}
+        {/* Phone */}
         <div>
-          <label htmlFor="siteId" className="block text-sm font-medium text-hv-charcoal mb-2">
-            {t('families.col_site')}
-          </label>
-          <select
-            id="siteId"
-            name="siteId"
-            value={formData.siteId || ''}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-          >
-            <option value="">Select a site</option>
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.title}
-              </option>
-            ))}
-          </select>
-          {errors.siteId && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.siteId}</p>
-          )}
-        </div>
-
-        {/* Birthing Assistant */}
-        <div>
-          <label htmlFor="birthingAssistantId" className="block text-sm font-medium text-hv-charcoal mb-2">
-            {t('families.col_assistant')}
-          </label>
-          <select
-            id="birthingAssistantId"
-            name="birthingAssistantId"
-            value={formData.birthingAssistantId || ''}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-          >
-            <option value="">Select a birthing assistant</option>
-            {birthingAssistants.map((ba) => (
-              <option key={ba.id} value={ba.id}>
-                {ba.name}
-              </option>
-            ))}
-          </select>
-          {errors.birthingAssistantId && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.birthingAssistantId}</p>
-          )}
-        </div>
-
-        {/* Children Editable */}
-        <div>
-          <label htmlFor="childrenEditable" className="block text-sm font-medium text-hv-charcoal mb-2">
-            Children Editable Count
+          <label htmlFor="phone" className="block text-sm font-medium text-hv-charcoal mb-2">
+            Phone
           </label>
           <input
-            type="number"
-            id="childrenEditable"
-            name="childrenEditable"
-            value={formData.childrenEditable}
+            type="tel"
+            id="phone"
+            name="phone"
+            value={formData.phone || ''}
             onChange={handleInputChange}
-            onFocus={(e) => { if (Number(e.target.value) === 0) setFormData(prev => ({ ...prev, childrenEditable: '' as unknown as number })); }}
-            onBlur={(e) => { if (e.target.value === '') setFormData(prev => ({ ...prev, childrenEditable: 0 })); }}
-            min="0"
+            maxLength={64}
             className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
           />
-          {errors.childrenEditable && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.childrenEditable}</p>
+          {errors.phone && (
+            <p className="text-hv-crisis text-sm mt-1">{errors.phone}</p>
+          )}
+        </div>
+
+        {/* Second caretaker */}
+        <div>
+          <label htmlFor="caretaker2Name" className="block text-sm font-medium text-hv-charcoal mb-2">
+            Second caretaker
+          </label>
+          <NameInput
+            id="caretaker2Name"
+            name="caretaker2Name"
+            value={formData.caretaker2Name || ''}
+            onChange={handleInputChange}
+            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
+            maxLength={256}
+          />
+          {errors.caretaker2Name && (
+            <p className="text-hv-crisis text-sm mt-1">{errors.caretaker2Name}</p>
+          )}
+        </div>
+
+        {/* Income sources */}
+        <div>
+          <label htmlFor="incomeSources" className="block text-sm font-medium text-hv-charcoal mb-2">
+            Income sources
+          </label>
+          <textarea
+            id="incomeSources"
+            name="incomeSources"
+            value={formData.incomeSources || ''}
+            onChange={handleInputChange}
+            rows={3}
+            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
+          />
+          {errors.incomeSources && (
+            <p className="text-hv-crisis text-sm mt-1">{errors.incomeSources}</p>
           )}
         </div>
 
@@ -278,12 +250,6 @@ export const AddFamilyPage: React.FC = () => {
             <p className="text-hv-crisis text-sm mt-1">{errors.notes}</p>
           )}
         </div>
-
-        {/* Photos */}
-        <PhotoUpload
-          photos={formData.photos ?? []}
-          onChange={(photos) => setFormData(prev => ({ ...prev, photos }))}
-        />
 
         {/* Submit Error */}
         {errors.submit && (

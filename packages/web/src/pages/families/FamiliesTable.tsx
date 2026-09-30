@@ -44,8 +44,6 @@ function renderCell(
           {family.notes || '—'}
         </div>
       );
-    case 'childrenEditable':
-      return <div className="text-sm text-hv-charcoal">{family.childrenEditable}</div>;
     case 'lastVisitDate':
       return (
         <div className="text-sm text-hv-charcoal">

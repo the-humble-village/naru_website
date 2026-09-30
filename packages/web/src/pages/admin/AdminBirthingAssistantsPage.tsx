@@ -8,6 +8,7 @@ import { BirthingAssistantRead, BirthingAssistantCreate, BirthingAssistantUpdate
 import { RoleGate } from '../../components/RoleGate';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { NameInput } from '../../components/ui/NameInput';
+import { Info } from 'lucide-react';
 import { useTranslation } from '../../hooks';
 import { formatDate } from '../../utils/datetime';
 
@@ -304,6 +305,11 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
           >
             ← {t('common.back_to_admin')}
           </Link>
+        </div>
+
+        <div className="flex items-start gap-2 rounded-lg border border-hv-border bg-white px-4 py-3 mb-6 text-sm text-hv-gray">
+          <Info size={18} className="mt-0.5 shrink-0 text-hv-sage" />
+          <p>{t('admin.ba_vs_midwife_note')}</p>
         </div>
 
         <div className="bg-white rounded-xl border border-hv-border">

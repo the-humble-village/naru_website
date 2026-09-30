@@ -3,7 +3,14 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import familiesRoutes from '../src/routes/families';
-import { testDb, createTestUser, createTestFamily, createTestCommunity } from './setup';
+import {
+  testDb,
+  createTestUser,
+  createTestFamily,
+  createTestCommunity,
+  createTestProgram,
+  createTestEnrollment,
+} from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with family routes and error handler
@@ -137,11 +144,40 @@ describe('Family Routes', () => {
       const family = result.families[0];
       expect(family.id).toBeDefined();
       expect(family.familyName).toBeDefined();
-      expect(family.childrenEditable).toBeDefined();
       expect(family.inCrisis).toBeDefined();
+      expect(family.siteId).toBeDefined();
+      expect(family.lastVisitDate).toBeDefined();
       expect(family.createdAt).toBeDefined();
       expect(family.updatedAt).toBeDefined();
       expect(family.deletedAt).toBeUndefined(); // Should not be exposed
+    });
+
+    it('should filter to families with no active enrollment', async () => {
+      const program = await createTestProgram({
+        name: 'PAF',
+        kind: 'FAMILY_PAF',
+        subjectType: 'FAMILY',
+      });
+
+      const enrolled = await createTestFamily({ familyName: 'Enrolled Family' });
+      const exited = await createTestFamily({ familyName: 'Exited Family' });
+      await createTestFamily({ familyName: 'Never Enrolled' });
+
+      await createTestEnrollment(program.id, { familyId: enrolled.id });
+      await createTestEnrollment(program.id, { familyId: exited.id }, {
+        exitedAt: new Date('2026-06-01'),
+        exitReason: 'GRADUATED',
+      });
+
+      const response = await testClient.get('/families?unenrolled=true', caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.total).toBe(2);
+      expect(result.families.map((f: any) => f.familyName).sort()).toEqual([
+        'Exited Family',
+        'Never Enrolled',
+      ]);
     });
 
     it('should support search filtering', async () => {
@@ -208,10 +244,12 @@ describe('Family Routes', () => {
     it('should create a family successfully', async () => {
       const familyData = {
         familyName: 'New Test Family',
-        childrenEditable: 2,
         inCrisis: true,
         notes: 'Test notes',
         communityId: testCommunity.id,
+        phone: '555-0100',
+        caretaker2Name: 'Second Caretaker',
+        incomeSources: 'Farming',
       };
 
       const response = await testClient.post('/families', familyData, caseworkerToken);
@@ -220,8 +258,10 @@ describe('Family Routes', () => {
       expect(response.status).toBe(201);
       expect(result.id).toBeDefined();
       expect(result.familyName).toBe(familyData.familyName);
-      expect(result.childrenEditable).toBe(familyData.childrenEditable);
       expect(result.inCrisis).toBe(familyData.inCrisis);
+      expect(result.phone).toBe(familyData.phone);
+      expect(result.caretaker2Name).toBe(familyData.caretaker2Name);
+      expect(result.incomeSources).toBe(familyData.incomeSources);
       expect(result.notes).toBe(familyData.notes);
       expect(result.communityId).toBe(familyData.communityId);
 
@@ -243,7 +283,6 @@ describe('Family Routes', () => {
 
       expect(response.status).toBe(201);
       expect(result.familyName).toBe(familyData.familyName);
-      expect(result.childrenEditable).toBe(0); // Default value
       expect(result.inCrisis).toBe(false); // Default value
     });
 
@@ -291,7 +330,6 @@ describe('Family Routes', () => {
       const result = await response.json();
       expect(result.id).toBeDefined();
       expect(result.familyName).toBeNull();
-      expect(result.childrenEditable).toBe(0); // Default value
       expect(result.inCrisis).toBe(false); // Default value
     });
 

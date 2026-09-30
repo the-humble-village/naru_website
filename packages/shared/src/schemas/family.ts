@@ -1,45 +1,43 @@
 import { z } from 'zod';
+import { DateOnlySchema } from './enums.js';
 
-// Family creation schema (for creating new families)
 export const FamilyCreateSchema = z.object({
   familyName: z.string().max(512).optional().nullable(),
-  childrenEditable: z.number().int().min(0).default(0),
+  communityId: z.number().int().positive().optional().nullable(),
+  phone: z.string().max(64).optional().nullable(),
+  caretaker2Name: z.string().max(256).optional().nullable(),
+  incomeSources: z.string().optional().nullable(),
+  deathsNotes: z.string().optional().nullable(),
   inCrisis: z.boolean().default(false),
   notes: z.string().optional().nullable(),
-  communityId: z.number().int().positive().optional().nullable(),
-  siteId: z.number().int().positive().optional().nullable(),
-  birthingAssistantId: z.number().int().positive().optional().nullable(),
-  photos: z.array(z.number().int().positive()).default([]),
-  localId: z.string().uuid().optional(), // Set by client for offline-created records
+  localId: z.string().uuid().optional(),
 });
 
-// Family update schema (partial fields for updates)
 export const FamilyUpdateSchema = FamilyCreateSchema.partial();
 
-// Family read schema (what's returned from API - never includes deletedAt)
 export const FamilyReadSchema = z.object({
   id: z.number().int().positive(),
   localId: z.string().nullable(),
   familyName: z.string().nullable(),
-  childrenEditable: z.number().int(),
+  communityId: z.number().int().nullable(),
+  phone: z.string().nullable(),
+  caretaker2Name: z.string().nullable(),
+  incomeSources: z.string().nullable(),
+  deathsNotes: z.string().nullable(),
   inCrisis: z.boolean(),
   notes: z.string().nullable(),
-  communityId: z.number().int().nullable(),
-  siteId: z.number().int().nullable(),
-  birthingAssistantId: z.number().int().nullable(),
-  photos: z.array(z.number().int().positive()),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-  // Note: deletedAt is never exposed to clients
 });
 
-// List rows carry the date of the family's most recent family visit so the families
-// table can show "Last Visited" without a request per row.
+// List rows carry the date of the most recent visit against any of the family's
+// enrollments, so the families table can show "Last Visited" without a request
+// per row.
 export const FamilyListItemSchema = FamilyReadSchema.extend({
-  lastVisitDate: z.string().datetime().nullable(),
+  siteId: z.number().int().nullable(),
+  lastVisitDate: DateOnlySchema.nullable(),
 });
 
-// Inferred types for TypeScript
 export type FamilyCreate = z.infer<typeof FamilyCreateSchema>;
 export type FamilyUpdate = z.infer<typeof FamilyUpdateSchema>;
 export type FamilyRead = z.infer<typeof FamilyReadSchema>;

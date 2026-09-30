@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { ageInDays, weightForAge, armCircumferenceForAge, classifyZScore } from '../zscore';
+import {
+  ageInDays,
+  weightForAge,
+  armCircumferenceForAge,
+  classifyZScore,
+  heightForAge,
+  weightForHeight,
+  computeNutritionZScores,
+} from '../zscore';
 
 describe('Z-Score Calculator', () => {
   describe('ageInDays', () => {
@@ -169,6 +177,123 @@ describe('Z-Score Calculator', () => {
       expect(acfaZ).not.toBeNull();
       expect(Math.abs(weightZ!)).toBeLessThan(2); // Should be within normal range
       expect(Math.abs(acfaZ!)).toBeLessThan(2);
+    });
+  });
+
+  // A measurement sitting exactly on the WHO median must score zero. These are
+  // the published WHO LMS medians, and they are what the vendored tables in
+  // who-data.ts are verified against.
+  describe('heightForAge', () => {
+    it('should score the published median at zero', () => {
+      expect(heightForAge(49.8842, 0, 'MALE')).toBeCloseTo(0, 6);
+      expect(heightForAge(49.1477, 0, 'FEMALE')).toBeCloseTo(0, 6);
+    });
+
+    it('should return null for age out of range', () => {
+      expect(heightForAge(60, 2000, 'MALE')).toBeNull();
+    });
+
+    it('should return null for invalid height', () => {
+      expect(heightForAge(0, 100, 'MALE')).toBeNull();
+      expect(heightForAge(-1, 100, 'MALE')).toBeNull();
+    });
+
+    it('should detect stunting', () => {
+      const zscore = heightForAge(65, 365, 'MALE'); // Very short at 1 year
+      expect(zscore).not.toBeNull();
+      expect(classifyZScore(zscore!)).toBe('severe');
+    });
+  });
+
+  /**
+   * WHO publishes two separate weight-for-size tables — recumbent length under
+   * two years, standing height from two years — and they are not
+   * interchangeable. Picking the wrong one shifts every z-score in the same
+   * direction, so the boundary is asserted from both sides.
+   */
+  describe('weightForHeight', () => {
+    it('should score the recumbent median at zero below two years', () => {
+      expect(weightForHeight(2.441, 450, 100, 'MALE')).toBeCloseTo(0, 6);
+      expect(weightForHeight(2.4607, 450, 100, 'FEMALE')).toBeCloseTo(0, 6);
+    });
+
+    it('should score the standing median at zero from two years', () => {
+      expect(weightForHeight(7.4327, 650, 800, 'MALE')).toBeCloseTo(0, 6);
+    });
+
+    it('should switch from the recumbent to the standing table at 731 days', () => {
+      const recumbent = weightForHeight(7.4327, 650, 730, 'MALE');
+      const standing = weightForHeight(7.4327, 650, 731, 'MALE');
+
+      expect(standing).toBeCloseTo(0, 6);
+      expect(recumbent).not.toBeNull();
+      expect(Math.abs(recumbent! - standing!)).toBeGreaterThan(0.1);
+    });
+
+    it('should have no standing table below 650mm', () => {
+      expect(weightForHeight(5, 500, 800, 'MALE')).toBeNull();
+      expect(weightForHeight(5, 500, 400, 'MALE')).not.toBeNull();
+    });
+
+    it('should return null outside the published range', () => {
+      expect(weightForHeight(2.4, 400, 100, 'MALE')).toBeNull();
+      expect(weightForHeight(30, 1300, 1000, 'MALE')).toBeNull();
+    });
+  });
+
+  describe('computeNutritionZScores', () => {
+    const oneYear = ageInDays(new Date('2025-02-15'), new Date('2026-02-15'))!;
+
+    it('should compute all four z-scores and the derived status', () => {
+      const scores = computeNutritionZScores(
+        { weightKg: 6.0, heightMm: 700, armCircumferenceMm: 110 },
+        oneYear,
+        'MALE'
+      );
+
+      expect(scores.weightForAgeZ).toBeCloseTo(-4.28, 2);
+      expect(scores.heightForAgeZ).toBeCloseTo(-2.42, 2);
+      expect(scores.weightForHeightZ).toBeCloseTo(-4.38, 2);
+      expect(scores.muacZ).toBeCloseTo(-3.66, 2);
+      expect(scores.nutritionalStatus).toBe('SEVERE');
+    });
+
+    it('should read arm circumference as millimetres, not centimetres', () => {
+      const asMm = computeNutritionZScores({ armCircumferenceMm: 110 }, oneYear, 'MALE');
+      const asCmByMistake = computeNutritionZScores({ armCircumferenceMm: 11 }, oneYear, 'MALE');
+
+      expect(asMm.muacZ).toBeCloseTo(-3.66, 2);
+      expect(asCmByMistake.muacZ).not.toBeCloseTo(-3.66, 2);
+    });
+
+    it('should leave a z-score null when its measurement is absent', () => {
+      const scores = computeNutritionZScores({ weightKg: 6.0 }, oneYear, 'MALE');
+
+      expect(scores.weightForAgeZ).not.toBeNull();
+      expect(scores.heightForAgeZ).toBeNull();
+      expect(scores.weightForHeightZ).toBeNull();
+      expect(scores.muacZ).toBeNull();
+    });
+
+    it('should fall back to weight-for-age when no arm circumference was taken', () => {
+      const withMuac = computeNutritionZScores(
+        { weightKg: 6.0, armCircumferenceMm: 150 },
+        oneYear,
+        'MALE'
+      );
+      const withoutMuac = computeNutritionZScores({ weightKg: 6.0 }, oneYear, 'MALE');
+
+      expect(withMuac.nutritionalStatus).toBe('NORMAL');
+      expect(withoutMuac.nutritionalStatus).toBe('SEVERE');
+    });
+
+    it('should compute nothing without an age', () => {
+      const scores = computeNutritionZScores({ weightKg: 6.0, heightMm: 700 }, null, 'MALE');
+
+      expect(scores.weightForAgeZ).toBeNull();
+      expect(scores.heightForAgeZ).toBeNull();
+      expect(scores.weightForHeightZ).toBeNull();
+      expect(scores.nutritionalStatus).toBeNull();
     });
   });
 });

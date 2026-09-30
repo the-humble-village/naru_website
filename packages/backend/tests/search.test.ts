@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import searchRoutes from '../src/routes/search';
-import { testDb, createTestUser, createTestFamily, createTestParent, createTestChild } from './setup';
+import { testDb, createTestUser, createTestFamily, createTestMother, createTestPerson, createTestChild } from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with search routes and error handler
@@ -117,9 +117,8 @@ describe('Search Routes', () => {
       expect(result.results[0].name).toBe('Garcia Family');
     });
 
-    it('should search parents by name', async () => {
-      // Create parent
-      const parent = await createTestParent(testFamily.id, 'Maria Garcia');
+    it('should search mothers by name', async () => {
+      await createTestMother({ name: 'Maria Garcia', familyId: testFamily.id });
 
       const response = await testClient.get('/search?q=Maria', caseworkerToken);
       const result = await response.json();
@@ -128,19 +127,15 @@ describe('Search Routes', () => {
       expect(result.total).toBe(1);
       expect(result.results).toHaveLength(1);
 
-      const parentResult = result.results[0];
-      expect(parentResult.type).toBe('parent');
-      expect(parentResult.name).toBe('Maria Garcia');
-      expect(parentResult.familyName).toBe('Garcia Family');
-      expect(parentResult.familyId).toBe(testFamily.id);
+      const motherResult = result.results[0];
+      expect(motherResult.type).toBe('mother');
+      expect(motherResult.name).toBe('Maria Garcia');
+      expect(motherResult.familyName).toBe('Garcia Family');
+      expect(motherResult.familyId).toBe(testFamily.id);
     });
 
     it('should search children by name', async () => {
-      // Create child
-      const child = await createTestChild(testFamily.id, 'Carlos Garcia', {
-        birthDate: new Date('2020-01-15'),
-        sex: 'MALE',
-      });
+      await createTestChild({ name: 'Carlos Garcia', familyId: testFamily.id });
 
       const response = await testClient.get('/search?q=Carlos', caseworkerToken);
       const result = await response.json();
@@ -156,30 +151,40 @@ describe('Search Routes', () => {
       expect(childResult.familyId).toBe(testFamily.id);
     });
 
-    it('should search across all types and sort by type (families, parents, children)', async () => {
-      // Create multiple entities with similar names
-      await createTestParent(testFamily.id, 'Garcia Parent');
-      await createTestChild(testFamily.id, 'Garcia Child', {
-        birthDate: new Date('2020-01-15'),
-        sex: 'FEMALE',
-      });
+    it('should find a child with no family, which has no V1 equivalent', async () => {
+      await createTestChild({ name: 'Orphaned Garcia' });
+
+      const response = await testClient.get('/search?q=Orphaned', caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].type).toBe('child');
+      expect(result.results[0].familyId).toBeNull();
+      expect(result.results[0].familyName).toBeNull();
+    });
+
+    it('should search across all types and sort by type (families, mothers, children, people)', async () => {
+      await createTestMother({ name: 'Garcia Mother', familyId: testFamily.id });
+      await createTestChild({ name: 'Garcia Child', familyId: testFamily.id, sex: 'FEMALE' });
+      await createTestPerson({ name: 'Garcia Midwife' });
 
       const response = await testClient.get('/search?q=Garcia', caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(200);
-      expect(result.total).toBe(3);
-      expect(result.results).toHaveLength(3);
+      expect(result.total).toBe(4);
+      expect(result.results).toHaveLength(4);
 
-      // Should be sorted: family, parent, child
-      expect(result.results[0].type).toBe('family');
-      expect(result.results[1].type).toBe('parent');
-      expect(result.results[2].type).toBe('child');
+      expect(result.results.map((r: any) => r.type)).toEqual([
+        'family',
+        'mother',
+        'child',
+        'person',
+      ]);
 
-      // All should be from same family
-      expect(result.results[0].familyId).toBe(testFamily.id);
-      expect(result.results[1].familyId).toBe(testFamily.id);
-      expect(result.results[2].familyId).toBe(testFamily.id);
+      // A person belongs to no family.
+      expect(result.results[3].familyId).toBeNull();
     });
 
     it('should handle partial name matches', async () => {

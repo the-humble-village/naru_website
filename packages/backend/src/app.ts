@@ -9,20 +9,24 @@ import { ZodError } from 'zod';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import birthingAssistantsRoutes from './routes/birthing-assistants.js';
-import childVisitsRoutes from './routes/child-visits.js';
 import childrenRoutes from './routes/children.js';
 import dashboardRoutes from './routes/dashboard.js';
+import enrollmentsRoutes from './routes/enrollments.js';
+import eventsRoutes from './routes/events.js';
 import familiesRoutes from './routes/families.js';
-import familyVisitsRoutes from './routes/family-visits.js';
 import filesRoutes from './routes/files.js';
 import healthRoutes from './routes/health.js';
-import parentsRoutes from './routes/parents.js';
+import mothersRoutes from './routes/mothers.js';
+import peopleRoutes from './routes/people.js';
+import photosRoutes from './routes/photos.js';
+import programsRoutes from './routes/programs.js';
+import reportsRoutes from './routes/reports.js';
 import searchRoutes from './routes/search.js';
-import syncRoutes from './routes/sync.js';
-import parentVisitsRoutes from './routes/parent-visits.js';
 import usersRoutes from './routes/users.js';
-import questionSetsRoutes from './routes/question-sets.js';
 import sitesRoutes from './routes/sites.js';
+import visitsRoutes from './routes/visits.js';
+import questionsRoutes from './routes/questions.js';
+import questionSetsRoutes from './routes/question-sets.js';
 
 // Initialize Hono app with OpenAPI support
 const app = new OpenAPIHono();
@@ -101,17 +105,20 @@ app.route('/api/families', familiesRoutes);
 app.route('/api/files', filesRoutes);
 app.route('/api/health', healthRoutes);
 app.route('/api/search', searchRoutes);
-app.route('/api/question-sets', questionSetsRoutes);
 app.route('/api/sites', sitesRoutes);
-app.route('/api/sync', syncRoutes);
 app.route('/api/users', usersRoutes);
 
-// Mount nested child routes through families
-app.route('/api/families/:familyId/parents/:pid/visits', parentVisitsRoutes);
-app.route('/api/families/:familyId/children', childrenRoutes);
-app.route('/api/families/:familyId/parents', parentsRoutes);
-app.route('/api/families/:fid/children/:cid/visits', childVisitsRoutes);
-app.route('/api/families/:familyId/visits', familyVisitsRoutes);
+app.route('/api/children', childrenRoutes);
+app.route('/api/mothers', mothersRoutes);
+app.route('/api/people', peopleRoutes);
+app.route('/api/programs', programsRoutes);
+app.route('/api/enrollments', enrollmentsRoutes);
+app.route('/api/visits', visitsRoutes);
+app.route('/api/questions', questionsRoutes);
+app.route('/api/question-sets', questionSetsRoutes);
+app.route('/api/events', eventsRoutes);
+app.route('/api/photos', photosRoutes);
+app.route('/api/reports', reportsRoutes);
 
 // Health check endpoint (simple version, non-OpenAPI)
 app.get('/health', (c) => {

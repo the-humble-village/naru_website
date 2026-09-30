@@ -3,558 +3,345 @@ import { render, screen, waitFor, fireEvent, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { EnrollmentListItem, VisitListItem } from '@naru/shared';
 import ChildDetailPage from '../children/ChildDetailPage';
-import * as childrenApi from '../../api/children';
-import * as visitsApi from '../../api/visits';
-import { useAuthStore } from '../../store/auth';
+import { fetchChild, updateChild, deleteChild } from '../../api/children';
+import { fetchMother, listMothers } from '../../api/mothers';
+import { fetchFamily } from '../../api/families';
+import { listEnrollments } from '../../api/enrollments';
+import { listPrograms } from '../../api/programs';
+import { fetchCommunities, fetchSites } from '../../api/admin';
+import { listVisits } from '../../api/visits';
 
-// Mock the API modules
 vi.mock('../../api/children', () => ({
-  childrenApi: {
-    fetchChild: vi.fn(),
-    updateChild: vi.fn(),
-    deleteChild: vi.fn(),
-  },
+  fetchChild: vi.fn(),
+  updateChild: vi.fn(),
+  deleteChild: vi.fn(),
 }));
+vi.mock('../../api/mothers', () => ({ fetchMother: vi.fn(), listMothers: vi.fn() }));
+vi.mock('../../api/families', () => ({ fetchFamily: vi.fn() }));
+vi.mock('../../api/enrollments', () => ({
+  listEnrollments: vi.fn(),
+  reopenEnrollment: vi.fn(),
+}));
+vi.mock('../../api/programs', () => ({ listPrograms: vi.fn() }));
+vi.mock('../../api/admin', () => ({ fetchCommunities: vi.fn(), fetchSites: vi.fn() }));
+vi.mock('../../api/visits', () => ({ listVisits: vi.fn() }));
 
-vi.mock('../../api/visits', () => ({
-  visitsApi: {
-    listChildVisits: vi.fn(),
-  },
-}));
-
-vi.mock('../../api/files', () => ({
-  filesApi: {
-    getPresignedDownloadUrls: vi.fn().mockResolvedValue({ urls: [] }),
-    requestPresignedUpload: vi.fn(),
-    uploadFileToS3: vi.fn(),
-    confirmUpload: vi.fn(),
-  },
-}));
+const authState: { role: 'ADMIN' | 'SUPERVISOR' | 'CASEWORKER' } = { role: 'SUPERVISOR' };
 
 vi.mock('../../store/auth', () => ({
-  useAuthStore: vi.fn(),
+  useAuthStore: () => ({
+    lang: 'en',
+    user: {
+      id: 1,
+      login: 'u',
+      email: null,
+      firstName: null,
+      lastName: null,
+      role: authState.role,
+      lang: 'en',
+    },
+  }),
 }));
 
 const mockNavigate = vi.fn();
 
-// Mock useParams to return specific values
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useParams: vi.fn(),
-    useNavigate: () => mockNavigate,
-  };
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate, useParams: () => ({ id: '2' }) };
 });
 
-const mockFetchChild = childrenApi.childrenApi.fetchChild as ReturnType<typeof vi.fn>;
-const mockUpdateChild = childrenApi.childrenApi.updateChild as ReturnType<typeof vi.fn>;
-const mockDeleteChild = childrenApi.childrenApi.deleteChild as ReturnType<typeof vi.fn>;
-const mockListChildVisits = visitsApi.visitsApi.listChildVisits as ReturnType<typeof vi.fn>;
-const mockUseAuthStore = useAuthStore as unknown as ReturnType<typeof vi.fn>;
-
-const setRole = (role: 'ADMIN' | 'SUPERVISOR' | 'CASEWORKER') => {
-  mockUseAuthStore.mockReturnValue({
-    user: { id: 1, login: 'u', email: null, firstName: 'A', lastName: 'B', role, lang: 'en' },
-  });
-};
-
-// Test utilities
-const createTestWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
-  return function TestWrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          {children}
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
-  };
-};
-
-const mockChild = {
+const child = {
   id: 2,
   localId: null,
-  familyId: 1,
-  name: 'Maria Garcia',
-  birthDate: '2023-01-15T00:00:00.000Z',
-  sex: 'FEMALE' as const,
-  dateEntered: '2023-02-01T00:00:00.000Z',
-  photos: [],
-  weight: 12.5, // kg
-  nutritionalState: 'Good',
-  reasonEnrollment: 'Regular checkup',
-  observations: 'Healthy development',
-  createdAt: '2023-01-15T10:00:00.000Z',
-  updatedAt: '2023-03-15T10:00:00.000Z',
-  zScores: {
-    weightForAge: {
-      zScore: -0.5,
-      classification: 'normal',
-    },
-    ageInDays: 400,
-  },
+  name: 'José Ramírez',
+  birthDate: '2026-05-01T00:00:00.000Z',
+  sex: 'MALE' as const,
+  communityId: 3,
+  motherId: 5,
+  familyId: 9,
+  notes: 'Healthy development',
+  createdAt: '2026-05-01T00:00:00.000Z',
+  updatedAt: '2026-06-01T00:00:00.000Z',
 };
 
-const mockVisitsResponse = {
-  visits: [
-    {
-      id: 1,
-      localId: null,
-      familyId: 1,
-      childId: 2,
-      visitDate: '2023-03-01T10:00:00.000Z',
-      weight: 12,
-      armCircumference: 165, // 16.5 cm in mm
-      height: 850, // 85 cm in mm
-      incap: false,
-      leche: true,
-      bagsGiven: null,
-      recvAnyMedicine: null,
-      leftFromProg: null,
-      passedAway: null,
-      questions: [],
-      photos: [],
-      notes: 'Normal development',
-      createdAt: '2023-03-01T10:00:00.000Z',
-      updatedAt: '2023-03-01T10:00:00.000Z',
-    },
-    {
-      id: 2,
-      localId: null,
-      familyId: 1,
-      childId: 2,
-      visitDate: '2023-02-01T10:00:00.000Z',
-      weight: 11,
-      armCircumference: 160,
-      height: 820,
-      incap: false,
-      leche: false,
-      bagsGiven: null,
-      recvAnyMedicine: null,
-      leftFromProg: null,
-      passedAway: null,
-      questions: [],
-      photos: [],
-      notes: null,
-      createdAt: '2023-02-01T10:00:00.000Z',
-      updatedAt: '2023-02-01T10:00:00.000Z',
-    },
-  ],
-  total: 2,
-  skip: 0,
-  limit: 10,
+const nutritionEnrollment: EnrollmentListItem = {
+  id: 44,
+  localId: null,
+  programId: 2,
+  motherId: null,
+  childId: 2,
+  personId: null,
+  familyId: null,
+  enrolledAt: '2026-06-01',
+  entryWeight: 5.2,
+  entryPhotoId: null,
+  admissionNotes: null,
+  exitedAt: null,
+  exitReason: null,
+  exitWeight: null,
+  exitPhotoId: null,
+  exitNotes: null,
+  createdAt: '2026-06-01T00:00:00.000Z',
+  updatedAt: '2026-06-01T00:00:00.000Z',
+  nutritionDetail: {
+    lengthAtAdmission: 560,
+    caretakerName: 'Abuela',
+    caretakerPhone: null,
+    nutritionalStatus: 'MODERATE',
+  },
+  program: { id: 2, name: 'Nutrition Infant', kind: 'NUTRITION', subjectType: 'CHILD' },
+  subjectName: 'José Ramírez',
+  visitCount: 3,
+  lastVisitDate: '2026-08-01',
+};
+
+const visit = (id: number, date: string, weight: number, z: number): VisitListItem => ({
+  id,
+  localId: null,
+  enrollmentId: 44,
+  visitDate: date,
+  locationType: 'SITE',
+  siteId: 8,
+  communityId: 3,
+  recordedById: 1,
+  eventId: null,
+  notes: null,
+  createdAt: `${date}T00:00:00.000Z`,
+  updatedAt: `${date}T00:00:00.000Z`,
+  resources: [],
+  trainingIds: [],
+  answers: [],
+  nutritionDetail: {
+    weight,
+    height: null,
+    armCircumference: null,
+    weightForAgeZ: z,
+    heightForAgeZ: null,
+    weightForHeightZ: null,
+    muacZ: null,
+    nutritionalStatus: 'MODERATE',
+  },
+  program: { id: 2, name: 'Nutrition Infant', kind: 'NUTRITION', subjectType: 'CHILD' },
+  subjectName: 'José Ramírez',
+  recordedByName: 'Worker',
+});
+
+const renderPage = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <ChildDetailPage />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
 };
 
 describe('ChildDetailPage', () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    setRole('SUPERVISOR');
-    // Mock useParams to return expected route parameters
-    const { useParams } = await import('react-router-dom');
-    (useParams as any).mockReturnValue({ id: '1', cid: '2' });
+    authState.role = 'SUPERVISOR';
+    vi.mocked(fetchChild).mockResolvedValue(child);
+    vi.mocked(fetchMother).mockResolvedValue({
+      id: 5,
+      localId: null,
+      name: 'María López',
+      birthDate: null,
+      communityId: 3,
+      phone: null,
+      familyId: 9,
+      midwifeId: null,
+      pregnancies: null,
+      childrenCount: null,
+      breastfedCount: null,
+      malnutritionDeaths: null,
+      notes: null,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    });
+    vi.mocked(fetchFamily).mockResolvedValue({
+      id: 9,
+      localId: null,
+      familyName: 'Familia López',
+      communityId: 3,
+      phone: null,
+      caretaker2Name: null,
+      incomeSources: null,
+      deathsNotes: null,
+      inCrisis: false,
+      notes: null,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    });
+    vi.mocked(listEnrollments).mockResolvedValue({
+      items: [nutritionEnrollment],
+      total: 1,
+      skip: 0,
+      limit: 100,
+    });
+    vi.mocked(listPrograms).mockResolvedValue({
+      items: [
+        {
+          id: 2,
+          name: 'Nutrition Infant',
+          kind: 'NUTRITION',
+          subjectType: 'CHILD',
+          description: null,
+          minAgeMonths: null,
+          maxAgeMonths: null,
+          visitIntervalDays: 30,
+          active: true,
+          sortOrder: 1,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(fetchCommunities).mockResolvedValue([
+      {
+        id: 3,
+        title: 'Xela',
+        siteId: 8,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      },
+    ]);
+    vi.mocked(fetchSites).mockResolvedValue([
+      {
+        id: 8,
+        title: 'Quetzaltenango',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      },
+    ]);
+    vi.mocked(listVisits).mockResolvedValue({
+      items: [visit(1, '2026-06-10', 5.4, -2.1), visit(2, '2026-07-10', 5.9, -1.8)],
+      total: 2,
+      skip: 0,
+      limit: 100,
+    });
+    vi.mocked(listMothers).mockResolvedValue({ items: [], total: 0, skip: 0, limit: 10 });
   });
 
-  describe('Loading states', () => {
-    it('should show loading state while fetching child data', () => {
-      mockFetchChild.mockReturnValue(new Promise(() => {})); // Never resolves
-      mockListChildVisits.mockReturnValue(new Promise(() => {}));
+  it('renders the header with sex, derived site, mother and family links', async () => {
+    renderPage();
 
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
+    await waitFor(() => expect(screen.getByText('José Ramírez')).toBeInTheDocument());
 
-      expect(screen.getByText('Loading...')).toBeInTheDocument();
-    });
+    expect(screen.getByText(/Xela \(.*: Quetzaltenango\)/)).toBeInTheDocument();
+    expect(screen.getByText('Healthy development')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'María López' })).toHaveAttribute(
+      'href',
+      '/mothers/5'
+    );
+    expect(await screen.findByRole('link', { name: 'Familia López' })).toHaveAttribute(
+      'href',
+      '/families/9'
+    );
+    expect(fetchChild).toHaveBeenCalledWith(2);
   });
 
-  describe('Child information display', () => {
-    it('should render child details successfully', async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
+  it('renders the nutrition weight trend from persisted visit values', async () => {
+    renderPage();
 
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
+    const chart = await screen.findByRole('img', { name: 'profile.weight_trend' });
+    const trend = chart.closest('div')?.parentElement as HTMLElement;
 
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('12.50 kg')).toBeInTheDocument();
-      expect(screen.getByText(/Female/)).toBeInTheDocument();
-      expect(screen.getByText('Good')).toBeInTheDocument();
-      expect(screen.getByText('Regular checkup')).toBeInTheDocument();
-      expect(screen.getByText('Healthy development')).toBeInTheDocument();
-    });
-
-    it('should format dates correctly', async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      // Birth date should be formatted as D/M/YYYY
-      expect(screen.getByText(/15\/1\/2023/)).toBeInTheDocument();
-      // Date entered should be formatted (using selector to avoid collision with visit table)
-      expect(screen.getByText(/1\/2\/2023/, { selector: 'div' })).toBeInTheDocument();
-    });
-
-    it('should calculate age correctly', async () => {
-      const childWithAge = {
-        ...mockChild,
-        birthDate: new Date(Date.now() - 18 * 30 * 24 * 60 * 60 * 1000).toISOString(), // 18 months ago
-      };
-
-      mockFetchChild.mockResolvedValue(childWithAge);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      // Should show age in years and months
-      expect(screen.getByText(/1 yr \d+ mo/)).toBeInTheDocument();
-    });
-
-    it('should handle optional fields gracefully', async () => {
-      const minimalChild = {
-        id: 2,
-        localId: null,
-        familyId: 1,
-        name: 'Simple Child',
-        birthDate: '2023-01-15T00:00:00.000Z',
-        sex: 'MALE' as const,
-        dateEntered: null,
-        photos: [],
-        weight: 10,
-        nutritionalState: null,
-        reasonEnrollment: null,
-        observations: null,
-        createdAt: '2023-01-15T10:00:00.000Z',
-        updatedAt: '2023-03-15T10:00:00.000Z',
-        zScores: null,
-      };
-
-      mockFetchChild.mockResolvedValue(minimalChild);
-      mockListChildVisits.mockResolvedValue({ visits: [], total: 0, skip: 0, limit: 10 });
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Simple Child' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText(/Male/)).toBeInTheDocument();
-      expect(screen.getByText('10.00 kg')).toBeInTheDocument();
-      // Component always renders these labels, showing '—' when null
-      expect(screen.getByText('Date Entered')).toBeInTheDocument();
-      expect(screen.getByText('Nutritional State')).toBeInTheDocument();
-    });
+    expect(within(trend).getByText('5.4 kg')).toBeInTheDocument();
+    expect(within(trend).getByText('5.9 kg')).toBeInTheDocument();
+    expect(within(trend).getByText(/-1\.80/)).toBeInTheDocument();
   });
 
-  describe('Z-Score information', () => {
-    it('should display z-score badge when data is available', async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText(/Weight-for-Age: Normal/)).toBeInTheDocument();
-      expect(screen.getByText(/\(-0\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText('400 days old')).toBeInTheDocument();
+  it('prompts to link a mother when none is set and saves the pick', async () => {
+    vi.mocked(fetchChild).mockResolvedValue({ ...child, motherId: null });
+    vi.mocked(listMothers).mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          localId: null,
+          name: 'Ana Pérez',
+          birthDate: null,
+          communityId: null,
+          phone: null,
+          familyId: null,
+          midwifeId: null,
+          pregnancies: null,
+          childrenCount: null,
+          breastfedCount: null,
+          malnutritionDeaths: null,
+          notes: null,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+      skip: 0,
+      limit: 10,
     });
+    vi.mocked(updateChild).mockResolvedValue({ ...child, motherId: 7 });
 
-    it('should show no data message when z-scores are unavailable', async () => {
-      const childWithoutZScores = { ...mockChild, zScores: null };
-      mockFetchChild.mockResolvedValue(childWithoutZScores);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
+    renderPage();
 
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
+    const search = await screen.findByLabelText('children.link_mother');
+    expect(screen.getByText(/children\.no_mother/)).toBeInTheDocument();
 
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
+    fireEvent.change(search, { target: { value: 'Ana' } });
 
-      // When z-scores are null the z-score row is not rendered
-      expect(screen.queryByText(/Weight-for-Age/)).not.toBeInTheDocument();
-    });
+    const option = await screen.findByRole('button', { name: 'Ana Pérez' }, { timeout: 3000 });
+    fireEvent.click(option);
+
+    await waitFor(() => expect(updateChild).toHaveBeenCalledWith(2, { motherId: 7 }));
   });
 
-  describe('Visit history', () => {
-    it('should display visit history table with data', async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
+  it('keeps the visit action on the enrollment card, never the page header', async () => {
+    renderPage();
 
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
+    await waitFor(() => expect(screen.getByText('José Ramírez')).toBeInTheDocument());
 
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      // Check table headers (multiple 'Weight (kg)' exist — chart label + table header)
-      expect(screen.getByText('Date')).toBeInTheDocument();
-      expect(screen.getAllByText('Weight (kg)').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('MUAC (cm)').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('Height (cm)').length).toBeGreaterThanOrEqual(1);
-
-      // Check visit data (weight in kg; mm converted to cm)
-      expect(screen.getByText('12.00')).toBeInTheDocument(); // weight
-      expect(screen.getByText('16.5')).toBeInTheDocument(); // arm circumference
-      expect(screen.getByText('85.0')).toBeInTheDocument(); // height
-      expect(screen.getByText('Normal development')).toBeInTheDocument();
-      expect(screen.getByText('—')).toBeInTheDocument(); // empty notes
-    });
-
-    it('should show empty state when no visits exist', async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockResolvedValue({ visits: [], total: 0, skip: 0, limit: 10 });
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('No visits recorded yet')).toBeInTheDocument();
-    });
-
-    it('should show loading state for visits', async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockReturnValue(new Promise(() => {})); // Never resolves
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Loading visits...')).toBeInTheDocument();
-    });
-
-    it('should show error state for visits', async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockRejectedValue(new Error('Failed to load visits'));
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Error loading visits')).toBeInTheDocument();
-    });
+    const visitLinks = await screen.findAllByRole('link', { name: /enrollment\.add_visit/ });
+    expect(visitLinks).toHaveLength(1);
+    expect(visitLinks[0]).toHaveAttribute('href', '/enrollments/44/visits/new');
   });
 
-  describe('Error handling', () => {
-    it('should show error state when child fetch fails', async () => {
-      mockFetchChild.mockRejectedValue(new Error('Child not found'));
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
+  it('routes + Enroll in program to the wizard with the child pre-selected', async () => {
+    renderPage();
 
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
+    const picker = await screen.findByRole('combobox');
+    await waitFor(() =>
+      expect(within(picker).getByRole('option', { name: 'Nutrition Infant' })).toBeInTheDocument()
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText('Child not found')).toBeInTheDocument();
-      });
-    });
-
-    it('should show not found state when child is null', async () => {
-      mockFetchChild.mockResolvedValue(null);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByText('Child not found')).toBeInTheDocument();
-      });
-    });
+    fireEvent.change(picker, { target: { value: '2' } });
+    expect(mockNavigate).toHaveBeenCalledWith('/programs/2/enroll?childId=2');
   });
 
-  describe('Navigation links', () => {
-    it('should have correct navigation links', async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
+  it('hides delete from caseworkers and soft-deletes for a supervisor', async () => {
+    authState.role = 'CASEWORKER';
+    const { unmount } = renderPage();
+    await waitFor(() => expect(screen.getByText('José Ramírez')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+    unmount();
 
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
+    authState.role = 'SUPERVISOR';
+    vi.mocked(deleteChild).mockResolvedValue(undefined);
+    renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
+    await waitFor(() => expect(screen.getByText('José Ramírez')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
-      const backLink = screen.getByText('← Back to Family');
-      expect(backLink.closest('a')).toHaveAttribute('href', '/families/1');
-
-      const addVisitLink = screen.getByText('Add Visit');
-      expect(addVisitLink.closest('a')).toHaveAttribute('href', '/families/1/children/2/visits/new');
-    });
+    await waitFor(() => expect(deleteChild).toHaveBeenCalledWith(2));
   });
 
-  describe('Inline edit form', () => {
-    const openEditForm = async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      await screen.findByText('Edit Child Information');
-    };
-
-    it('exposes every editable child field, including photos', async () => {
-      await openEditForm();
-
-      expect(screen.getByLabelText('Name')).toHaveValue('Maria Garcia');
-      expect(screen.getByLabelText('Sex')).toHaveValue('FEMALE');
-      expect(screen.getByLabelText('Birth Date')).toHaveValue('2023-01-15');
-      expect(screen.getByLabelText('Date Entered')).toHaveValue('2023-02-01');
-      expect(screen.getByLabelText('Weight (kg)')).toHaveValue(12.5);
-      expect(screen.getByLabelText('Nutritional State')).toHaveValue('Good');
-      expect(screen.getByLabelText('Reason for Enrollment')).toHaveValue('Regular checkup');
-      expect(screen.getByLabelText('Observations')).toHaveValue('Healthy development');
-      // PhotoUpload renders a "Photos" label plus an add control
-      expect(screen.getByText('Photos')).toBeInTheDocument();
-      expect(screen.getByText('Add Photo')).toBeInTheDocument();
-    });
-
-    it('only sends changed fields on save', async () => {
-      mockUpdateChild.mockResolvedValue({ ...mockChild, nutritionalState: 'Improving' });
-      await openEditForm();
-
-      fireEvent.change(screen.getByLabelText('Nutritional State'), { target: { value: 'Improving' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-      await waitFor(() => {
-        expect(mockUpdateChild).toHaveBeenCalledWith(1, 2, { nutritionalState: 'Improving' });
-      });
-    });
-
-    it('resets the form on cancel', async () => {
-      await openEditForm();
-
-      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Changed' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => {
-        expect(screen.queryByText('Edit Child Information')).not.toBeInTheDocument();
-      });
-      expect(mockUpdateChild).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Delete', () => {
-    const renderPage = async () => {
-      mockFetchChild.mockResolvedValue(mockChild);
-      mockListChildVisits.mockResolvedValue(mockVisitsResponse);
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Maria Garcia' })).toBeInTheDocument();
-      });
-    };
-
-    it('hides the Delete button from caseworkers', async () => {
-      setRole('CASEWORKER');
-      await renderPage();
-
-      expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument();
-    });
-
-    it('shows the Delete button to supervisors', async () => {
-      await renderPage();
-
-      expect(screen.getByRole('button', { name: /Delete/ })).toBeInTheDocument();
-    });
-
-    it('opens a confirmation dialog instead of window.confirm', async () => {
-      const confirmSpy = vi.spyOn(window, 'confirm');
-      await renderPage();
-
-      fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
-
-      expect(await screen.findByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('Delete child')).toBeInTheDocument();
-      // Warns that the child has recorded visits, but does not block
-      expect(screen.getByText('This child has 2 recorded visits.')).toBeInTheDocument();
-      expect(confirmSpy).not.toHaveBeenCalled();
-      expect(mockDeleteChild).not.toHaveBeenCalled();
-
-      confirmSpy.mockRestore();
-    });
-
-    it('cancelling the dialog does not delete', async () => {
-      await renderPage();
-
-      fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
-      await screen.findByRole('dialog');
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-      expect(mockDeleteChild).not.toHaveBeenCalled();
-    });
-
-    it('confirming deletes the child and navigates back to the family', async () => {
-      mockDeleteChild.mockResolvedValue(undefined);
-      await renderPage();
-
-      fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
-
-      await waitFor(() => {
-        expect(mockDeleteChild).toHaveBeenCalledWith(1, 2);
-      });
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/families/1');
-      });
-    });
-
-    it('surfaces a delete error', async () => {
-      mockDeleteChild.mockRejectedValue(new Error('Forbidden'));
-      await renderPage();
-
-      fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
-
-      expect(await screen.findByText(/Error deleting child: Forbidden/)).toBeInTheDocument();
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Data formatting', () => {
-    it('should handle invalid route parameters gracefully', async () => {
-      // Mock useParams to return invalid parameters
-      const { useParams } = await import('react-router-dom');
-      (useParams as any).mockReturnValue({ id: 'invalid', cid: 'invalid' });
-
-      render(<ChildDetailPage />, { wrapper: createTestWrapper() });
-
-      // Should show not found state and not make API calls with invalid parameters
-      expect(screen.getByText('Child not found')).toBeInTheDocument();
-      expect(mockFetchChild).not.toHaveBeenCalled();
-      expect(mockListChildVisits).not.toHaveBeenCalled();
-    });
+  it('shows an error when the child fails to load', async () => {
+    vi.mocked(fetchChild).mockRejectedValue(new Error('boom'));
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Failed to load child.')).toBeInTheDocument());
   });
 });

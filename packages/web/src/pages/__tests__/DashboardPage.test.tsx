@@ -45,130 +45,66 @@ vi.mock('../families/FamiliesTable', () => ({
 }));
 
 const mockDashboardData: DashboardResponse = {
-  recentVisits: {
-    childVisits: [
-      {
-        id: 1,
-        localId: null,
-        familyId: 1,
-        childId: 1,
-        visitDate: '2024-03-15T10:00:00Z',
-        weight: 3.5,
-        height: 500,
-        armCircumference: 120,
-        incap: false,
-        leche: true,
-        bagsGiven: null,
-        recvAnyMedicine: null,
-        leftFromProg: null,
-        passedAway: null,
-        questions: [],
-        photos: [],
-        notes: null,
-        createdAt: '2024-03-15T10:00:00Z',
-        updatedAt: '2024-03-15T10:00:00Z',
-        child: {
-          id: 1,
-          name: 'Maria Garcia',
-          familyId: 1,
-        },
-      },
-    ],
-    familyVisits: [
-      {
-        id: 1,
-        localId: null,
-        familyId: 2,
-        visitDate: '2024-03-14T15:00:00Z',
-        trainingsReceived: [],
-        resourcesReceived: [],
-        questions: [],
-        photos: [],
-        notes: null,
-        createdAt: '2024-03-14T15:00:00Z',
-        updatedAt: '2024-03-14T15:00:00Z',
-        family: {
-          id: 2,
-          familyName: 'Rodriguez Family',
-        },
-      },
-    ],
-    parentVisits: [
-      {
-        id: 1,
-        localId: null,
-        familyId: 3,
-        parentId: 5,
-        visitDate: '2024-03-13T09:00:00Z',
-        weight: 60,
-        trainingsReceived: [],
-        resourcesReceived: [],
-        questions: [],
-        photos: [],
-        notes: null,
-        createdAt: '2024-03-13T09:00:00Z',
-        updatedAt: '2024-03-13T09:00:00Z',
-        parent: {
-          id: 5,
-          name: 'Ana Perez',
-          familyId: 3,
-        },
-      },
-    ],
-  },
-  recentlyUpdatedChildren: [
+  recentVisits: [
     {
       id: 1,
-      localId: null,
-      familyId: 1,
-      name: 'Carlos Lopez',
-      birthDate: '2023-01-01T00:00:00Z',
-      sex: 'MALE' as const,
-      dateEntered: null,
-      photos: [],
-      weight: 4,
-      nutritionalState: null,
-      reasonEnrollment: null,
-      observations: null,
-      createdAt: '2024-03-01T10:00:00Z',
-      updatedAt: '2024-03-15T10:00:00Z',
-      family: {
-        id: 1,
-        familyName: 'Lopez Family',
-      },
-      latestVisit: {
-        id: 2,
-        visitDate: '2024-03-15T10:00:00Z',
-        weight: 4,
-        height: 520,
-        armCircumference: 125,
-      },
+      enrollmentId: 11,
+      visitDate: '2024-03-15',
+      locationType: 'SITE',
+      siteId: 1,
+      programId: 2,
+      programName: 'Nutrition Infant <6m',
+      programKind: 'NUTRITION',
+      subjectType: 'CHILD',
+      subjectId: 1,
+      subjectName: 'Maria Garcia',
     },
+    {
+      id: 2,
+      enrollmentId: 12,
+      visitDate: '2024-03-12',
+      locationType: 'HOME',
+      siteId: null,
+      programId: 1,
+      programName: 'Expectant Mother',
+      programKind: 'PREGNANCY',
+      subjectType: 'MOTHER',
+      subjectId: 5,
+      subjectName: 'Ana Perez',
+    },
+  ],
+  enrollmentsByProgram: [
+    { programId: 1, programName: 'Expectant Mother', programKind: 'PREGNANCY', active: 4 },
+    { programId: 2, programName: 'Nutrition Infant <6m', programKind: 'NUTRITION', active: 6 },
   ],
   familiesInCrisis: [
     {
       id: 3,
       localId: null,
       familyName: 'Crisis Family',
-      childrenEditable: 1,
-      inCrisis: true,
-      notes: 'Family needs immediate attention',
       communityId: 1,
-      siteId: 1,
-      birthingAssistantId: null,
-      photos: [],
+      phone: null,
+      caretaker2Name: null,
+      incomeSources: null,
+      deathsNotes: null,
+      inCrisis: true,
+      notes: null,
       createdAt: '2024-03-01T10:00:00Z',
       updatedAt: '2024-03-15T10:00:00Z',
       childrenCount: 2,
-      lastVisitDate: '2024-03-10T10:00:00Z',
+      lastVisitDate: '2024-03-10',
     },
   ],
   stats: {
-    totalFamilies: 25,
+    activeEnrollments: 10,
     totalChildren: 45,
+    totalMothers: 20,
+    totalPeople: 8,
+    totalFamilies: 25,
     totalCommunities: 7,
     familiesInCrisis: 3,
     visitsThisMonth: 12,
+    unenrolledSubjects: 6,
   },
   visitsPerMonth: [
     { month: 'Oct', count: 4 },
@@ -178,9 +114,17 @@ const mockDashboardData: DashboardResponse = {
     { month: 'Feb', count: 11 },
     { month: 'Mar', count: 12 },
   ],
+  newcomersPerMonth: [
+    { month: 'Oct', count: 1 },
+    { month: 'Nov', count: 2 },
+    { month: 'Dec', count: 0 },
+    { month: 'Jan', count: 3 },
+    { month: 'Feb', count: 1 },
+    { month: 'Mar', count: 2 },
+  ],
   communityBreakdown: [
-    { communityId: 1, families: 15, children: 30 },
-    { communityId: 2, families: 10, children: 15 },
+    { communityId: 1, families: 15, children: 30, activeEnrollments: 7 },
+    { communityId: 2, families: 10, children: 15, activeEnrollments: 3 },
   ],
 };
 
@@ -246,49 +190,64 @@ describe('DashboardPage', () => {
     renderWithQueryClient(<DashboardPage />);
 
     await waitFor(() => {
-      // Check statistics
       expect(screen.getByText('25')).toBeInTheDocument(); // Total Families
       expect(screen.getByText('45')).toBeInTheDocument(); // Total Children
       expect(screen.getByText('7')).toBeInTheDocument(); // Total Communities
       expect(screen.getByText('Total Communities')).toBeInTheDocument();
-      // "3" also appears as the Recent Visits section badge (child + family + parent)
       expect(screen.getAllByText('3').length).toBeGreaterThan(0); // Families in Crisis
       expect(screen.getByText('12')).toBeInTheDocument(); // Visits This Month
-
-      // Check section headers
-      expect(screen.getByText('Recent Visits')).toBeInTheDocument();
-      expect(screen.getByText('Recently Updated Children')).toBeInTheDocument();
-
-      // Check recent visits content
-      expect(screen.getByText('Maria Garcia')).toBeInTheDocument();
-      expect(screen.getByText('Rodriguez Family')).toBeInTheDocument();
-
-      // Check recently updated children
-      expect(screen.getByText('Carlos Lopez')).toBeInTheDocument();
-      expect(screen.getByText(/Lopez Family/)).toBeInTheDocument();
-
-      // Families in crisis shown as count in stat card only (no individual family names in overview)
-      expect(screen.queryByText('Crisis Family')).not.toBeInTheDocument();
     });
+
+    expect(screen.getByText('Recent Visits')).toBeInTheDocument();
+    expect(screen.getByText('Active enrollments')).toBeInTheDocument();
+  });
+
+  it('should show the subject and program of each recent visit', async () => {
+    vi.mocked(dashboardApi.fetchDashboardData).mockResolvedValue(mockDashboardData);
+
+    renderWithQueryClient(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Maria Garcia')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Ana Perez')).toBeInTheDocument();
+    // The program name appears both in the visit feed and the enrollment census.
+    expect(screen.getAllByText(/Nutrition Infant <6m/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Expectant Mother/).length).toBeGreaterThan(0);
+  });
+
+  it('should list active enrollment counts per program', async () => {
+    vi.mocked(dashboardApi.fetchDashboardData).mockResolvedValue(mockDashboardData);
+
+    renderWithQueryClient(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Active enrollments')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.getByText('6')).toBeInTheDocument();
   });
 
   it('should handle empty data gracefully', async () => {
     const emptyData: DashboardResponse = {
-      recentVisits: {
-        childVisits: [],
-        familyVisits: [],
-        parentVisits: [],
-      },
-      recentlyUpdatedChildren: [],
+      recentVisits: [],
+      enrollmentsByProgram: [],
       familiesInCrisis: [],
       stats: {
-        totalFamilies: 0,
+        activeEnrollments: 0,
         totalChildren: 0,
+        totalMothers: 0,
+        totalPeople: 0,
+        totalFamilies: 0,
         totalCommunities: 0,
         familiesInCrisis: 0,
         visitsThisMonth: 0,
+        unenrolledSubjects: 0,
       },
       visitsPerMonth: [],
+      newcomersPerMonth: [],
       communityBreakdown: [],
     };
 
@@ -297,12 +256,11 @@ describe('DashboardPage', () => {
     renderWithQueryClient(<DashboardPage />);
 
     await waitFor(() => {
-      // Check that empty state messages are shown
       expect(screen.getByText('No recent visits')).toBeInTheDocument();
-      expect(screen.getByText('No recently updated children')).toBeInTheDocument();
-      // Crisis stat is always shown, reading 0 when no family is in crisis
-      expect(screen.getByRole('button', { name: /Families in Crisis/ })).toBeInTheDocument();
     });
+
+    expect(screen.getByText('No programs yet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Families in Crisis/ })).toBeInTheDocument();
   });
 
   it('should show the crisis stat next to the other totals', async () => {
@@ -315,39 +273,13 @@ describe('DashboardPage', () => {
     });
   });
 
-  it('should format dates as relative time for recent visits', async () => {
+  it('should format visit dates as relative time', async () => {
     vi.mocked(dashboardApi.fetchDashboardData).mockResolvedValue(mockDashboardData);
 
     renderWithQueryClient(<DashboardPage />);
 
     await waitFor(() => {
-      // Dates are shown as relative time (e.g., "X days ago"), grouped by visit type
-      expect(screen.getByText(/Child Visit/)).toBeInTheDocument();
-      expect(screen.getByText(/Family Visit/)).toBeInTheDocument();
-      expect(screen.getByText(/Parent Visit/)).toBeInTheDocument();
-    });
-  });
-
-  it('should link recent parent visits to the parent visit detail page', async () => {
-    vi.mocked(dashboardApi.fetchDashboardData).mockResolvedValue(mockDashboardData);
-
-    renderWithQueryClient(<DashboardPage />);
-
-    await waitFor(() => {
-      const link = screen.getByText('Ana Perez').closest('a');
-      expect(link).toHaveAttribute('href', '/families/3/parents/5/visits/1');
-    });
-  });
-
-  it('should display weight and height information for children', async () => {
-    vi.mocked(dashboardApi.fetchDashboardData).mockResolvedValue(mockDashboardData);
-
-    renderWithQueryClient(<DashboardPage />);
-
-    await waitFor(() => {
-      // Weight shown as kg (4 kg → 4.0 kg), height shown in mm
-      expect(screen.getByText(/4\.0 kg/)).toBeInTheDocument();
-      expect(screen.getByText(/520 mm/)).toBeInTheDocument();
+      expect(screen.getAllByText(/days ago/).length).toBe(2);
     });
   });
 });

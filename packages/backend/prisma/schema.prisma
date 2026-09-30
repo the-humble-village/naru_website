@@ -22,6 +22,60 @@ enum Sex {
   FEMALE
 }
 
+enum ProgramKind {
+  PREGNANCY
+  NUTRITION
+  MIDWIFE
+  STUDENT
+  FAMILY_PAF
+}
+
+enum SubjectType {
+  MOTHER
+  CHILD
+  PERSON
+  FAMILY
+}
+
+enum ExitReason {
+  GRADUATED
+  WITHDREW
+  MOVED_AWAY
+  DIED
+  TRANSFERRED
+  AGED_OUT
+  LOST
+}
+
+enum LocationType {
+  SITE
+  HOME
+  MOBILE_CLINIC
+}
+
+enum NutritionalStatus {
+  SEVERE
+  MODERATE
+  MILD
+  NORMAL
+}
+
+enum AnswerType {
+  TEXT
+  NUMBER
+  BOOL
+  CHOICE
+}
+
+enum PhotoOwnerType {
+  VISIT
+  CHILD
+  MOTHER
+  PERSON
+  FAMILY
+  EVENT
+}
+
 // ──────────────────────────────────────
 // Users & Auth
 // ──────────────────────────────────────
@@ -43,202 +97,420 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")
 
+  recordedVisits Visit[]
+
   @@map("users")
 }
 
 // ──────────────────────────────────────
-// Core Entities
+// Subjects
+//
+// Four separate subject tables rather than one unified Person, so Mother and
+// Child can grow independent columns. Each is enrollable via Enrollment.
 // ──────────────────────────────────────
 
-model Family {
-  id                  Int       @id @default(autoincrement())
-  localId             String?   @unique @map("local_id")
-  familyName          String?   @map("family_name") @db.VarChar(512)
-  childrenEditable    Int       @default(0) @map("children_editable")
-  inCrisis            Boolean   @default(false) @map("in_crisis")
-  notes               String?   @db.Text
-  photos              Json      @default("[]") // Array of file IDs
-  communityId         Int?      @map("community_id")
-  siteId              Int?      @map("site_id")
-  birthingAssistantId Int?      @map("birthing_assistant_id")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-  deletedAt           DateTime? @map("deleted_at")
+model Person {
+  id          Int       @id @default(autoincrement())
+  localId     String?   @unique @map("local_id")
+  name        String    @db.VarChar(256)
+  birthDate   DateTime? @map("birth_date")
+  sex         Sex?
+  communityId Int?      @map("community_id")
+  phone       String?   @db.VarChar(64)
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-  community         Community?         @relation(fields: [communityId], references: [id], onDelete: SetNull)
-  site              Site?              @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  birthingAssistant BirthingAssistant? @relation(fields: [birthingAssistantId], references: [id], onDelete: SetNull)
-  parents           Parent[]
-  children          Child[]
-  familyVisits      FamilyVisit[]
+  community     Community?   @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  enrollments   Enrollment[]
+  mothersServed Mother[]     @relation("MotherMidwife")
 
-  @@map("families")
+  @@index([communityId])
+  @@map("people")
 }
 
-model Parent {
-  id           Int       @id @default(autoincrement())
-  localId      String?   @unique @map("local_id")
-  familyId     Int       @map("family_id")
-  name         String?   @db.VarChar(256)
-  role         String?   @db.VarChar(64) // "mother", "caregiver", etc.
-  birthDate    DateTime? @map("birth_date")
-  dateEntered  DateTime? @map("date_entered")
-  photos       Json      @default("[]") // Array of file IDs
-  reasonEnroll String?   @map("reason_enroll") @db.VarChar(4096)
-  dueDate      DateTime? @map("due_date")
-  notes        String?   @db.Text
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
+model Mother {
+  id                 Int       @id @default(autoincrement())
+  localId            String?   @unique @map("local_id")
+  name               String    @db.VarChar(256)
+  birthDate          DateTime? @map("birth_date")
+  communityId        Int?      @map("community_id")
+  phone              String?   @db.VarChar(64)
+  familyId           Int?      @map("family_id")
+  midwifeId          Int?      @map("midwife_id")
+  pregnancies        Int?
+  childrenCount      Int?      @map("children_count")
+  breastfedCount     Int?      @map("breastfed_count")
+  malnutritionDeaths Int?      @map("malnutrition_deaths")
+  notes              String?   @db.Text
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
 
-  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  parentVisits ParentVisit[]
+  community   Community?   @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  family      Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  midwife     Person?      @relation("MotherMidwife", fields: [midwifeId], references: [id], onDelete: SetNull)
+  children    Child[]
+  enrollments Enrollment[]
 
-  @@map("parents")
+  @@index([communityId])
+  @@index([familyId])
+  @@index([midwifeId])
+  @@map("mothers")
 }
 
 model Child {
-  id                Int       @id @default(autoincrement())
-  localId           String?   @unique @map("local_id")
-  familyId          Int       @map("family_id")
-  name              String    @db.VarChar(256)
-  birthDate         DateTime  @map("birth_date")
-  sex               Sex
-  dateEntered       DateTime? @map("date_entered")
-  photos            Json      @default("[]") // Array of file IDs
-  weight            Float     @default(0) // kilograms
-  nutritionalState  String?   @map("nutritional_state") @db.VarChar(512)
-  reasonEnrollment  String?   @map("reason_enrollment") @db.VarChar(4096)
-  observations      String?   @db.Text
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  deletedAt         DateTime? @map("deleted_at")
+  id          Int       @id @default(autoincrement())
+  localId     String?   @unique @map("local_id")
+  name        String    @db.VarChar(256)
+  birthDate   DateTime  @map("birth_date")
+  sex         Sex
+  communityId Int?      @map("community_id")
+  // Nullable and must stay that way: a malnourished infant is admittable with no
+  // mother and no family record. Nothing may block admission.
+  motherId    Int?      @map("mother_id")
+  familyId    Int?      @map("family_id")
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  childVisits ChildVisit[]
+  community   Community?   @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  mother      Mother?      @relation(fields: [motherId], references: [id], onDelete: SetNull)
+  family      Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
 
+  @@index([communityId])
+  @@index([motherId])
+  @@index([familyId])
   @@map("children")
 }
 
-// ──────────────────────────────────────
-// Visits & Health Tracking
-// ──────────────────────────────────────
+model Family {
+  id             Int       @id @default(autoincrement())
+  localId        String?   @unique @map("local_id")
+  familyName     String?   @map("family_name") @db.VarChar(512)
+  communityId    Int?      @map("community_id")
+  phone          String?   @db.VarChar(64)
+  caretaker2Name String?   @map("caretaker2_name") @db.VarChar(256)
+  incomeSources  String?   @map("income_sources") @db.Text
+  deathsNotes    String?   @map("deaths_notes") @db.Text
+  inCrisis       Boolean   @default(false) @map("in_crisis")
+  notes          String?   @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
 
-// Merges the legacy "records" and "child_visits" tables into one model.
-// All child health data — measurements, nutrition tracking, dynamic
-// questions — lives here. Optional fields accommodate both visit types.
-model ChildVisit {
-  id               Int       @id @default(autoincrement())
-  localId          String?   @unique @map("local_id")
-  familyId         Int       @map("family_id")
-  childId          Int       @map("child_id")
-  visitDate        DateTime  @map("visit_date")
-  weight           Float     @default(0) // kilograms
-  armCircumference Int       @default(0) @map("arm_circumference") // millimeters
-  height           Int       @default(0) // millimeters
-  incap            Boolean   @default(false) // gave special drink
-  leche            Boolean   @default(false) // drinking milk
-  bagsGiven        String?   @map("bags_given")
-  recvAnyMedicine  String?   @map("recv_any_medicine")
-  leftFromProg     String?   @map("left_from_prog")
-  passedAway       String?   @map("passed_away")
-  questions        Json      @default("[]") // Array of { questionId, question, answer }
-  photos           Json      @default("[]") // Array of file IDs
-  notes            String?   @db.Text
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  deletedAt        DateTime? @map("deleted_at")
+  community   Community?   @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  mothers     Mother[]
+  children    Child[]
+  enrollments Enrollment[]
 
-  child  Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
-
-  @@map("child_visits")
-}
-
-model FamilyVisit {
-  id                Int       @id @default(autoincrement())
-  localId           String?   @unique @map("local_id")
-  familyId          Int       @map("family_id")
-  visitDate         DateTime  @map("visit_date")
-  trainingsReceived Json      @default("[]") @map("trainings_received") // Array of { id, title }
-  resourcesReceived Json      @default("[]") @map("resources_received") // Array of { id, title }
-  questions         Json      @default("[]") // Array of { questionId, question, answer }
-  photos            Json      @default("[]") // Array of file IDs
-  notes             String?   @db.Text
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  deletedAt         DateTime? @map("deleted_at")
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-
-  @@map("family_visits")
-}
-
-model ParentVisit {
-  id                Int       @id @default(autoincrement())
-  localId           String?   @unique @map("local_id")
-  familyId          Int       @map("family_id")
-  parentId          Int       @map("parent_id")
-  visitDate         DateTime  @map("visit_date")
-  weight            Float     @default(0)           // kilograms
-  trainingsReceived Json      @default("[]") @map("trainings_received")
-  resourcesReceived Json      @default("[]") @map("resources_received")
-  questions         Json      @default("[]")
-  photos            Json      @default("[]") // Array of file IDs
-  notes             String?   @db.Text
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  deletedAt         DateTime? @map("deleted_at")
-
-  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
-
-  @@map("parent_visits")
+  @@index([communityId])
+  @@map("families")
 }
 
 // ──────────────────────────────────────
-// Birthing Assistants
+// Programs & Enrollments
 // ──────────────────────────────────────
 
-model BirthingAssistant {
-  id                Int       @id @default(autoincrement())
-  localId           String?   @unique @map("local_id")
-  name              String    @db.VarChar(128)
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  deletedAt         DateTime? @map("deleted_at")
+model Program {
+  id           Int         @id @default(autoincrement())
+  name         String      @db.VarChar(256)
+  kind         ProgramKind
+  subjectType  SubjectType @map("subject_type")
+  description  String?     @db.Text
+  // Advisory age band. The app warns when a subject is enrolled outside it and
+  // flags subjects who age out; it is never enforced by the database.
+  minAgeMonths Int?        @map("min_age_months")
+  maxAgeMonths Int?        @map("max_age_months")
+  // Visit cadence driving the overdue indicator on the roster and dashboard.
+  // Null means this program never flags an enrollment as overdue.
+  visitIntervalDays Int?   @map("visit_interval_days")
+  active       Boolean     @default(true)
+  sortOrder    Int         @default(0) @map("sort_order")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  deletedAt    DateTime?   @map("deleted_at")
 
-  servedCommunities BirthingAssistantCommunity[]
-  trainingsReceived BirthingAssistantTraining[]
-  families          Family[]
+  enrollments  Enrollment[]
+  questionSets QuestionSet[]
 
-  @@map("birthing_assistants")
+  @@index([kind])
+  @@map("programs")
 }
 
-// Junction table: which communities a BA serves
-model BirthingAssistantCommunity {
-  birthingAssistantId Int @map("birthing_assistant_id")
-  communityId         Int @map("community_id")
+// The spine of the model: who is in what, when they joined, when they left, and
+// what they weighed at each end.
+//
+// Exactly one of motherId/childId/personId/familyId is non-null — four real FKs
+// rather than a polymorphic pair, so Postgres enforces referential integrity and
+// the census query stays a single-table scan. Enforced by a CHECK constraint.
+model Enrollment {
+  id        Int     @id @default(autoincrement())
+  localId   String? @unique @map("local_id")
+  programId Int     @map("program_id")
 
-  birthingAssistant BirthingAssistant @relation(fields: [birthingAssistantId], references: [id], onDelete: Cascade)
-  community         Community         @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  motherId Int? @map("mother_id")
+  childId  Int? @map("child_id")
+  personId Int? @map("person_id")
+  familyId Int? @map("family_id")
 
-  @@id([birthingAssistantId, communityId])
-  @@map("birthing_assistant_communities")
+  enrolledAt     DateTime @map("enrolled_at") @db.Date
+  entryWeight    Decimal? @map("entry_weight") @db.Decimal(6, 3) // kilograms
+  entryPhotoId   Int?     @map("entry_photo_id")
+  admissionNotes String?  @map("admission_notes") @db.Text
+
+  exitedAt    DateTime?   @map("exited_at") @db.Date
+  exitReason  ExitReason? @map("exit_reason")
+  exitWeight  Decimal?    @map("exit_weight") @db.Decimal(6, 3) // kilograms
+  exitPhotoId Int?        @map("exit_photo_id")
+  exitNotes   String?     @map("exit_notes") @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  program Program @relation(fields: [programId], references: [id])
+  mother  Mother? @relation(fields: [motherId], references: [id], onDelete: Cascade)
+  child   Child?  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  person  Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family  Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  entryPhoto File? @relation("EntryPhoto", fields: [entryPhotoId], references: [id], onDelete: SetNull)
+  exitPhoto  File? @relation("ExitPhoto", fields: [exitPhotoId], references: [id], onDelete: SetNull)
+
+  visits          Visit[]
+  pregnancyDetail PregnancyEnrollmentDetail?
+  nutritionDetail NutritionEnrollmentDetail?
+  studentDetail   StudentEnrollmentDetail?
+
+  @@index([programId, exitedAt])
+  @@index([enrolledAt])
+  @@index([motherId])
+  @@index([childId])
+  @@index([personId])
+  @@index([familyId])
+  @@map("enrollments")
 }
 
-// Junction table: what training a BA has received
-model BirthingAssistantTraining {
-  birthingAssistantId Int @map("birthing_assistant_id")
-  trainingId          Int @map("training_id")
+// Enrollment detail tables. Only three exist — MIDWIFE and FAMILY_PAF
+// enrollments carry no extra fields. Weight at admission lives on
+// enrollment.entryWeight, never here, so entry-vs-exit weight is one query
+// across every program.
 
-  birthingAssistant BirthingAssistant @relation(fields: [birthingAssistantId], references: [id], onDelete: Cascade)
-  training          Training          @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+model PregnancyEnrollmentDetail {
+  enrollmentId        Int       @id @map("enrollment_id")
+  dueDate             DateTime? @map("due_date") @db.Date
+  pregnancyNumber     Int?      @map("pregnancy_number")
+  birthingAssistantId Int?      @map("birthing_assistant_id")
 
-  @@id([birthingAssistantId, trainingId])
-  @@map("birthing_assistant_trainings")
+  enrollment        Enrollment         @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  birthingAssistant BirthingAssistant? @relation(fields: [birthingAssistantId], references: [id], onDelete: SetNull)
+
+  @@index([birthingAssistantId])
+  @@map("pregnancy_enrollment_details")
+}
+
+model NutritionEnrollmentDetail {
+  enrollmentId      Int                @id @map("enrollment_id")
+  lengthAtAdmission Int?               @map("length_at_admission") // millimetres
+  caretakerName     String?            @map("caretaker_name") @db.VarChar(256)
+  caretakerPhone    String?            @map("caretaker_phone") @db.VarChar(64)
+  nutritionalStatus NutritionalStatus? @map("nutritional_status")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@map("nutrition_enrollment_details")
+}
+
+model StudentEnrollmentDetail {
+  enrollmentId Int     @id @map("enrollment_id")
+  school       String? @db.VarChar(256)
+  classYear    String? @map("class_year") @db.VarChar(64)
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@map("student_enrollment_details")
 }
 
 // ──────────────────────────────────────
-// Files (Photos)
+// Visits
+// ──────────────────────────────────────
+
+model Visit {
+  id           Int          @id @default(autoincrement())
+  localId      String?      @unique @map("local_id")
+  enrollmentId Int          @map("enrollment_id")
+  visitDate    DateTime     @map("visit_date") @db.Date
+  locationType LocationType @map("location_type")
+  // Where the visit happened, which may differ from the subject's home
+  // community — a mobile clinic is counted where it occurred.
+  siteId       Int?         @map("site_id")
+  communityId  Int?         @map("community_id")
+  recordedById Int?         @map("recorded_by_id")
+  eventId      Int?         @map("event_id")
+  notes        String?      @db.Text
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  site       Site?      @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  community  Community? @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  recordedBy User?      @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+  event      Event?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  resources       VisitResource[]
+  trainings       VisitTraining[]
+  answers         VisitAnswer[]
+  pregnancyDetail PregnancyVisitDetail?
+  nutritionDetail NutritionVisitDetail?
+
+  @@index([enrollmentId, visitDate])
+  @@index([visitDate])
+  @@index([siteId, visitDate])
+  @@index([eventId])
+  @@index([communityId])
+  @@index([recordedById])
+  @@map("visits")
+}
+
+model PregnancyVisitDetail {
+  visitId           Int      @id @map("visit_id")
+  weight            Decimal? @db.Decimal(6, 3) // kilograms
+  gestationMonths   Int?     @map("gestation_months")
+  examinationTypeId Int?     @map("examination_type_id")
+
+  visit           Visit            @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  examinationType ExaminationType? @relation(fields: [examinationTypeId], references: [id], onDelete: SetNull)
+
+  @@index([examinationTypeId])
+  @@map("pregnancy_visit_details")
+}
+
+// Z-scores are computed at write time and persisted, so reports index the enum
+// instead of recalculating WHO tables over the full history, and a visit keeps
+// the classification it was given even if reference data is later corrected.
+// heightForAgeZ and weightForHeightZ stay null until the WHO length/height
+// reference tables are added to @naru/shared/health.
+model NutritionVisitDetail {
+  visitId          Int      @id @map("visit_id")
+  weight           Decimal? @db.Decimal(6, 3) // kilograms
+  height           Int? // millimetres
+  armCircumference Int?     @map("arm_circumference") // millimetres
+
+  weightForAgeZ     Decimal?           @map("weight_for_age_z") @db.Decimal(5, 2)
+  heightForAgeZ     Decimal?           @map("height_for_age_z") @db.Decimal(5, 2)
+  weightForHeightZ  Decimal?           @map("weight_for_height_z") @db.Decimal(5, 2)
+  muacZ             Decimal?           @map("muac_z") @db.Decimal(5, 2)
+  nutritionalStatus NutritionalStatus? @map("nutritional_status")
+
+  visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([nutritionalStatus])
+  @@map("nutrition_visit_details")
+}
+
+// Real rows rather than JSON arrays: "how many kitchen gardens per site" is a
+// resource count, which needs a numeric quantity it can sum.
+model VisitResource {
+  visitId    Int     @map("visit_id")
+  resourceId Int     @map("resource_id")
+  quantity   Decimal @db.Decimal(10, 2)
+  unit       String? @db.VarChar(32)
+
+  visit    Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@id([visitId, resourceId])
+  @@index([resourceId])
+  @@map("visit_resources")
+}
+
+model VisitTraining {
+  visitId    Int @map("visit_id")
+  trainingId Int @map("training_id")
+
+  visit    Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
+  @@id([visitId, trainingId])
+  @@index([trainingId])
+  @@map("visit_trainings")
+}
+
+// ──────────────────────────────────────
+// Questions
+//
+// Question sets attach to a program, because visits are organised by program
+// rather than by entity type. Answers are real rows, so admin-added questions
+// ("do you have chickens?") are countable.
+// ──────────────────────────────────────
+
+model Question {
+  id         Int        @id @default(autoincrement())
+  title      String     @db.VarChar(1024)
+  answerType AnswerType @map("answer_type")
+  choices    Json? // string[] — only when answerType = CHOICE
+  sortOrder  Int        @default(0) @map("sort_order")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+  deletedAt  DateTime?  @map("deleted_at")
+
+  setItems QuestionSetItem[]
+  answers  VisitAnswer[]
+
+  @@map("questions")
+}
+
+model QuestionSet {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(256)
+  programId Int?      @map("program_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  program Program?          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  items   QuestionSetItem[]
+
+  @@index([programId])
+  @@map("question_sets")
+}
+
+model QuestionSetItem {
+  id         Int @id @default(autoincrement())
+  setId      Int @map("set_id")
+  questionId Int @map("question_id")
+  sortOrder  Int @default(0) @map("sort_order")
+
+  set      QuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, questionId])
+  @@index([questionId])
+  @@map("question_set_items")
+}
+
+model VisitAnswer {
+  visitId    Int      @map("visit_id")
+  questionId Int      @map("question_id")
+  valueText  String?  @map("value_text") @db.Text
+  valueNum   Decimal? @map("value_num") @db.Decimal(12, 3)
+  valueBool  Boolean? @map("value_bool")
+
+  visit    Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([visitId, questionId])
+  @@index([questionId])
+  @@map("visit_answers")
+}
+
+// ──────────────────────────────────────
+// Files & Photos
 // ──────────────────────────────────────
 
 model File {
@@ -252,23 +524,125 @@ model File {
   createdAt DateTime  @default(now()) @map("created_at")
   deletedAt DateTime? @map("deleted_at")
 
+  attachments      PhotoAttachment[]
+  entryEnrollments Enrollment[]      @relation("EntryPhoto")
+  exitEnrollments  Enrollment[]      @relation("ExitPhoto")
+
   @@map("files")
+}
+
+// Polymorphic on purpose: ownerId has no FK, so the service layer must verify
+// the row named by ownerType exists. Entry and exit photos are NOT here — they
+// stay as named FK slots on Enrollment because they are reported-on artifacts.
+model PhotoAttachment {
+  id        Int            @id @default(autoincrement())
+  fileId    Int            @map("file_id")
+  ownerType PhotoOwnerType @map("owner_type")
+  ownerId   Int            @map("owner_id")
+  caption   String?        @db.VarChar(512)
+  sortOrder Int            @default(0) @map("sort_order")
+  createdAt DateTime       @default(now()) @map("created_at")
+  deletedAt DateTime?      @map("deleted_at")
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([ownerType, ownerId])
+  @@index([fileId])
+  @@map("photo_attachments")
+}
+
+// ──────────────────────────────────────
+// Events
+//
+// A simple log for Midwives Day, Fathers Day, teen activities. Attendance is
+// deferred; visit.eventId exists so the model can absorb it without migration.
+// ──────────────────────────────────────
+
+model Event {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(256)
+  eventDate DateTime  @map("event_date") @db.Date
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  visits Visit[]
+
+  @@index([eventDate])
+  @@map("events")
+}
+
+// ──────────────────────────────────────
+// Birthing Assistants
+//
+// A birthing assistant is a medically-trained professional who attends births.
+// This is NOT a midwife — a midwife is community support for a pregnant mother
+// and is modelled as a Person in the Midwives program. Do not merge them.
+// ──────────────────────────────────────
+
+model BirthingAssistant {
+  id        Int       @id @default(autoincrement())
+  localId   String?   @unique @map("local_id")
+  name      String    @db.VarChar(128)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  servedCommunities BirthingAssistantCommunity[]
+  trainingsReceived BirthingAssistantTraining[]
+  pregnancies       PregnancyEnrollmentDetail[]
+
+  @@map("birthing_assistants")
+}
+
+model BirthingAssistantCommunity {
+  birthingAssistantId Int @map("birthing_assistant_id")
+  communityId         Int @map("community_id")
+
+  birthingAssistant BirthingAssistant @relation(fields: [birthingAssistantId], references: [id], onDelete: Cascade)
+  community         Community         @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@id([birthingAssistantId, communityId])
+  @@index([communityId])
+  @@map("birthing_assistant_communities")
+}
+
+model BirthingAssistantTraining {
+  birthingAssistantId Int @map("birthing_assistant_id")
+  trainingId          Int @map("training_id")
+
+  birthingAssistant BirthingAssistant @relation(fields: [birthingAssistantId], references: [id], onDelete: Cascade)
+  training          Training          @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
+  @@id([birthingAssistantId, trainingId])
+  @@index([trainingId])
+  @@map("birthing_assistant_trainings")
 }
 
 // ──────────────────────────────────────
 // Lookup Tables (Admin-Managed)
 // ──────────────────────────────────────
 
+// Site is a rollup of Community: subjects store only communityId and their site
+// is derived. Two independent fields could contradict each other.
 model Community {
   id        Int       @id @default(autoincrement())
   title     String    @db.VarChar(1024)
+  siteId    Int?      @map("site_id")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  families              Family[]
+  site                   Site?                        @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  people                 Person[]
+  mothers                Mother[]
+  children               Child[]
+  families               Family[]
+  visits                 Visit[]
   birthingAssistantLinks BirthingAssistantCommunity[]
 
+  @@index([siteId])
   @@map("communities")
 }
 
@@ -277,22 +651,26 @@ model Site {
   title     String    @db.VarChar(1024)
   lat       Float?
   lng       Float?
-  boundary  Json?     // GeoJSON polygon ring: [[lng, lat], ...]
+  boundary  Json? // GeoJSON polygon ring: [[lng, lat], ...]
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  families Family[]
+  communities Community[]
+  visits      Visit[]
 
   @@map("sites")
 }
 
 model Resource {
-  id        Int       @id @default(autoincrement())
-  title     String    @db.VarChar(1024)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(1024)
+  defaultUnit String?   @map("default_unit") @db.VarChar(32) // "bag", "litre", "kit"
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  visitLinks VisitResource[]
 
   @@map("resources")
 }
@@ -305,124 +683,20 @@ model Training {
   deletedAt DateTime? @map("deleted_at")
 
   birthingAssistantLinks BirthingAssistantTraining[]
+  visitLinks             VisitTraining[]
 
   @@map("training")
 }
 
-model ChildVisitQuestion {
+model ExaminationType {
   id        Int       @id @default(autoincrement())
-  title     String    @db.VarChar(1024)
+  title     String    @db.VarChar(256)
   sortOrder Int       @default(0) @map("sort_order")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  setItems ChildVisitQuestionSetItem[]
+  pregnancyVisits PregnancyVisitDetail[]
 
-  @@map("child_visit_questions")
-}
-
-model ParentVisitQuestion {
-  id        Int       @id @default(autoincrement())
-  title     String    @db.VarChar(1024)
-  sortOrder Int       @default(0) @map("sort_order")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  setItems ParentVisitQuestionSetItem[]
-
-  @@map("parent_visit_questions")
-}
-
-model FamilyVisitQuestion {
-  id        Int       @id @default(autoincrement())
-  title     String    @db.VarChar(1024)
-  sortOrder Int       @default(0) @map("sort_order")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  setItems FamilyVisitQuestionSetItem[]
-
-  @@map("family_visit_questions")
-}
-
-// ──────────────────────────────────────
-// Question Sets
-// ──────────────────────────────────────
-
-model ChildVisitQuestionSet {
-  id        Int       @id @default(autoincrement())
-  name      String    @db.VarChar(256)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  items ChildVisitQuestionSetItem[]
-
-  @@map("child_visit_question_sets")
-}
-
-model ChildVisitQuestionSetItem {
-  id         Int @id @default(autoincrement())
-  setId      Int @map("set_id")
-  questionId Int @map("question_id")
-  sortOrder  Int @default(0) @map("sort_order")
-
-  set      ChildVisitQuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
-  question ChildVisitQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@unique([setId, questionId])
-  @@map("child_visit_question_set_items")
-}
-
-model ParentVisitQuestionSet {
-  id        Int       @id @default(autoincrement())
-  name      String    @db.VarChar(256)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  items ParentVisitQuestionSetItem[]
-
-  @@map("parent_visit_question_sets")
-}
-
-model ParentVisitQuestionSetItem {
-  id         Int @id @default(autoincrement())
-  setId      Int @map("set_id")
-  questionId Int @map("question_id")
-  sortOrder  Int @default(0) @map("sort_order")
-
-  set      ParentVisitQuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
-  question ParentVisitQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@unique([setId, questionId])
-  @@map("parent_visit_question_set_items")
-}
-
-model FamilyVisitQuestionSet {
-  id        Int       @id @default(autoincrement())
-  name      String    @db.VarChar(256)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  items FamilyVisitQuestionSetItem[]
-
-  @@map("family_visit_question_sets")
-}
-
-model FamilyVisitQuestionSetItem {
-  id         Int @id @default(autoincrement())
-  setId      Int @map("set_id")
-  questionId Int @map("question_id")
-  sortOrder  Int @default(0) @map("sort_order")
-
-  set      FamilyVisitQuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
-  question FamilyVisitQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@unique([setId, questionId])
-  @@map("family_visit_question_set_items")
+  @@map("examination_types")
 }

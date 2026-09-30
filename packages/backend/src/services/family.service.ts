@@ -7,10 +7,34 @@ import {
   type UserRead
 } from '@naru/shared';
 import prisma from '../db.js';
+import { toDateOnly } from '../utils/date.js';
+
+const FAMILY_SELECT = {
+  id: true,
+  localId: true,
+  familyName: true,
+  communityId: true,
+  phone: true,
+  caretaker2Name: true,
+  incomeSources: true,
+  deathsNotes: true,
+  inCrisis: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+  // Explicitly exclude deletedAt
+} as const;
+
+function toFamilyRead(family: any): FamilyRead {
+  return {
+    ...family,
+    createdAt: family.createdAt.toISOString(),
+    updatedAt: family.updatedAt.toISOString(),
+  };
+}
 
 /**
  * List families with optional pagination and filtering
- * Caseworkers see only their assigned families, supervisors+ see all
  */
 export async function listFamilies(options: {
   search?: string;
@@ -19,15 +43,14 @@ export async function listFamilies(options: {
   communityId?: string;
   siteId?: string;
   inCrisis?: string;
+  unenrolled?: boolean;
   user: UserRead;
 } = {} as any): Promise<{ families: FamilyListItem[]; total: number }> {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 20)); // Max 100 per page
 
-  // Build where clause based on filters
   const where: any = {};
 
-  // Search filter (family name)
   if (options.search && options.search.trim()) {
     where.familyName = {
       contains: options.search.trim(),
@@ -35,7 +58,6 @@ export async function listFamilies(options: {
     };
   }
 
-  // Community filter
   if (options.communityId) {
     const communityIdNum = parseInt(options.communityId, 10);
     if (!isNaN(communityIdNum)) {
@@ -43,18 +65,24 @@ export async function listFamilies(options: {
     }
   }
 
-  // Site filter
+  // A family has no site of its own — Site is a rollup of Community, so the
+  // filter reaches through the community.
   if (options.siteId) {
     const siteIdNum = parseInt(options.siteId, 10);
     if (!isNaN(siteIdNum)) {
-      where.siteId = siteIdNum;
+      where.community = { siteId: siteIdNum };
     }
   }
 
-  // Crisis filter
   if (options.inCrisis !== undefined) {
-    const inCrisisBool = options.inCrisis === 'true';
-    where.inCrisis = inCrisisBool;
+    where.inCrisis = options.inCrisis === 'true';
+  }
+
+  // "Unenrolled" needs no schema support — it is zero active enrollment rows
+  // (SCHEMA_V2.md §9.4). This is the same predicate getUnenrolledCount uses, so
+  // the sidebar badge and the worklist cannot disagree.
+  if (options.unenrolled) {
+    where.enrollments = { none: { exitedAt: null, deletedAt: null } };
   }
 
   // TODO: When we implement user assignment/scoping, add this logic:
@@ -68,23 +96,16 @@ export async function listFamilies(options: {
       skip,
       take: limit,
       select: {
-        id: true,
-        localId: true,
-        familyName: true,
-        childrenEditable: true,
-        inCrisis: true,
-        notes: true,
-        communityId: true,
-        siteId: true,
-        birthingAssistantId: true,
-        photos: true,
-        createdAt: true,
-        updatedAt: true,
-        // Explicitly exclude deletedAt
-        familyVisits: {
-          take: 1,
-          orderBy: { visitDate: 'desc' },
-          select: { visitDate: true },
+        ...FAMILY_SELECT,
+        community: { select: { siteId: true } },
+        enrollments: {
+          select: {
+            visits: {
+              take: 1,
+              orderBy: { visitDate: 'desc' },
+              select: { visitDate: true },
+            },
+          },
         },
       },
       orderBy: {
@@ -94,14 +115,23 @@ export async function listFamilies(options: {
     prisma.family.count({ where }),
   ]);
 
-  // Transform dates to ISO strings; familyVisits is a lookup detail, not part of the row
-  const familiesRead: FamilyListItem[] = families.map(({ familyVisits, ...family }: any) => ({
-    ...family,
-    photos: family.photos as number[],
-    createdAt: family.createdAt.toISOString(),
-    updatedAt: family.updatedAt.toISOString(),
-    lastVisitDate: familyVisits?.[0]?.visitDate.toISOString() ?? null,
-  }));
+  const familiesRead: FamilyListItem[] = families.map(
+    ({ community, enrollments, ...family }: any) => {
+      const visitDates: Date[] = enrollments
+        .flatMap((enrollment: any) => enrollment.visits)
+        .map((visit: any) => visit.visitDate);
+
+      const lastVisit = visitDates.length
+        ? visitDates.reduce((a, b) => (a > b ? a : b))
+        : null;
+
+      return {
+        ...toFamilyRead(family),
+        siteId: community?.siteId ?? null,
+        lastVisitDate: toDateOnly(lastVisit),
+      };
+    }
+  );
 
   return {
     families: familiesRead,
@@ -113,7 +143,6 @@ export async function listFamilies(options: {
  * Create a new family
  */
 export async function createFamily(data: FamilyCreate): Promise<FamilyRead> {
-  // If localId is provided, check for uniqueness
   if (data.localId) {
     const existingFamily = await prisma.family.findUnique({
       where: { localId: data.localId },
@@ -125,66 +154,31 @@ export async function createFamily(data: FamilyCreate): Promise<FamilyRead> {
     }
   }
 
-  // Create family
   const family = await prisma.family.create({
     data: {
       familyName: data.familyName,
-      childrenEditable: data.childrenEditable ?? 0,
+      communityId: data.communityId,
+      phone: data.phone,
+      caretaker2Name: data.caretaker2Name,
+      incomeSources: data.incomeSources,
+      deathsNotes: data.deathsNotes,
       inCrisis: data.inCrisis ?? false,
       notes: data.notes,
-      communityId: data.communityId,
-      siteId: data.siteId,
-      birthingAssistantId: data.birthingAssistantId,
-      photos: data.photos ?? [],
       localId: data.localId,
     },
-    select: {
-      id: true,
-      localId: true,
-      familyName: true,
-      childrenEditable: true,
-      inCrisis: true,
-      notes: true,
-      communityId: true,
-      siteId: true,
-      birthingAssistantId: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
+    select: FAMILY_SELECT,
   });
 
-  // Transform dates to ISO strings
-  const familyRead: FamilyRead = {
-    ...family,
-    photos: family.photos as number[],
-    createdAt: family.createdAt.toISOString(),
-    updatedAt: family.updatedAt.toISOString(),
-  };
-
-  return familyRead;
+  return toFamilyRead(family);
 }
 
 /**
- * Get family by ID with related data
+ * Get family by ID
  */
 export async function getFamilyById(id: number, user: UserRead): Promise<FamilyRead> {
   const family = await prisma.family.findUnique({
     where: { id },
-    select: {
-      id: true,
-      localId: true,
-      familyName: true,
-      childrenEditable: true,
-      inCrisis: true,
-      notes: true,
-      communityId: true,
-      siteId: true,
-      birthingAssistantId: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
+    select: FAMILY_SELECT,
   });
 
   if (!family) {
@@ -196,22 +190,13 @@ export async function getFamilyById(id: number, user: UserRead): Promise<FamilyR
   //   throw new HTTPException(403, { message: 'Access denied to this family' });
   // }
 
-  // Transform dates to ISO strings
-  const familyRead: FamilyRead = {
-    ...family,
-    photos: family.photos as number[],
-    createdAt: family.createdAt.toISOString(),
-    updatedAt: family.updatedAt.toISOString(),
-  };
-
-  return familyRead;
+  return toFamilyRead(family);
 }
 
 /**
  * Update family by ID
  */
 export async function updateFamily(id: number, data: FamilyUpdate, user: UserRead): Promise<FamilyRead> {
-  // Check if family exists first
   const existingFamily = await prisma.family.findUnique({
     where: { id },
     select: { id: true, localId: true },
@@ -221,12 +206,6 @@ export async function updateFamily(id: number, data: FamilyUpdate, user: UserRea
     throw new HTTPException(404, { message: 'Family not found' });
   }
 
-  // TODO: When we implement user assignment/scoping, add access control:
-  // if (user.role === 'CASEWORKER' && existingFamily.assignedUserId !== user.id) {
-  //   throw new HTTPException(403, { message: 'Access denied to update this family' });
-  // }
-
-  // If updating localId, check for uniqueness
   if (data.localId && data.localId !== existingFamily.localId) {
     const localIdExists = await prisma.family.findUnique({
       where: { localId: data.localId },
@@ -238,46 +217,24 @@ export async function updateFamily(id: number, data: FamilyUpdate, user: UserRea
     }
   }
 
-  // Update family
   const updatedFamily = await prisma.family.update({
     where: { id },
     data: {
       familyName: data.familyName,
-      childrenEditable: data.childrenEditable,
+      communityId: data.communityId,
+      phone: data.phone,
+      caretaker2Name: data.caretaker2Name,
+      incomeSources: data.incomeSources,
+      deathsNotes: data.deathsNotes,
       inCrisis: data.inCrisis,
       notes: data.notes,
-      communityId: data.communityId,
-      siteId: data.siteId,
-      birthingAssistantId: data.birthingAssistantId,
-      photos: data.photos !== undefined ? data.photos : undefined,
       localId: data.localId,
       updatedAt: new Date(),
     },
-    select: {
-      id: true,
-      localId: true,
-      familyName: true,
-      childrenEditable: true,
-      inCrisis: true,
-      notes: true,
-      communityId: true,
-      siteId: true,
-      birthingAssistantId: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
+    select: FAMILY_SELECT,
   });
 
-  // Transform dates to ISO strings
-  const familyRead: FamilyRead = {
-    ...updatedFamily,
-    photos: updatedFamily.photos as number[],
-    createdAt: updatedFamily.createdAt.toISOString(),
-    updatedAt: updatedFamily.updatedAt.toISOString(),
-  };
-
-  return familyRead;
+  return toFamilyRead(updatedFamily);
 }
 
 /**
@@ -285,7 +242,6 @@ export async function updateFamily(id: number, data: FamilyUpdate, user: UserRea
  * Only supervisors and admins can delete families
  */
 export async function deleteFamily(id: number, user: UserRead): Promise<void> {
-  // Check if family exists first
   const existingFamily = await prisma.family.findUnique({
     where: { id },
     select: { id: true },
@@ -295,7 +251,6 @@ export async function deleteFamily(id: number, user: UserRead): Promise<void> {
     throw new HTTPException(404, { message: 'Family not found' });
   }
 
-  // Soft delete the family
   await prisma.family.update({
     where: { id },
     data: {

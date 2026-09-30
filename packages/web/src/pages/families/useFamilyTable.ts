@@ -4,14 +4,14 @@ import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
 import { type TranslationKey } from '@naru/shared';
 
-export type SortColumn = 'familyName' | 'community' | 'site' | 'lastVisitDate' | 'inCrisis' | 'updatedAt' | 'childrenEditable';
+export type SortColumn = 'familyName' | 'community' | 'site' | 'lastVisitDate' | 'inCrisis' | 'updatedAt';
 export type SortDirection = 'asc' | 'desc';
 export type ColumnKey =
   | 'familyName' | 'site' | 'community' | 'lastVisitDate' | 'inCrisis'
-  | 'notes' | 'childrenEditable' | 'updatedAt';
+  | 'notes' | 'updatedAt';
 
 export const SORTABLE: Set<ColumnKey> = new Set([
-  'familyName', 'community', 'site', 'lastVisitDate', 'inCrisis', 'updatedAt', 'childrenEditable',
+  'familyName', 'community', 'site', 'lastVisitDate', 'inCrisis', 'updatedAt',
 ]);
 
 export const ALL_COLUMNS: { key: ColumnKey; labelKey: TranslationKey; defaultWidth: number; defaultVisible: boolean }[] = [
@@ -22,7 +22,6 @@ export const ALL_COLUMNS: { key: ColumnKey; labelKey: TranslationKey; defaultWid
   { key: 'inCrisis',         labelKey: 'families.crisis_status',  defaultWidth: 130, defaultVisible: true  },
   { key: 'updatedAt',        labelKey: 'families.col_updated',    defaultWidth: 130, defaultVisible: false },
   { key: 'notes',            labelKey: 'families.col_notes',      defaultWidth: 220, defaultVisible: false },
-  { key: 'childrenEditable', labelKey: 'families.col_children',   defaultWidth: 100, defaultVisible: false },
 ];
 
 const DEFAULT_VISIBLE = ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);
@@ -184,10 +183,6 @@ export function useFamilyTable() {
         case 'inCrisis':
           aVal = a.inCrisis ? 1 : 0;
           bVal = b.inCrisis ? 1 : 0;
-          break;
-        case 'childrenEditable':
-          aVal = a.childrenEditable;
-          bVal = b.childrenEditable;
           break;
         default:
           aVal = new Date(a.updatedAt).getTime();

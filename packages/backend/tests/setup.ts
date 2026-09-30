@@ -105,7 +105,6 @@ export const createTestFamily = async (familyNameOrOverrides: string | any = {})
   return testDb.family.create({
     data: {
       familyName: 'Test Family',
-      childrenEditable: 1,
       inCrisis: false,
       notes: 'Test notes',
       ...overrides
@@ -122,79 +121,70 @@ export const createTestCommunity = async (overrides: any = {}) => {
   })
 }
 
-export const createTestParent = async (familyId: number, name: string = 'Test Parent', role: string = 'mother', overrides: any = {}) => {
-  return testDb.parent.create({
+export const createTestMother = async (overrides: any = {}) => {
+  return testDb.mother.create({
     data: {
-      familyId,
-      name,
-      role,
-      notes: 'Test parent notes',
+      name: 'Test Mother',
+      notes: 'Test mother notes',
       ...overrides
     }
   })
 }
 
-export const createTestChild = async (familyId: number, name: string = 'Test Child', overrides: any = {}) => {
+export const createTestPerson = async (overrides: any = {}) => {
+  return testDb.person.create({
+    data: {
+      name: 'Test Person',
+      ...overrides
+    }
+  })
+}
+
+// familyId is deliberately optional: a child must be creatable with no family
+// and no mother.
+export const createTestChild = async (overrides: any = {}) => {
   return testDb.child.create({
     data: {
-      familyId,
-      name,
-      birthDate: new Date('2020-01-15'), // Default to 4+ year old child
+      name: 'Test Child',
+      birthDate: new Date('2020-01-15'),
       sex: 'MALE',
-      weight: 15, // kg
-      observations: 'Test child observations',
+      notes: 'Test child notes',
       ...overrides
     }
   })
 }
 
-export const createTestChildVisit = async (familyId: number, childId: number, overrides: any = {}) => {
-  return testDb.childVisit.create({
+// cleanupDatabase() truncates `programs` too, so each test creates the program
+// rows it needs rather than relying on the migration seed.
+export const createTestProgram = async (overrides: any = {}) => {
+  return testDb.program.create({
     data: {
-      familyId,
-      childId,
-      visitDate: new Date('2024-01-15T10:00:00.000Z'),
-      weight: 16, // kg
-      armCircumference: 140, // 140mm
-      height: 1000, // 1000mm (100cm)
-      incap: false,
-      leche: false,
-      bagsGiven: null,
-      recvAnyMedicine: null,
-      leftFromProg: null,
-      passedAway: null,
-      questions: [],
+      name: 'Test Nutrition Program',
+      kind: 'NUTRITION',
+      subjectType: 'CHILD',
+      ...overrides
+    }
+  })
+}
+
+export const createTestEnrollment = async (programId: number, subject: any, overrides: any = {}) => {
+  return testDb.enrollment.create({
+    data: {
+      programId,
+      enrolledAt: new Date('2026-01-15'),
+      ...subject,
+      ...overrides
+    }
+  })
+}
+
+export const createTestVisit = async (enrollmentId: number, overrides: any = {}) => {
+  return testDb.visit.create({
+    data: {
+      enrollmentId,
+      visitDate: new Date('2026-02-15'),
+      locationType: 'SITE',
       notes: 'Test visit notes',
-      ...overrides
-    }
-  })
-}
-
-export const createTestFamilyVisit = async (familyId: number, overrides: any = {}) => {
-  return testDb.familyVisit.create({
-    data: {
-      familyId,
-      visitDate: new Date('2024-01-15T10:00:00.000Z'),
-      trainingsReceived: [],
-      resourcesReceived: [],
-      questions: [],
-      notes: 'Test family visit notes',
-      ...overrides
-    }
-  })
-}
-
-export const createTestParentVisit = async (familyId: number, parentId: number, overrides: any = {}) => {
-  return testDb.parentVisit.create({
-    data: {
-      familyId,
-      parentId,
-      visitDate: new Date('2024-01-15T10:00:00.000Z'),
-      weight: 60, // kg
-      trainingsReceived: [],
-      resourcesReceived: [],
-      questions: [],
-      notes: 'Test parent visit notes',
       ...overrides
     }
   })

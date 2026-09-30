@@ -1,6 +1,8 @@
 # Schema V2 — Program-Centric Re-Architecture
 
-**Status:** Design approved, not yet implemented
+**Status:** Steps 1–2 done; step 3 moot (§12.5); steps 4–6 done for `program` and `enrollment`,
+plus `mother` and `person` CRUD. `visit` services/routes (§13 steps 4–6) and every web page
+(§13 step 7) are still to build.
 **Supersedes:** the Family-centric model in `packages/backend/prisma/schema.prisma`
 **Source requirements:** `APP-DATA with my notes.md` (Humble Village / church reporting needs)
 
@@ -262,6 +264,7 @@ model Program {
   description String?     @db.Text
   active      Boolean     @default(true)
   sortOrder   Int         @default(0) @map("sort_order")
+  visitIntervalDays Int?  @map("visit_interval_days") // null = never flag overdue
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
   deletedAt   DateTime?   @map("deleted_at")
@@ -273,6 +276,14 @@ model Program {
   @@map("programs")
 }
 ```
+
+`visitIntervalDays` drives the "overdue" indicator on the program roster and dashboard
+(`WEB_DESIGN_V2.md` §4). Nutrition and Pregnancy set it to 30; Midwives, Youth and PAF leave it null.
+Added by `20260928030207_add_program_visit_interval`.
+
+`kind` and `subjectType` are immutable after creation — `ProgramUpdateSchema` omits them. Changing
+either would leave existing enrollments pointing at the wrong subject FK and detail table. A program
+with active enrollments cannot be deleted; set `active = false` to hide it instead.
 
 `subjectType` is redundant with `kind` today (each kind has exactly one subject type), but is stored
 explicitly so the API and UI can validate without a hard-coded lookup, and so a future kind could
@@ -839,27 +850,33 @@ of existing rows — cheap to reverse into.
 
 ## 12. Open implementation questions
 
-1. **WHO reference data.** `heightForAgeZ` and `weightForHeightZ` are new — `@naru/shared/health`
-   currently has only weight-for-age and MUAC-for-age. The length/height tables need adding to
-   `who-data.ts`.
-2. **Gestation months.** The source doc says *"Ask Yvonne how they're calculating this"* — unresolved.
-   Decide whether it is entered by the worker or derived from `dueDate`.
-3. **Nutrition age bands.** "Infant <6m" vs "Child 6m+" are currently distinguished by program
-   *name* only. Consider adding `minAgeMonths` / `maxAgeMonths` to `Program` so the app can warn
-   when a child is enrolled in the wrong band, and flag when they age out.
-4. **Location prefill.** The doc asks that visit location *"load from previous visit"* — a UI
-   concern, but confirm it should default from the last visit on the same enrollment.
-5. **`parent.role` mapping.** The exact set of distinct values in production must be inspected
-   before writing the mother/person split.
+1. **WHO reference data.** ⏳ Still open. `heightForAgeZ` and `weightForHeightZ` columns exist on
+   `nutrition_visit_details` but stay **null**: `@naru/shared/health` has only weight-for-age and
+   MUAC-for-age. The length/height tables need adding to `who-data.ts` before those two z-scores
+   can be computed. `weightForAgeZ` and `muacZ` can be computed today.
+2. **Gestation months.** ⏳ Still open with Yvonne. Implemented as a worker-entered
+   `Int?` (0–11) on `pregnancy_visit_details`, **not** derived from `dueDate`. If it turns out to be
+   derived, the column becomes redundant but needs no migration.
+3. **Nutrition age bands.** ✅ Resolved — `minAgeMonths` / `maxAgeMonths` added to `Program`. The
+   seed sets 0–6 for "Nutrition Infant <6m" and 6–null for "Nutrition Child 6m+". Advisory only:
+   the database never enforces them, so a worker can still admit outside the band.
+4. **Location prefill.** ⏳ Still open — a UI concern, deferred with the rest of the visit UI.
+5. **`parent.role` mapping.** ➖ Moot for now. V1 was migrated by resetting the database
+   (`20260920222141_init_v2` is a fresh init), so no mother/person split was written. This becomes
+   live again only if a production V1 database has to be carried forward.
 
 ---
 
 ## 13. Build order
 
-1. `@naru/shared` — Zod schemas for all new entities, new enums, WHO length/height tables.
-2. `schema.prisma` + migration (including the raw-SQL constraints in §7) + seed programs.
-3. Data migration script (§9).
-4. Services: `program`, `enrollment`, `visit`, then the detail/join writes.
-5. Routes, mounted in `app.ts`.
-6. Backend tests against `naru_test`.
-7. Web API clients, then pages.
+1. ✅ `@naru/shared` — Zod schemas for all new entities, new enums. (WHO length/height tables
+   still outstanding — see §12.1.)
+2. ✅ `schema.prisma` + migration (including the raw-SQL constraints in §7) + seed programs.
+3. ➖ Data migration script (§9) — moot, the database was reset (§12.5).
+4. Services: ✅ `program`, ✅ `enrollment`, ⏳ `visit` and the detail/join writes.
+   `mother` and `person` CRUD were also built here: they are the subjects of four of the six
+   programs, so nothing could be enrolled without them.
+5. ✅ Routes for the above, mounted in `app.ts` (`/api/programs`, `/api/enrollments`,
+   `/api/mothers`, `/api/people`). ⏳ `/api/visits`.
+6. ✅ Backend tests against `naru_test` for the above. ⏳ visit tests.
+7. ⏳ Web API clients, then pages — none started; see `WEB_DESIGN_V2.md` §14.

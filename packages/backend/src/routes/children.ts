@@ -19,96 +19,109 @@ type Variables = {
 
 const app = new Hono<{ Variables: Variables }>();
 
+const ListQuerySchema = z.object({
+  familyId: z.string().optional(),
+  motherId: z.string().optional(),
+  communityId: z.string().optional(),
+  siteId: z.string().optional(),
+  unenrolled: z.string().optional(),
+  search: z.string().optional(),
+  skip: z.string().optional(),
+  limit: z.string().optional(),
+});
+
+function toInt(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? undefined : parsed;
+}
+
 /**
- * GET /families/:familyId/children
- * List children in a family
+ * GET /children
+ * List children, optionally filtered by family, mother, community, or enrollment state
  */
-app.get('/', auth, zValidator('param', z.object({
-  familyId: z.string().transform(val => parseInt(val, 10)),
-})), async (c) => {
-  const { familyId } = c.req.valid('param');
+app.get('/', auth, zValidator('query', ListQuerySchema), async (c) => {
+  const query = c.req.valid('query');
   const user = c.get('user') as UserRead;
 
-  const children = await childService.listChildren(familyId, user);
-  return c.json(children);
+  const result = await childService.listChildren({
+    familyId: toInt(query.familyId),
+    motherId: toInt(query.motherId),
+    communityId: toInt(query.communityId),
+    siteId: toInt(query.siteId),
+    unenrolled: query.unenrolled === 'true',
+    search: query.search,
+    skip: toInt(query.skip),
+    limit: toInt(query.limit),
+    user,
+  });
+
+  return c.json({
+    items: result.children,
+    total: result.total,
+    skip: toInt(query.skip) ?? 0,
+    limit: toInt(query.limit) ?? 50,
+  });
 });
 
 /**
- * POST /families/:familyId/children
- * Add child to family
+ * POST /children
+ * Create a child. familyId and motherId are both optional — a malnourished
+ * infant must be admittable with neither.
  */
-app.post('/', auth,
-  zValidator('param', z.object({
-    familyId: z.string().transform(val => parseInt(val, 10)),
-  })),
-  zValidator('json', ChildCreateSchema.omit({ familyId: true })), // familyId comes from the URL
-  async (c) => {
-    const { familyId } = c.req.valid('param');
-    const childData = c.req.valid('json');
-
-    // Add familyId from URL parameter
-    const data = {
-      ...childData,
-      familyId,
-    };
-
-    const child = await childService.createChild(data);
-    return c.json(child, 201);
-  }
-);
+app.post('/', auth, zValidator('json', ChildCreateSchema), async (c) => {
+  const data = c.req.valid('json');
+  const child = await childService.createChild(data);
+  return c.json(child, 201);
+});
 
 /**
- * GET /families/:familyId/children/:id
- * Get child detail with z-scores
+ * GET /children/:id
  */
 app.get('/:id', auth,
   zValidator('param', z.object({
-    familyId: z.string().transform(val => parseInt(val, 10)),
     id: z.string().transform(val => parseInt(val, 10)),
   })),
   async (c) => {
-    const { familyId, id } = c.req.valid('param');
+    const { id } = c.req.valid('param');
     const user = c.get('user') as UserRead;
 
-    const child = await childService.getChildById(familyId, id, user);
+    const child = await childService.getChildById(id, user);
     return c.json(child);
   }
 );
 
 /**
- * PUT /families/:familyId/children/:id
- * Update child
+ * PUT /children/:id
  */
 app.put('/:id', auth,
   zValidator('param', z.object({
-    familyId: z.string().transform(val => parseInt(val, 10)),
     id: z.string().transform(val => parseInt(val, 10)),
   })),
-  zValidator('json', ChildUpdateSchema.omit({ familyId: true })), // familyId cannot be updated
+  zValidator('json', ChildUpdateSchema),
   async (c) => {
-    const { familyId, id } = c.req.valid('param');
+    const { id } = c.req.valid('param');
     const data = c.req.valid('json');
     const user = c.get('user') as UserRead;
 
-    const child = await childService.updateChild(familyId, id, data, user);
+    const child = await childService.updateChild(id, data, user);
     return c.json(child);
   }
 );
 
 /**
- * DELETE /families/:familyId/children/:id
+ * DELETE /children/:id
  * Soft delete child (supervisor+ only)
  */
 app.delete('/:id', auth, requireSupervisor,
   zValidator('param', z.object({
-    familyId: z.string().transform(val => parseInt(val, 10)),
     id: z.string().transform(val => parseInt(val, 10)),
   })),
   async (c) => {
-    const { familyId, id } = c.req.valid('param');
+    const { id } = c.req.valid('param');
     const user = c.get('user') as UserRead;
 
-    await childService.deleteChild(familyId, id, user);
+    await childService.deleteChild(id, user);
     return c.json({ message: 'Child deleted successfully' });
   }
 );

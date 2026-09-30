@@ -1,23 +1,52 @@
-import {
-  type DashboardResponse,
-  type UserRead,
-  type ChildVisitQuestion,
-  type FamilyVisitQuestion,
-  type TrainingReceived,
-  type ResourceReceived,
-  type ParentVisitQuestion,
-} from '@naru/shared';
+import { type DashboardResponse, type UserRead } from '@naru/shared';
 import prisma from '../db.js';
+import { toDateOnly } from '../utils/date.js';
+
+const ACTIVE = { exitedAt: null, deletedAt: null } as const;
+
+// An enrollment names exactly one subject, so whichever relation came back
+// non-null is the one to read the display name from.
+function subjectOf(enrollment: any): { type: 'MOTHER' | 'CHILD' | 'PERSON' | 'FAMILY'; id: number; name: string | null } {
+  if (enrollment.mother) return { type: 'MOTHER', id: enrollment.mother.id, name: enrollment.mother.name };
+  if (enrollment.child) return { type: 'CHILD', id: enrollment.child.id, name: enrollment.child.name };
+  if (enrollment.person) return { type: 'PERSON', id: enrollment.person.id, name: enrollment.person.name };
+  return { type: 'FAMILY', id: enrollment.family.id, name: enrollment.family.familyName };
+}
+
+export interface UnenrolledCount {
+  children: number;
+  mothers: number;
+  people: number;
+  families: number;
+  total: number;
+}
 
 /**
- * Get dashboard data with recent visits, recently updated children, families in crisis, and summary stats
+ * Count subjects holding no active enrollment. Split out of getDashboardData so
+ * the sidebar badge, which renders on every page, does not pay for the whole
+ * dashboard payload.
+ */
+export async function getUnenrolledCount(): Promise<UnenrolledCount> {
+  const noActiveEnrollment = { enrollments: { none: ACTIVE } };
+
+  const [children, mothers, people, families] = await Promise.all([
+    prisma.child.count({ where: noActiveEnrollment }),
+    prisma.mother.count({ where: noActiveEnrollment }),
+    prisma.person.count({ where: noActiveEnrollment }),
+    prisma.family.count({ where: noActiveEnrollment }),
+  ]);
+
+  return { children, mothers, people, families, total: children + mothers + people + families };
+}
+
+/**
+ * Get dashboard data: the active-enrollment census, recent visits, families in
+ * crisis, and six-month visit and newcomer trends.
  */
 export async function getDashboardData(user: UserRead): Promise<DashboardResponse> {
-  // Calculate start of current month for stats
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Build a 6-month window (oldest first) for the line chart
   const SIX_MONTHS = 6;
   const monthSlots = Array.from({ length: SIX_MONTHS }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (SIX_MONTHS - 1 - i), 1);
@@ -28,386 +57,172 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
     };
   });
 
-  // TODO: When we implement user assignment/scoping, add access control for caseworkers
-  const familyFilter = {}; // For now, show all data to all users
+  // TODO: When we implement user assignment/scoping, add access control here.
 
-  // Get recent child visits (last 10)
-  const recentChildVisits = await prisma.childVisit.findMany({
-    where: {
-      child: {
-        family: familyFilter
-      }
-    },
-    take: 10,
-    orderBy: {
-      visitDate: 'desc',
-    },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      childId: true,
-      visitDate: true,
-      weight: true,
-      armCircumference: true,
-      height: true,
-      incap: true,
-      leche: true,
-      bagsGiven: true,
-      recvAnyMedicine: true,
-      leftFromProg: true,
-      passedAway: true,
-      questions: true,
-      notes: true,
-      createdAt: true,
-      updatedAt: true,
-      child: {
-        select: {
-          id: true,
-          name: true,
-          familyId: true,
+  const [
+    recentVisitRows,
+    programs,
+    familiesInCrisisRows,
+    familiesWithCounts,
+    activeEnrollments,
+    totalChildren,
+    totalMothers,
+    totalPeople,
+    totalFamilies,
+    totalCommunities,
+    visitsThisMonth,
+  ] = await Promise.all([
+    prisma.visit.findMany({
+      take: 10,
+      orderBy: { visitDate: 'desc' },
+      select: {
+        id: true,
+        enrollmentId: true,
+        visitDate: true,
+        locationType: true,
+        siteId: true,
+        enrollment: {
+          select: {
+            program: { select: { id: true, name: true, kind: true } },
+            mother: { select: { id: true, name: true } },
+            child: { select: { id: true, name: true } },
+            person: { select: { id: true, name: true } },
+            family: { select: { id: true, familyName: true } },
+          },
         },
-      },
-    },
-  });
-
-  // Get recent family visits (last 10)
-  const recentFamilyVisits = await prisma.familyVisit.findMany({
-    where: {
-      family: familyFilter
-    },
-    take: 10,
-    orderBy: {
-      visitDate: 'desc',
-    },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      visitDate: true,
-      trainingsReceived: true,
-      resourcesReceived: true,
-      questions: true,
-      notes: true,
-      createdAt: true,
-      updatedAt: true,
-      family: {
-        select: {
-          id: true,
-          familyName: true,
-        },
-      },
-    },
-  });
-
-  // Get recent parent visits (last 10)
-  const recentParentVisits = await prisma.parentVisit.findMany({
-    where: {
-      parent: {
-        family: familyFilter
-      }
-    },
-    take: 10,
-    orderBy: {
-      visitDate: 'desc',
-    },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      parentId: true,
-      visitDate: true,
-      weight: true,
-      trainingsReceived: true,
-      resourcesReceived: true,
-      questions: true,
-      photos: true,
-      notes: true,
-      createdAt: true,
-      updatedAt: true,
-      parent: {
-        select: {
-          id: true,
-          name: true,
-          familyId: true,
-        },
-      },
-    },
-  });
-
-  // Get recently updated children (last 10, with latest visit info)
-  const recentlyUpdatedChildren = await prisma.child.findMany({
-    where: {
-      family: familyFilter
-    },
-    take: 10,
-    orderBy: {
-      updatedAt: 'desc',
-    },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      name: true,
-      birthDate: true,
-      sex: true,
-      dateEntered: true,
-      photos: true,
-      weight: true,
-      nutritionalState: true,
-      reasonEnrollment: true,
-      observations: true,
-      createdAt: true,
-      updatedAt: true,
-      family: {
-        select: {
-          id: true,
-          familyName: true,
-        },
-      },
-      childVisits: {
-        take: 1,
-        orderBy: {
-          visitDate: 'desc',
-        },
-        select: {
-          id: true,
-          visitDate: true,
-          weight: true,
-          height: true,
-          armCircumference: true,
-        },
-      },
-    },
-  });
-
-  // Get families in crisis with child count and last visit date
-  const familiesInCrisis = await prisma.family.findMany({
-    where: {
-      ...familyFilter,
-      inCrisis: true,
-    },
-    select: {
-      id: true,
-      localId: true,
-      familyName: true,
-      childrenEditable: true,
-      inCrisis: true,
-      notes: true,
-      communityId: true,
-      siteId: true,
-      birthingAssistantId: true,
-      createdAt: true,
-      updatedAt: true,
-      children: {
-        select: {
-          id: true,
-        },
-      },
-      familyVisits: {
-        take: 1,
-        orderBy: {
-          visitDate: 'desc',
-        },
-        select: {
-          visitDate: true,
-        },
-      },
-    },
-  });
-
-  // Get community breakdown (families + children per community)
-  const familiesWithChildCount = await prisma.family.findMany({
-    where: familyFilter,
-    select: {
-      communityId: true,
-      _count: { select: { children: true } },
-    },
-  });
-  const communityMap = new Map<number | null, { families: number; children: number }>();
-  for (const f of familiesWithChildCount) {
-    const key = f.communityId;
-    const existing = communityMap.get(key) ?? { families: 0, children: 0 };
-    existing.families += 1;
-    existing.children += f._count.children;
-    communityMap.set(key, existing);
-  }
-  const communityBreakdown = Array.from(communityMap.entries()).map(([communityId, counts]) => ({
-    communityId,
-    ...counts,
-  }));
-
-  // Get summary statistics (crisis count derived from already-fetched familiesInCrisis)
-  const [totalFamilies, totalChildren, totalCommunities, visitsThisMonth] = await Promise.all([
-    prisma.family.count({
-      where: familyFilter,
-    }),
-    prisma.child.count({
-      where: {
-        family: familyFilter,
       },
     }),
+    prisma.program.findMany({
+      where: { deletedAt: null },
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        _count: { select: { enrollments: { where: ACTIVE } } },
+      },
+    }),
+    prisma.family.findMany({
+      where: { inCrisis: true },
+      select: {
+        id: true,
+        localId: true,
+        familyName: true,
+        communityId: true,
+        phone: true,
+        caretaker2Name: true,
+        incomeSources: true,
+        deathsNotes: true,
+        inCrisis: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { children: true } },
+        enrollments: {
+          select: {
+            visits: { take: 1, orderBy: { visitDate: 'desc' }, select: { visitDate: true } },
+          },
+        },
+      },
+    }),
+    prisma.family.findMany({
+      select: {
+        communityId: true,
+        _count: {
+          select: {
+            children: true,
+            enrollments: { where: ACTIVE },
+          },
+        },
+      },
+    }),
+    prisma.enrollment.count({ where: ACTIVE }),
+    prisma.child.count(),
+    prisma.mother.count(),
+    prisma.person.count(),
+    prisma.family.count(),
     prisma.community.count(),
-    Promise.all([
-      prisma.childVisit.count({
-        where: {
-          visitDate: { gte: startOfMonth },
-          deletedAt: null,
-        },
-      }),
-      prisma.familyVisit.count({
-        where: {
-          visitDate: { gte: startOfMonth },
-          deletedAt: null,
-        },
-      }),
-      prisma.parentVisit.count({
-        where: {
-          visitDate: { gte: startOfMonth },
-          deletedAt: null,
-        },
-      }),
-    ]).then(([childVisits, familyVisits, parentVisits]) => childVisits + familyVisits + parentVisits),
+    prisma.visit.count({ where: { visitDate: { gte: startOfMonth }, deletedAt: null } }),
   ]);
-  const familiesInCrisisCount = familiesInCrisis.length;
 
-  // Count visits per month for the last 6 months
-  const visitsPerMonth = await Promise.all(
+  // Subjects with no active enrollment — the §9.4 worklist.
+  const unenrolled = await getUnenrolledCount();
+
+  const trends = await Promise.all(
     monthSlots.map(async ({ label, start, end }) => {
-      const [child, family, parent] = await Promise.all([
-        prisma.childVisit.count({
-          where: { visitDate: { gte: start, lt: end }, deletedAt: null },
-        }),
-        prisma.familyVisit.count({
-          where: { visitDate: { gte: start, lt: end }, deletedAt: null },
-        }),
-        prisma.parentVisit.count({
-          where: { visitDate: { gte: start, lt: end }, deletedAt: null },
-        }),
+      const [visits, newcomers] = await Promise.all([
+        prisma.visit.count({ where: { visitDate: { gte: start, lt: end }, deletedAt: null } }),
+        prisma.enrollment.count({ where: { enrolledAt: { gte: start, lt: end }, deletedAt: null } }),
       ]);
-      return { month: label, count: child + family + parent };
+      return { month: label, visits, newcomers };
     })
   );
 
-  // Transform the data to match the expected schema format
-  const dashboardData: DashboardResponse = {
-    recentVisits: {
-      childVisits: recentChildVisits.map((visit: any) => ({
-        id: visit.id,
-        localId: visit.localId,
-        familyId: visit.familyId,
-        childId: visit.childId,
-        visitDate: visit.visitDate.toISOString(),
-        weight: visit.weight,
-        armCircumference: visit.armCircumference,
-        height: visit.height,
-        incap: visit.incap,
-        leche: visit.leche,
-        bagsGiven: visit.bagsGiven,
-        recvAnyMedicine: visit.recvAnyMedicine,
-        leftFromProg: visit.leftFromProg,
-        passedAway: visit.passedAway,
-        questions: Array.isArray(visit.questions) ? visit.questions as unknown as ChildVisitQuestion[] : [],
-        notes: visit.notes,
-        createdAt: visit.createdAt.toISOString(),
-        updatedAt: visit.updatedAt.toISOString(),
-        child: {
-          id: visit.child!.id,
-          name: visit.child!.name,
-          familyId: visit.child!.familyId,
-        },
-      })),
-      familyVisits: recentFamilyVisits.map((visit: any) => ({
-        id: visit.id,
-        localId: visit.localId,
-        familyId: visit.familyId,
-        visitDate: visit.visitDate.toISOString(),
-        trainingsReceived: Array.isArray(visit.trainingsReceived) ? visit.trainingsReceived as unknown as TrainingReceived[] : [],
-        resourcesReceived: Array.isArray(visit.resourcesReceived) ? visit.resourcesReceived as unknown as ResourceReceived[] : [],
-        questions: Array.isArray(visit.questions) ? visit.questions as unknown as FamilyVisitQuestion[] : [],
-        notes: visit.notes,
-        createdAt: visit.createdAt.toISOString(),
-        updatedAt: visit.updatedAt.toISOString(),
-        family: {
-          id: visit.family!.id,
-          familyName: visit.family!.familyName,
-        },
-      })),
-      parentVisits: recentParentVisits.map((visit: any) => ({
-        id: visit.id,
-        localId: visit.localId,
-        familyId: visit.familyId,
-        parentId: visit.parentId,
-        visitDate: visit.visitDate.toISOString(),
-        weight: visit.weight,
-        trainingsReceived: Array.isArray(visit.trainingsReceived) ? visit.trainingsReceived as unknown as TrainingReceived[] : [],
-        resourcesReceived: Array.isArray(visit.resourcesReceived) ? visit.resourcesReceived as unknown as ResourceReceived[] : [],
-        questions: Array.isArray(visit.questions) ? visit.questions as unknown as ParentVisitQuestion[] : [],
-        photos: Array.isArray(visit.photos) ? visit.photos as number[] : [],
-        notes: visit.notes,
-        createdAt: visit.createdAt.toISOString(),
-        updatedAt: visit.updatedAt.toISOString(),
-        parent: {
-          id: visit.parent!.id,
-          name: visit.parent!.name,
-          familyId: visit.parent!.familyId,
-        },
-      })),
-    },
-    recentlyUpdatedChildren: recentlyUpdatedChildren.map((child: any) => ({
-      id: child.id,
-      localId: child.localId,
-      familyId: child.familyId,
-      name: child.name,
-      birthDate: child.birthDate.toISOString(),
-      sex: child.sex,
-      dateEntered: child.dateEntered?.toISOString() || null,
-      photos: child.photos as number[],
-      weight: child.weight,
-      nutritionalState: child.nutritionalState,
-      reasonEnrollment: child.reasonEnrollment,
-      observations: child.observations,
-      createdAt: child.createdAt.toISOString(),
-      updatedAt: child.updatedAt.toISOString(),
-      family: {
-        id: child.family!.id,
-        familyName: child.family!.familyName,
-      },
-      latestVisit: child.childVisits.length > 0 ? {
-        id: child.childVisits[0]!.id,
-        visitDate: child.childVisits[0]!.visitDate.toISOString(),
-        weight: child.childVisits[0]!.weight,
-        height: child.childVisits[0]!.height,
-        armCircumference: child.childVisits[0]!.armCircumference,
-      } : null,
-    })),
-    familiesInCrisis: familiesInCrisis.map((family: any) => ({
-      id: family.id,
-      localId: family.localId,
-      familyName: family.familyName,
-      childrenEditable: family.childrenEditable,
-      inCrisis: family.inCrisis,
-      notes: family.notes,
-      communityId: family.communityId,
-      siteId: family.siteId,
-      birthingAssistantId: family.birthingAssistantId,
-      createdAt: family.createdAt.toISOString(),
-      updatedAt: family.updatedAt.toISOString(),
-      childrenCount: family.children.length,
-      lastVisitDate: family.familyVisits.length > 0
-        ? family.familyVisits[0]!.visitDate.toISOString()
-        : null,
-    })),
-    stats: {
-      totalFamilies,
-      totalChildren,
-      totalCommunities,
-      familiesInCrisis: familiesInCrisisCount,
-      visitsThisMonth,
-    },
-    visitsPerMonth,
-    communityBreakdown,
-  };
+  const communityMap = new Map<number | null, { families: number; children: number; activeEnrollments: number }>();
+  for (const family of familiesWithCounts) {
+    const existing = communityMap.get(family.communityId) ?? { families: 0, children: 0, activeEnrollments: 0 };
+    existing.families += 1;
+    existing.children += family._count.children;
+    existing.activeEnrollments += family._count.enrollments;
+    communityMap.set(family.communityId, existing);
+  }
 
-  return dashboardData;
+  return {
+    recentVisits: recentVisitRows.map((visit: any) => {
+      const subject = subjectOf(visit.enrollment);
+      return {
+        id: visit.id,
+        enrollmentId: visit.enrollmentId,
+        visitDate: toDateOnly(visit.visitDate)!,
+        locationType: visit.locationType,
+        siteId: visit.siteId,
+        programId: visit.enrollment.program.id,
+        programName: visit.enrollment.program.name,
+        programKind: visit.enrollment.program.kind,
+        subjectType: subject.type,
+        subjectId: subject.id,
+        subjectName: subject.name,
+      };
+    }),
+
+    enrollmentsByProgram: programs.map((program: any) => ({
+      programId: program.id,
+      programName: program.name,
+      programKind: program.kind,
+      active: program._count.enrollments,
+    })),
+
+    familiesInCrisis: familiesInCrisisRows.map(({ _count, enrollments, ...family }: any) => {
+      const visitDates: Date[] = enrollments.flatMap((e: any) => e.visits).map((v: any) => v.visitDate);
+      const lastVisit = visitDates.length ? visitDates.reduce((a, b) => (a > b ? a : b)) : null;
+
+      return {
+        ...family,
+        createdAt: family.createdAt.toISOString(),
+        updatedAt: family.updatedAt.toISOString(),
+        childrenCount: _count.children,
+        lastVisitDate: toDateOnly(lastVisit),
+      };
+    }),
+
+    stats: {
+      activeEnrollments,
+      totalChildren,
+      totalMothers,
+      totalPeople,
+      totalFamilies,
+      totalCommunities,
+      familiesInCrisis: familiesInCrisisRows.length,
+      visitsThisMonth,
+      unenrolledSubjects: unenrolled.total,
+    },
+
+    visitsPerMonth: trends.map(({ month, visits }) => ({ month, count: visits })),
+    newcomersPerMonth: trends.map(({ month, newcomers }) => ({ month, count: newcomers })),
+
+    communityBreakdown: Array.from(communityMap.entries()).map(([communityId, counts]) => ({
+      communityId,
+      ...counts,
+    })),
+  };
 }

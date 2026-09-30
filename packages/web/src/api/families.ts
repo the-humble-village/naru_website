@@ -9,6 +9,7 @@ export interface ListFamiliesParams {
   communityId?: number;
   siteId?: number;
   inCrisis?: boolean;
+  unenrolled?: boolean;
   skip?: number;
   limit?: number;
 }
@@ -30,6 +31,7 @@ export const listFamilies = async (params: ListFamiliesParams = {}): Promise<Lis
   if (params.communityId) searchParams.set('communityId', params.communityId.toString());
   if (params.siteId) searchParams.set('siteId', params.siteId.toString());
   if (params.inCrisis !== undefined) searchParams.set('inCrisis', params.inCrisis.toString());
+  if (params.unenrolled) searchParams.set('unenrolled', 'true');
   if (params.skip !== undefined) searchParams.set('skip', params.skip.toString());
   if (params.limit !== undefined) searchParams.set('limit', params.limit.toString());
 

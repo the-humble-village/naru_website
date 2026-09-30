@@ -70,10 +70,10 @@ const preflight = <T,>(schema: z.ZodType<T>, data: unknown): string | null => {
   const result = schema.safeParse(data);
   if (result.success) return null;
 
-  const entries = Object.entries(parseZodErrors(result.error));
-  if (entries.length === 0) return 'Please check the form and try again';
+  const first = Object.entries(parseZodErrors(result.error))[0];
+  if (!first) return 'Please check the form and try again';
 
-  const [field, message] = entries[0];
+  const [field, message] = first;
   return `${field}: ${message}`;
 };
 

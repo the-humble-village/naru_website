@@ -12,6 +12,8 @@ import * as birthingAssistantsApi from '../../api/birthing-assistants';
 vi.mock('../../api/families', () => ({
   familiesApi: {
     createFamily: vi.fn(),
+    fetchFamily: vi.fn(),
+    updateFamily: vi.fn(),
   },
 }));
 
@@ -90,7 +92,7 @@ describe('AddFamilyPage', () => {
   });
 
   it('renders add family form', async () => {
-    render(
+    const { container } = render(
       <TestWrapper>
         <AddFamilyPage />
       </TestWrapper>
@@ -100,10 +102,10 @@ describe('AddFamilyPage', () => {
       expect(screen.getByText('Add Family')).toBeInTheDocument();
       expect(screen.getByLabelText('Family Name')).toBeInTheDocument();
       expect(screen.getByLabelText('Community')).toBeInTheDocument();
-      expect(screen.getByLabelText('Site')).toBeInTheDocument();
-      expect(screen.getByLabelText('Birthing Assistant')).toBeInTheDocument();
-      expect(screen.getByLabelText('Children Editable Count')).toBeInTheDocument();
-      expect(screen.getByLabelText('Family is in crisis')).toBeInTheDocument();
+      expect(container.querySelector('#phone')).toBeInTheDocument();
+      expect(container.querySelector('#caretaker2Name')).toBeInTheDocument();
+      expect(container.querySelector('#incomeSources')).toBeInTheDocument();
+      expect(screen.getByLabelText('In Crisis')).toBeInTheDocument();
       expect(screen.getByLabelText('Notes')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Create Family' })).toBeInTheDocument();
     });
@@ -117,23 +119,15 @@ describe('AddFamilyPage', () => {
     );
 
     await waitFor(() => {
-      // Check community options
-      const communitySelect = screen.getByLabelText('Community');
-      expect(communitySelect).toBeInTheDocument();
-
-      // Check site options
-      const siteSelect = screen.getByLabelText('Site');
-      expect(siteSelect).toBeInTheDocument();
-
-      // Check birthing assistant options
-      const baSelect = screen.getByLabelText('Birthing Assistant');
-      expect(baSelect).toBeInTheDocument();
+      expect(screen.getByLabelText('Community')).toBeInTheDocument();
     });
 
-    // Verify API calls
+    // A family has no site of its own — Site is a rollup of Community — and the
+    // birthing assistant moved to the pregnancy enrollment.
+    expect(screen.queryByLabelText('Site')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Birthing Assistant')).not.toBeInTheDocument();
+
     expect(adminApi.adminApi.fetchCommunities).toHaveBeenCalled();
-    expect(adminApi.adminApi.fetchSites).toHaveBeenCalled();
-    expect(birthingAssistantsApi.birthingAssistantsApi.fetchBirthingAssistants).toHaveBeenCalled();
   });
 
   it('updates form data when inputs change', async () => {
@@ -149,7 +143,7 @@ describe('AddFamilyPage', () => {
 
     const familyNameInput = screen.getByLabelText('Family Name');
     const notesInput = screen.getByLabelText('Notes');
-    const crisisCheckbox = screen.getByLabelText('Family is in crisis');
+    const crisisCheckbox = screen.getByLabelText('In Crisis');
 
     fireEvent.change(familyNameInput, { target: { value: 'Test Family' } });
     fireEvent.change(notesInput, { target: { value: 'Test notes' } });
@@ -165,12 +159,13 @@ describe('AddFamilyPage', () => {
       id: 1,
       localId: null,
       familyName: 'Test Family',
-      childrenEditable: 0,
       inCrisis: false,
       notes: 'Test notes',
       communityId: 1,
-      siteId: 1,
-      birthingAssistantId: null,
+      phone: null,
+      caretaker2Name: null,
+      incomeSources: null,
+      deathsNotes: null,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
     };
@@ -190,12 +185,10 @@ describe('AddFamilyPage', () => {
     // Fill form with valid data
     const familyNameInput = screen.getByLabelText('Family Name');
     const communitySelect = screen.getByLabelText('Community');
-    const siteSelect = screen.getByLabelText('Site');
     const notesInput = screen.getByLabelText('Notes');
 
     fireEvent.change(familyNameInput, { target: { value: 'Test Family' } });
     fireEvent.change(communitySelect, { target: { value: '1' } });
-    fireEvent.change(siteSelect, { target: { value: '1' } });
     fireEvent.change(notesInput, { target: { value: 'Test notes' } });
 
     // Submit form
@@ -209,13 +202,13 @@ describe('AddFamilyPage', () => {
       const familyData = firstCall[0];
       expect(familyData).toEqual({
         familyName: 'Test Family',
-        childrenEditable: 0,
         inCrisis: false,
         notes: 'Test notes',
         communityId: 1,
-        siteId: 1,
-        birthingAssistantId: null,
-        photos: [],
+        phone: null,
+        caretaker2Name: null,
+        incomeSources: null,
+        deathsNotes: null,
       });
     }, { timeout: 3000 });
 
@@ -225,7 +218,7 @@ describe('AddFamilyPage', () => {
   });
 
   it('shows validation errors for invalid form data', async () => {
-    render(
+    const { container } = render(
       <TestWrapper>
         <AddFamilyPage />
       </TestWrapper>
@@ -235,9 +228,9 @@ describe('AddFamilyPage', () => {
       expect(screen.getByLabelText('Family Name')).toBeInTheDocument();
     });
 
-    // Try to submit form with invalid data (negative children editable)
-    const childrenEditableInput = screen.getByLabelText('Children Editable Count');
-    fireEvent.change(childrenEditableInput, { target: { value: '-1' } });
+    // A second caretaker name longer than the column rejects the whole form.
+    const caretaker2 = container.querySelector('#caretaker2Name') as HTMLInputElement;
+    fireEvent.change(caretaker2, { target: { value: 'x'.repeat(257) } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Create Family' }));
 
@@ -268,7 +261,7 @@ describe('AddFamilyPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Family' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to create family. Please try again.')).toBeInTheDocument();
+      expect(screen.getByText('Failed to create family')).toBeInTheDocument();
     });
   });
 
@@ -314,7 +307,7 @@ describe('AddFamilyPage', () => {
       expect(screen.getByLabelText('Family Name')).toBeInTheDocument();
     });
 
-    const backLink = screen.getByText('← Back to Families');
+    const backLink = screen.getByText('← Families');
     expect(backLink.closest('a')).toHaveAttribute('href', '/families');
   });
 

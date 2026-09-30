@@ -5,8 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { AdminLookupsPage } from '../admin/AdminLookupsPage';
-import { adminApi } from '../../api/admin';
-import { LookupRead } from '@naru/shared';
+import { adminApi, type LookupEntry } from '../../api/admin';
 
 // Mock the admin API
 vi.mock('../../api/admin', () => ({
@@ -16,6 +15,7 @@ vi.mock('../../api/admin', () => ({
     updateLookupEntry: vi.fn(),
     deleteLookupEntry: vi.fn(),
     reorderLookupEntries: vi.fn(),
+    fetchSites: vi.fn(),
   },
 }));
 
@@ -50,14 +50,14 @@ vi.mock('../../store/auth', () => ({
   }),
 }));
 
-const community1: LookupRead = {
+const community1: LookupEntry = {
   id: 1,
   title: 'Community 1',
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };
 
-const mockCommunities: LookupRead[] = [
+const mockCommunities: LookupEntry[] = [
   community1,
   {
     id: 2,
@@ -94,11 +94,17 @@ const renderWithProviders = (
   );
 };
 
+/** The table and the card fallback both render; scope lookups to the table. */
+const rowFor = (title: string): HTMLElement => {
+  const table = screen.getByRole('table');
+  const row = within(table).getByText(title).closest('tr');
+  expect(row).not.toBeNull();
+  return row as HTMLElement;
+};
+
 /** Click the Delete button on the table row whose title cell matches. */
 const clickRowDelete = async (user: ReturnType<typeof userEvent.setup>, title: string) => {
-  const row = screen.getByText(title).closest('tr');
-  expect(row).not.toBeNull();
-  await user.click(within(row as HTMLElement).getByRole('button', { name: 'Delete' }));
+  await user.click(within(rowFor(title)).getByRole('button', { name: 'Delete' }));
 };
 
 describe('AdminLookupsPage', () => {
@@ -125,10 +131,9 @@ describe('AdminLookupsPage', () => {
     vi.mocked(adminApi.updateLookupEntry).mockResolvedValue({ ...community1, title: 'Renamed' });
 
     renderWithProviders(<AdminLookupsPage />);
-    await screen.findByText('Community 1');
+    await screen.findAllByText('Community 1');
 
-    const row = screen.getByText('Community 1').closest('tr') as HTMLElement;
-    await user.click(within(row).getByRole('button', { name: 'Edit' }));
+    await user.click(within(rowFor('Community 1')).getByRole('button', { name: 'Edit' }));
 
     const input = screen.getByLabelText(/Title/);
     expect(input).toHaveValue('Community 1');
@@ -137,7 +142,10 @@ describe('AdminLookupsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Update' }));
 
     await waitFor(() => {
-      expect(adminApi.updateLookupEntry).toHaveBeenCalledWith('communities', 1, { title: 'Renamed' });
+      expect(adminApi.updateLookupEntry).toHaveBeenCalledWith('communities', 1, {
+        title: 'Renamed',
+        siteId: null,
+      });
     });
   });
 
@@ -148,7 +156,7 @@ describe('AdminLookupsPage', () => {
       vi.mocked(adminApi.fetchLookupTable).mockResolvedValue(mockCommunities);
 
       renderWithProviders(<AdminLookupsPage />);
-      await screen.findByText('Community 1');
+      await screen.findAllByText('Community 1');
 
       await clickRowDelete(user, 'Community 1');
 
@@ -166,7 +174,7 @@ describe('AdminLookupsPage', () => {
       vi.mocked(adminApi.fetchLookupTable).mockResolvedValue(mockCommunities);
 
       renderWithProviders(<AdminLookupsPage />);
-      await screen.findByText('Community 1');
+      await screen.findAllByText('Community 1');
       await clickRowDelete(user, 'Community 1');
 
       const dialog = await screen.findByRole('dialog');
@@ -183,7 +191,7 @@ describe('AdminLookupsPage', () => {
       vi.mocked(adminApi.deleteLookupEntry).mockResolvedValue(undefined);
 
       renderWithProviders(<AdminLookupsPage />);
-      await screen.findByText('Community 2');
+      await screen.findAllByText('Community 2');
       await clickRowDelete(user, 'Community 2');
 
       const dialog = await screen.findByRole('dialog');
@@ -202,7 +210,7 @@ describe('AdminLookupsPage', () => {
       vi.mocked(adminApi.fetchLookupTable).mockResolvedValue(mockCommunities);
 
       renderWithProviders(<AdminLookupsPage />);
-      await screen.findByText('Community 1');
+      await screen.findAllByText('Community 1');
       await clickRowDelete(user, 'Community 1');
 
       const dialog = await screen.findByRole('dialog');
@@ -220,7 +228,7 @@ describe('AdminLookupsPage', () => {
       vi.mocked(adminApi.deleteLookupEntry).mockRejectedValue(new Error('Boom'));
 
       renderWithProviders(<AdminLookupsPage />);
-      await screen.findByText('Community 1');
+      await screen.findAllByText('Community 1');
       await clickRowDelete(user, 'Community 1');
 
       const dialog = await screen.findByRole('dialog');
@@ -231,28 +239,117 @@ describe('AdminLookupsPage', () => {
     });
   });
 
-  describe('question tables', () => {
+  describe('sortable tables', () => {
     it('exposes reorder controls so sortOrder is editable', async () => {
       const user = userEvent.setup();
-      mockUseParams.mockReturnValue({ table: 'child-visit-questions' });
+      mockUseParams.mockReturnValue({ table: 'examination-types' });
       vi.mocked(adminApi.fetchLookupTable).mockResolvedValue([
-        { id: 10, title: 'Question A', sortOrder: 0, createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
-        { id: 11, title: 'Question B', sortOrder: 1, createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+        { id: 10, title: 'Exam A', sortOrder: 0, createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+        { id: 11, title: 'Exam B', sortOrder: 1, createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
       ]);
       vi.mocked(adminApi.reorderLookupEntries).mockResolvedValue(undefined);
 
-      renderWithProviders(<AdminLookupsPage />, ['/admin/child-visit-questions']);
-      await screen.findByText('Question A');
+      renderWithProviders(<AdminLookupsPage />, ['/admin/examination-types']);
+      await screen.findAllByText('Exam A');
 
-      const rowB = screen.getByText('Question B').closest('tr') as HTMLElement;
-      await user.click(within(rowB).getByRole('button', { name: 'Move up' }));
+      await user.click(within(rowFor('Exam B')).getByRole('button', { name: 'Move up' }));
       await user.click(screen.getByRole('button', { name: /Save Order/ }));
 
       await waitFor(() => {
-        expect(adminApi.reorderLookupEntries).toHaveBeenCalledWith('child-visit-questions', [
+        expect(adminApi.reorderLookupEntries).toHaveBeenCalledWith('examination-types', [
           { id: 11, sortOrder: 0 },
           { id: 10, sortOrder: 1 },
         ]);
+      });
+    });
+  });
+
+  describe('communities gain a site column', () => {
+    const sites: LookupEntry[] = [
+      { id: 7, title: 'Clinic Alpha', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+    ];
+
+    beforeEach(() => {
+      vi.mocked(adminApi.fetchSites).mockResolvedValue(sites);
+    });
+
+    it('shows each community site and warns about the ones with none', async () => {
+      vi.mocked(adminApi.fetchLookupTable).mockResolvedValue([
+        { ...community1, siteId: 7 },
+        { ...(mockCommunities[1] as LookupEntry), siteId: null },
+      ]);
+
+      renderWithProviders(<AdminLookupsPage />);
+
+      const table = await screen.findByRole('table');
+      expect(within(rowFor('Community 1')).getByText('Clinic Alpha')).toBeInTheDocument();
+      expect(within(table).getAllByText('admin.community_no_site').length).toBeGreaterThan(0);
+      expect(screen.getByText('admin.communities_missing_site')).toBeInTheDocument();
+    });
+
+    it('hides the banner once every community has a site', async () => {
+      vi.mocked(adminApi.fetchLookupTable).mockResolvedValue([
+        { ...community1, siteId: 7 },
+        { ...(mockCommunities[1] as LookupEntry), siteId: 7 },
+      ]);
+
+      renderWithProviders(<AdminLookupsPage />);
+      await screen.findByRole('table');
+
+      expect(screen.queryByText('admin.communities_missing_site')).not.toBeInTheDocument();
+    });
+
+    it('sends the selected site when creating a community', async () => {
+      const user = userEvent.setup();
+      vi.mocked(adminApi.fetchLookupTable).mockResolvedValue(mockCommunities);
+      vi.mocked(adminApi.createLookupEntry).mockResolvedValue({ ...community1, siteId: 7 });
+
+      renderWithProviders(<AdminLookupsPage />);
+      await screen.findByRole('table');
+
+      await user.click(screen.getByRole('button', { name: /Add/ }));
+      await user.type(screen.getByLabelText(/Title/), 'Chisec');
+      await user.selectOptions(screen.getByLabelText('Site'), '7');
+      await user.click(screen.getByRole('button', { name: 'Create' }));
+
+      await waitFor(() => {
+        expect(adminApi.createLookupEntry).toHaveBeenCalledWith('communities', {
+          title: 'Chisec',
+          siteId: 7,
+        });
+      });
+    });
+  });
+
+  describe('resources gain a default unit column', () => {
+    it('renders the unit and sends it on create', async () => {
+      const user = userEvent.setup();
+      mockUseParams.mockReturnValue({ table: 'resources' });
+      vi.mocked(adminApi.fetchLookupTable).mockResolvedValue([
+        { id: 30, title: 'Chickens', defaultUnit: 'birds', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+      ]);
+      vi.mocked(adminApi.createLookupEntry).mockResolvedValue({
+        id: 31,
+        title: 'Seeds',
+        defaultUnit: 'kg',
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      });
+
+      renderWithProviders(<AdminLookupsPage />, ['/admin/resources']);
+      await screen.findByRole('table');
+      expect(within(rowFor('Chickens')).getByText('birds')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /Add/ }));
+      await user.type(screen.getByLabelText(/Title/), 'Seeds');
+      await user.type(screen.getByLabelText('admin.resource_default_unit'), 'kg');
+      await user.click(screen.getByRole('button', { name: 'Create' }));
+
+      await waitFor(() => {
+        expect(adminApi.createLookupEntry).toHaveBeenCalledWith('resources', {
+          title: 'Seeds',
+          defaultUnit: 'kg',
+        });
       });
     });
   });

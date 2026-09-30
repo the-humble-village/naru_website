@@ -42,12 +42,36 @@ Edit `packages/backend/.env`:
 
 ```env
 DATABASE_URL=postgresql://<your-pg-username>:<your-pg-password>@127.0.0.1:5432/naru
-JWT_SECRET=pick-any-secret-string
-JWT_REFRESH_SECRET=pick-a-different-secret-string
+JWT_SECRET=<paste the first generated secret>
+JWT_REFRESH_SECRET=<paste the second generated secret>
 PORT=3000
 ```
 Replace `<your-pg-username>` and `<your-pg-password>` with your local PostgreSQL username and password (password can be omitted if your setup uses peer/ident authentication). For many macOS local installs the username is your macOS username — run `whoami` if unsure.
 
+Generate the two secrets — run this twice and use a different output for each:
+
+```bash
+openssl rand -base64 48
+```
+
+The server checks both at boot and exits with a message if either is under 32 characters or if the two are identical, so made-up placeholder strings will not start it.
+
+### 4. Apply database migrations
+
+Both databases start empty. Create the schema in each:
+
+```bash
+cd packages/backend
+
+# Development database (uses DATABASE_URL from .env)
+npx prisma migrate dev
+
+# Test database — the suite defaults to your OS username, not "postgres"
+DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrate deploy
+```
+
+Re-run both whenever you pull a branch that adds a migration. If the test suite
+reports that a table or column is missing, this is the fix.
 
 ### 5. Build and verify
 
@@ -69,13 +93,28 @@ This starts the backend and web apps together.
 
 ### 7. Create your first user
 
-With both servers running, create a user by sending a registration request:
+There is no self-service signup — accounts are created by an admin at `/admin/users`
+in the web UI. On a brand new database there is no admin yet, so seed one by hand.
+
+Generate a password hash:
 
 ```bash
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"login": "admin", "password": "yourpassword", "role": "ADMIN"}'
+cd packages/backend
+node -e "require('bcrypt').hash('yourpassword', 12).then(console.log)"
 ```
+
+Then insert the row, pasting the hash from above:
+
+```bash
+psql "$DATABASE_URL" -c "INSERT INTO users (login, password_hash, role, lang, created_at, updated_at) \
+  VALUES ('admin', '<paste-hash-here>', 'ADMIN', 'en', now(), now());"
+```
+
+(`npx prisma studio` works too, but it can't hash the password for you — you still
+need the `node -e` step above.)
+
+Log in at http://localhost:5173 with that login and password. Every user after this
+one is created through the admin UI.
 
 
 ## Create SSH keys (ed25519)

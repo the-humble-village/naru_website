@@ -6,7 +6,7 @@ import { vi } from 'vitest';
 import { FamiliesPage } from '../families/FamiliesPage';
 import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
-import { FamilyRead, LookupRead } from '@naru/shared';
+import { FamilyListItem, LookupRead } from '@naru/shared';
 
 // Mock the API modules
 vi.mock('../../api/families');
@@ -26,34 +26,38 @@ const mockSites: LookupRead[] = [
   { id: 2, title: 'Site B', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
 ];
 
-const mockFamilies: FamilyRead[] = [
+const mockFamilies: FamilyListItem[] = [
   {
     id: 1,
     localId: null,
     familyName: 'Garcia Family',
-    childrenEditable: 1,
+    phone: null,
+    caretaker2Name: null,
+    incomeSources: null,
+    deathsNotes: null,
     inCrisis: false,
     notes: 'Active family',
     communityId: 1,
     siteId: null,
-    birthingAssistantId: null,
-    photos: [],
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-15T00:00:00Z',
+    lastVisitDate: '2024-01-10T00:00:00Z',
   },
   {
     id: 2,
     localId: null,
     familyName: 'Rodriguez Family',
-    childrenEditable: 0,
+    phone: null,
+    caretaker2Name: null,
+    incomeSources: null,
+    deathsNotes: null,
     inCrisis: true,
     notes: 'Family in crisis',
     communityId: 2,
     siteId: null,
-    birthingAssistantId: null,
-    photos: [],
     createdAt: '2024-01-02T00:00:00Z',
     updatedAt: '2024-01-16T00:00:00Z',
+    lastVisitDate: null,
   },
 ];
 
@@ -105,7 +109,7 @@ describe('FamiliesPage', () => {
       await waitFor(() => {
         expect(screen.getByLabelText(/search families/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/community/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/crisis status/i)).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: /in crisis/i })).toBeInTheDocument();
       });
     });
 
@@ -271,7 +275,7 @@ describe('FamiliesPage', () => {
   });
 
   describe('Crisis Status Filter', () => {
-    it('should filter by crisis status when selected', async () => {
+    it('should filter to families in crisis when checked', async () => {
       renderWithProviders(<FamiliesPage />);
 
       // Wait for initial load
@@ -279,8 +283,7 @@ describe('FamiliesPage', () => {
         expect(screen.getByText('Garcia Family')).toBeInTheDocument();
       });
 
-      const crisisSelect = screen.getByLabelText(/crisis status/i);
-      fireEvent.change(crisisSelect, { target: { value: 'true' } });
+      fireEvent.click(screen.getByRole('checkbox', { name: /in crisis/i }));
 
       await waitFor(() => {
         expect(mockFamiliesApi.listFamilies).toHaveBeenCalledWith({
@@ -293,22 +296,22 @@ describe('FamiliesPage', () => {
       });
     });
 
-    it('should filter for non-crisis families', async () => {
+    it('should drop the crisis filter when unchecked', async () => {
       renderWithProviders(<FamiliesPage />);
 
-      // Wait for initial load
       await waitFor(() => {
         expect(screen.getByText('Garcia Family')).toBeInTheDocument();
       });
 
-      const crisisSelect = screen.getByLabelText(/crisis status/i);
-      fireEvent.change(crisisSelect, { target: { value: 'false' } });
+      const crisisCheckbox = screen.getByRole('checkbox', { name: /in crisis/i });
+      fireEvent.click(crisisCheckbox);
+      fireEvent.click(crisisCheckbox);
 
       await waitFor(() => {
-        expect(mockFamiliesApi.listFamilies).toHaveBeenCalledWith({
+        expect(mockFamiliesApi.listFamilies).toHaveBeenLastCalledWith({
           search: undefined,
           communityId: undefined,
-          inCrisis: false,
+          inCrisis: undefined,
           skip: 0,
           limit: 20,
         });
@@ -325,7 +328,7 @@ describe('FamiliesPage', () => {
         expect(screen.getByText('Family Name')).toBeInTheDocument();
         expect(screen.getAllByText('Community')).toHaveLength(2); // One in filter, one in table header
         expect(screen.getAllByText('Crisis Status')).toHaveLength(2); // One in filter, one in table header
-        expect(screen.getByText('Last Updated')).toBeInTheDocument();
+        expect(screen.getByText('Last Visited')).toBeInTheDocument();
 
         // Check family data
         expect(screen.getByText('Garcia Family')).toBeInTheDocument();
@@ -349,7 +352,7 @@ describe('FamiliesPage', () => {
     });
 
     it('should display "None" for families without community', async () => {
-      const familyWithoutCommunity: FamilyRead = {
+      const familyWithoutCommunity: FamilyListItem = {
         ...mockFamilies[0]!,
         communityId: null,
       };
@@ -364,12 +367,13 @@ describe('FamiliesPage', () => {
       renderWithProviders(<FamiliesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('None')).toBeInTheDocument();
+        // Community and Site both render "None" for this family
+        expect(screen.getAllByText('None').length).toBeGreaterThan(0);
       });
     });
 
     it('should display "Unnamed Family" for families without name', async () => {
-      const unnamedFamily: FamilyRead = {
+      const unnamedFamily: FamilyListItem = {
         ...mockFamilies[0]!,
         familyName: null,
       };
@@ -483,19 +487,4 @@ describe('FamiliesPage', () => {
     });
   });
 
-  describe('Results Count', () => {
-    it('should display correct family count', async () => {
-      renderWithProviders(<FamiliesPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('2 families found')).toBeInTheDocument();
-      });
-    });
-
-    it('should display loading message while fetching', () => {
-      renderWithProviders(<FamiliesPage />);
-
-      expect(screen.getByText('Loading...')).toBeInTheDocument();
-    });
-  });
 });

@@ -1,315 +1,292 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { FamilyCreate, FamilyCreateSchema } from '@naru/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { FamilyCreateSchema, type FamilyCreate, type FamilyRead } from '@naru/shared';
 import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
-import { birthingAssistantsApi } from '../../api/birthing-assistants';
-import { PhotoUpload } from '../../components';
-import { useTranslation } from '../../hooks';
+import { FormField, FormSelect, LoadingState, NameInput, PageHeader } from '../../components';
+import { parseZodErrors, useTranslation } from '../../hooks';
 
-/**
- * AddFamilyPage - Form to create a new family
- */
-export const AddFamilyPage: React.FC = () => {
-  const navigate = useNavigate();
+export interface FamilyFormValues {
+  familyName: string;
+  communityId: string;
+  phone: string;
+  caretaker2Name: string;
+  incomeSources: string;
+  deathsNotes: string;
+  inCrisis: boolean;
+  notes: string;
+}
+
+export const EMPTY_FAMILY_FORM: FamilyFormValues = {
+  familyName: '',
+  communityId: '',
+  phone: '',
+  caretaker2Name: '',
+  incomeSources: '',
+  deathsNotes: '',
+  inCrisis: false,
+  notes: '',
+};
+
+export const familyToFormValues = (family: FamilyRead): FamilyFormValues => ({
+  familyName: family.familyName ?? '',
+  communityId: family.communityId ? String(family.communityId) : '',
+  phone: family.phone ?? '',
+  caretaker2Name: family.caretaker2Name ?? '',
+  incomeSources: family.incomeSources ?? '',
+  deathsNotes: family.deathsNotes ?? '',
+  inCrisis: family.inCrisis,
+  notes: family.notes ?? '',
+});
+
+export const familyFormToPayload = (values: FamilyFormValues): FamilyCreate => ({
+  familyName: values.familyName.trim() || null,
+  communityId: values.communityId ? Number(values.communityId) : null,
+  phone: values.phone.trim() || null,
+  caretaker2Name: values.caretaker2Name.trim() || null,
+  incomeSources: values.incomeSources.trim() || null,
+  deathsNotes: values.deathsNotes.trim() || null,
+  inCrisis: values.inCrisis,
+  notes: values.notes.trim() || null,
+});
+
+export const apiErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { error?: string } | undefined;
+    if (data?.error) return data.error;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
+
+interface FamilyFormProps {
+  values: FamilyFormValues;
+  onChange: (values: FamilyFormValues) => void;
+  onSubmit: () => void;
+  errors: Record<string, string>;
+  submitLabel: string;
+  busyLabel: string;
+  busy: boolean;
+  backTo: string;
+}
+
+export const FamilyForm: React.FC<FamilyFormProps> = ({
+  values,
+  onChange,
+  onSubmit,
+  errors,
+  submitLabel,
+  busyLabel,
+  busy,
+  backTo,
+}) => {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState<FamilyCreate>({
-    familyName: null,
-    childrenEditable: 0,
-    inCrisis: false,
-    notes: null,
-    communityId: null,
-    siteId: null,
-    birthingAssistantId: null,
-    photos: [],
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fetch lookup data for selectors
-  const { data: communities = [], isLoading: loadingCommunities } = useQuery({
+  const { data: communities = [], isLoading: communitiesLoading } = useQuery({
     queryKey: ['communities'],
     queryFn: adminApi.fetchCommunities,
   });
+  const { data: sites = [] } = useQuery({ queryKey: ['sites'], queryFn: adminApi.fetchSites });
 
-  const { data: sites = [], isLoading: loadingSites } = useQuery({
-    queryKey: ['sites'],
-    queryFn: adminApi.fetchSites,
-  });
+  const selectedCommunity = values.communityId
+    ? communities.find((community) => community.id === Number(values.communityId))
+    : undefined;
+  const derivedSite =
+    selectedCommunity && selectedCommunity.siteId
+      ? sites.find((site) => site.id === selectedCommunity.siteId)?.title ?? t('common.unknown')
+      : '—';
 
-  const { data: birthingAssistants = [], isLoading: loadingBAs } = useQuery({
-    queryKey: ['birthing-assistants'],
-    queryFn: birthingAssistantsApi.fetchBirthingAssistants,
-  });
+  const set = (patch: Partial<FamilyFormValues>) => onChange({ ...values, ...patch });
 
-  // Create family mutation
-  const createFamilyMutation = useMutation({
-    mutationFn: familiesApi.createFamily,
-    onSuccess: (data) => {
-      navigate(`/families/${data.id}`);
-    },
-    onError: (error) => {
-      console.error('Failed to create family:', error);
-      setErrors({ submit: 'Failed to create family. Please try again.' });
-    },
-  });
+  const handleInput = (
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => set({ [event.target.name]: event.target.value } as Partial<FamilyFormValues>);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-
-    let processedValue: any = value;
-
-    if (type === 'checkbox') {
-      processedValue = (e.target as HTMLInputElement).checked;
-    } else if (type === 'number') {
-      processedValue = value === '' ? '' : Number(value);
-    } else if (e.target.tagName === 'SELECT') {
-      // For select elements, convert empty strings to null for nullable fields
-      if (['communityId', 'siteId', 'birthingAssistantId'].includes(name)) {
-        processedValue = value === '' ? null : Number(value);
-      } else {
-        processedValue = value === '' ? null : value;
-      }
-    } else {
-      // For text inputs and textareas
-      processedValue = value === '' ? null : value;
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: processedValue
-    }));
-
-    // Clear errors when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
-    try {
-      // Validate form data with Zod schema
-      const validatedData = FamilyCreateSchema.parse({
-        ...formData,
-        childrenEditable: Number(formData.childrenEditable) || 0,
-      });
-      createFamilyMutation.mutate(validatedData);
-    } catch (error: any) {
-      const fieldErrors: Record<string, string> = {};
-      if (error.errors) {
-        error.errors.forEach((err: any) => {
-          if (err.path?.[0]) {
-            fieldErrors[err.path[0]] = err.message;
-          }
-        });
-      }
-      setErrors(fieldErrors);
-    }
-  };
-
-  const isLoading = loadingCommunities || loadingSites || loadingBAs;
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-hv-gray">Loading...</div>
-      </div>
-    );
+  if (communitiesLoading) {
+    return <LoadingState message={t('common.loading')} />;
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('add_family.title')}</h1>
-        <Link
-          to="/families"
-          className="text-hv-terracotta hover:underline transition-colors"
-        >
-          ← Back to Families
-        </Link>
-      </div>
-
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-hv-border space-y-6">
-        {/* Family Name */}
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+      className="bg-white p-6 rounded-xl border border-hv-border space-y-6"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="familyName" className="block text-sm font-medium text-hv-charcoal mb-2">
+          <label htmlFor="familyName" className="block text-sm font-medium text-hv-charcoal mb-1">
             {t('families.col_name')}
           </label>
-          <input
-            type="text"
+          <NameInput
             id="familyName"
             name="familyName"
-            value={formData.familyName || ''}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-            placeholder="Enter family name"
+            value={values.familyName}
+            onChange={handleInput}
             maxLength={512}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
+              errors.familyName ? 'border-red-500' : 'border-hv-border-input'
+            }`}
           />
-          {errors.familyName && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.familyName}</p>
-          )}
+          {errors.familyName && <p className="text-red-500 text-sm mt-1">{errors.familyName}</p>}
         </div>
 
-        {/* Community */}
         <div>
-          <label htmlFor="communityId" className="block text-sm font-medium text-hv-charcoal mb-2">
-            {t('families.col_community')}
-          </label>
-          <select
-            id="communityId"
+          <FormSelect
+            label={t('families.col_community')}
             name="communityId"
-            value={formData.communityId || ''}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-          >
-            <option value="">Select a community</option>
-            {communities.map((community) => (
-              <option key={community.id} value={community.id}>
-                {community.title}
-              </option>
-            ))}
-          </select>
-          {errors.communityId && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.communityId}</p>
-          )}
-        </div>
-
-        {/* Site */}
-        <div>
-          <label htmlFor="siteId" className="block text-sm font-medium text-hv-charcoal mb-2">
-            {t('families.col_site')}
-          </label>
-          <select
-            id="siteId"
-            name="siteId"
-            value={formData.siteId || ''}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-          >
-            <option value="">Select a site</option>
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.title}
-              </option>
-            ))}
-          </select>
-          {errors.siteId && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.siteId}</p>
-          )}
-        </div>
-
-        {/* Birthing Assistant */}
-        <div>
-          <label htmlFor="birthingAssistantId" className="block text-sm font-medium text-hv-charcoal mb-2">
-            {t('families.col_assistant')}
-          </label>
-          <select
-            id="birthingAssistantId"
-            name="birthingAssistantId"
-            value={formData.birthingAssistantId || ''}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-          >
-            <option value="">Select a birthing assistant</option>
-            {birthingAssistants.map((ba) => (
-              <option key={ba.id} value={ba.id}>
-                {ba.name}
-              </option>
-            ))}
-          </select>
-          {errors.birthingAssistantId && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.birthingAssistantId}</p>
-          )}
-        </div>
-
-        {/* Children Editable */}
-        <div>
-          <label htmlFor="childrenEditable" className="block text-sm font-medium text-hv-charcoal mb-2">
-            Children Editable Count
-          </label>
-          <input
-            type="number"
-            id="childrenEditable"
-            name="childrenEditable"
-            value={formData.childrenEditable}
-            onChange={handleInputChange}
-            onFocus={(e) => { if (Number(e.target.value) === 0) setFormData(prev => ({ ...prev, childrenEditable: '' as unknown as number })); }}
-            onBlur={(e) => { if (e.target.value === '') setFormData(prev => ({ ...prev, childrenEditable: 0 })); }}
-            min="0"
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
+            value={values.communityId}
+            onChange={handleInput}
+            error={errors.communityId}
+            options={[
+              { value: '', label: t('form.none') },
+              ...communities.map((community) => ({
+                value: String(community.id),
+                label: community.title,
+              })),
+            ]}
           />
-          {errors.childrenEditable && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.childrenEditable}</p>
-          )}
+          <p className="text-sm text-hv-gray mt-1">
+            {t('families.col_site')}: <span className="text-hv-charcoal">{derivedSite}</span>
+          </p>
+          <p className="text-xs text-hv-gray">{t('form.site_derived_hint')}</p>
         </div>
 
-        {/* In Crisis */}
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="inCrisis"
-            name="inCrisis"
-            checked={formData.inCrisis}
-            onChange={handleInputChange}
-            className="h-4 w-4 text-hv-accent focus:ring-hv-accent border-hv-border-input rounded"
-          />
-          <label htmlFor="inCrisis" className="ml-2 text-sm font-medium text-hv-green">
-            Family is in crisis
-          </label>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-hv-charcoal mb-2">
-            Notes
-          </label>
-          <textarea
-            id="notes"
-            name="notes"
-            value={formData.notes || ''}
-            onChange={handleInputChange}
-            rows={4}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-            placeholder="Enter any notes about the family"
-          />
-          {errors.notes && (
-            <p className="text-hv-crisis text-sm mt-1">{errors.notes}</p>
-          )}
-        </div>
-
-        {/* Photos */}
-        <PhotoUpload
-          photos={formData.photos ?? []}
-          onChange={(photos) => setFormData(prev => ({ ...prev, photos }))}
+        <FormField
+          label={t('form.phone')}
+          name="phone"
+          value={values.phone}
+          onChange={handleInput}
+          error={errors.phone}
+          maxLength={64}
         />
 
-        {/* Submit Error */}
-        {errors.submit && (
-          <div className="bg-red-50 border border-red-300 rounded-md p-3">
-            <p className="text-red-700">{errors.submit}</p>
-          </div>
-        )}
-
-        {/* Form Actions */}
-        <div className="flex justify-end space-x-4 pt-4 border-t border-hv-border">
-          <Link
-            to="/families"
-            className="px-4 py-2 text-hv-sage hover:text-hv-charcoal transition-colors"
+        <div>
+          <label
+            htmlFor="caretaker2Name"
+            className="block text-sm font-medium text-hv-charcoal mb-1"
           >
-            {t('common.cancel')}
-          </Link>
-          <button
-            type="submit"
-            disabled={createFamilyMutation.isPending}
-            className="px-6 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {createFamilyMutation.isPending ? t('common.creating') : t('common.create_family')}
-          </button>
+            {t('families.caretaker2')}
+          </label>
+          <NameInput
+            id="caretaker2Name"
+            name="caretaker2Name"
+            value={values.caretaker2Name}
+            onChange={handleInput}
+            maxLength={256}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
+              errors.caretaker2Name ? 'border-red-500' : 'border-hv-border-input'
+            }`}
+          />
+          {errors.caretaker2Name && (
+            <p className="text-red-500 text-sm mt-1">{errors.caretaker2Name}</p>
+          )}
         </div>
-      </form>
+      </div>
+
+      <FormField
+        label={t('families.income_sources')}
+        name="incomeSources"
+        value={values.incomeSources}
+        onChange={handleInput}
+        error={errors.incomeSources}
+        rows={3}
+      />
+
+      <div className="flex items-center">
+        <input
+          type="checkbox"
+          id="inCrisis"
+          name="inCrisis"
+          checked={values.inCrisis}
+          onChange={(event) => set({ inCrisis: event.target.checked })}
+          className="h-4 w-4 rounded border-hv-border-input text-hv-terracotta focus:ring-hv-terracotta"
+        />
+        <label htmlFor="inCrisis" className="ml-2 text-sm font-medium text-hv-charcoal">
+          {t('families.col_crisis')}
+        </label>
+      </div>
+
+      <FormField
+        label={t('families.col_notes')}
+        name="notes"
+        value={values.notes}
+        onChange={handleInput}
+        error={errors.notes}
+        rows={4}
+      />
+
+      {errors.submit && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <p className="text-hv-crisis">{errors.submit}</p>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-3 pt-4 border-t border-hv-border">
+        <Link to={backTo} className="px-4 py-2 text-hv-sage hover:text-hv-charcoal transition-colors">
+          {t('common.cancel')}
+        </Link>
+        <button
+          type="submit"
+          disabled={busy}
+          className="px-6 py-2 bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {busy ? busyLabel : submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export const AddFamilyPage: React.FC = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [values, setValues] = useState<FamilyFormValues>(EMPTY_FAMILY_FORM);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const createFamily = useMutation({
+    mutationFn: (data: FamilyCreate) => familiesApi.createFamily(data),
+    onSuccess: (family) => {
+      queryClient.invalidateQueries({ queryKey: ['families'] });
+      queryClient.invalidateQueries({ queryKey: ['unenrolled-count'] });
+      navigate(`/families/${family.id}`);
+    },
+    onError: (error) => {
+      setErrors({ submit: apiErrorMessage(error, t('families.save_failed')) });
+    },
+  });
+
+  const handleSubmit = () => {
+    setErrors({});
+    const result = FamilyCreateSchema.safeParse(familyFormToPayload(values));
+    if (!result.success) {
+      setErrors(parseZodErrors(result.error));
+      return;
+    }
+    createFamily.mutate(result.data);
+  };
+
+  return (
+    <div>
+      <PageHeader
+        title={t('add_family.title')}
+        backTo="/families"
+        backLabel={t('nav.families')}
+      />
+      <FamilyForm
+        values={values}
+        onChange={setValues}
+        onSubmit={handleSubmit}
+        errors={errors}
+        submitLabel={t('common.create_family')}
+        busyLabel={t('common.creating')}
+        busy={createFamily.isPending}
+        backTo="/families"
+      />
     </div>
   );
 };

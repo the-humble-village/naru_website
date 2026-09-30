@@ -128,7 +128,6 @@ graph TD
 graph LR
     subgraph Public["/api/auth (public)"]
         Login["POST /login"]
-        Register["POST /register"]
         Refresh["POST /refresh"]
     end
 

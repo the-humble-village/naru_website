@@ -32,6 +32,7 @@ app.get('/', auth, async (c) => {
   const communityId = c.req.query('communityId');
   const siteId = c.req.query('siteId');
   const inCrisis = c.req.query('inCrisis');
+  const unenrolled = c.req.query('unenrolled');
 
   const skip = skipParam ? parseInt(skipParam, 10) : undefined;
   const limit = limitParam ? parseInt(limitParam, 10) : undefined;
@@ -44,6 +45,7 @@ app.get('/', auth, async (c) => {
     communityId,
     siteId,
     inCrisis,
+    unenrolled: unenrolled === 'true',
     user
   });
 

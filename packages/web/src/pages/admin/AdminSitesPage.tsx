@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sitesApi } from '../../api/sites';
 import { type SiteRead } from '@naru/shared';
-import { MapPicker, RoleGate, ConfirmDialog, type MapPickerValue } from '../../components';
+import { MapPicker, RoleGate, ConfirmDialog, NameInput, type MapPickerValue } from '../../components';
 import { useTranslation } from '../../hooks';
 
 interface SiteFormProps {
@@ -48,8 +48,7 @@ const SiteForm: React.FC<SiteFormProps> = ({ initial, onSave, onCancel }) => {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <label className="block text-sm font-medium text-hv-charcoal mb-1">Site Name *</label>
-        <input
-          type="text"
+        <NameInput
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Clinic Alpha"

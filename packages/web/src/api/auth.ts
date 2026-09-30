@@ -1,4 +1,4 @@
-import { Login, Register, AuthResponse } from '@naru/shared';
+import { Login, AuthResponse } from '@naru/shared';
 import apiClient from './client';
 
 /**
@@ -10,14 +10,6 @@ export const authApi = {
    */
   login: async (credentials: Login): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
-    return response.data;
-  },
-
-  /**
-   * Register a new user account
-   */
-  register: async (userData: Register): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/register', userData);
     return response.data;
   },
 

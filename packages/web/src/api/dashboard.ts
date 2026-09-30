@@ -10,6 +10,23 @@ export const fetchDashboardData = async (): Promise<DashboardResponse> => {
   return response.data;
 };
 
+export interface UnenrolledCount {
+  children: number;
+  mothers: number;
+  people: number;
+  families: number;
+  total: number;
+}
+
+/**
+ * Fetch the count of subjects with no active enrollment — drives the sidebar badge
+ */
+export const fetchUnenrolledCount = async (): Promise<UnenrolledCount> => {
+  const response = await apiClient.get<UnenrolledCount>('/dashboard/unenrolled-count');
+  return response.data;
+};
+
 export const dashboardApi = {
   fetchDashboardData,
+  fetchUnenrolledCount,
 };

@@ -1,0 +1,10 @@
+# Security contact information for the HumbleVillage / Naru application.
+# Format: RFC 9116 (https://www.rfc-editor.org/rfc/rfc9116)
+#
+# Please report vulnerabilities privately via the GitHub advisory link below.
+# Do not open a public issue for a security problem.
+
+Contact: https://github.com/the-humble-village/naru_website/security/advisories/new
+Expires: 2027-08-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://54.146.102.220/.well-known/security.txt

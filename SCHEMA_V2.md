@@ -1,8 +1,7 @@
 # Schema V2 — Program-Centric Re-Architecture
 
-**Status:** Steps 1–2 done; step 3 moot (§12.5); steps 4–6 done for `program` and `enrollment`,
-plus `mother` and `person` CRUD. `visit` services/routes (§13 steps 4–6) and every web page
-(§13 step 7) are still to build.
+**Status:** ✅ Complete. Every step in §13 is built, including the web pages (step 7). Step 3 is
+moot (§12.5).
 **Supersedes:** the Family-centric model in `packages/backend/prisma/schema.prisma`
 **Source requirements:** `APP-DATA with my notes.md` (Humble Village / church reporting needs)
 
@@ -850,17 +849,23 @@ of existing rows — cheap to reverse into.
 
 ## 12. Open implementation questions
 
-1. **WHO reference data.** ⏳ Still open. `heightForAgeZ` and `weightForHeightZ` columns exist on
-   `nutrition_visit_details` but stay **null**: `@naru/shared/health` has only weight-for-age and
-   MUAC-for-age. The length/height tables need adding to `who-data.ts` before those two z-scores
-   can be computed. `weightForAgeZ` and `muacZ` can be computed today.
+1. **WHO reference data.** ✅ Resolved. `who-data.ts` now carries length/height-for-age
+   (`LHFA_*`), weight-for-length (`WFL_*`) and weight-for-height (`WFH_*`) alongside the original
+   weight-for-age and MUAC-for-age tables, so all four z-scores on `nutrition_visit_details` are
+   computed and persisted. Age-indexed tables are keyed by age in days; `WFL_*` / `WFH_*` are keyed
+   by **millimetres**, matching the unit the `height` column stores. `weightForHeight()` switches
+   from the recumbent to the standing table at 731 days — WHO publishes them separately and they
+   are not interchangeable.
 2. **Gestation months.** ⏳ Still open with Yvonne. Implemented as a worker-entered
    `Int?` (0–11) on `pregnancy_visit_details`, **not** derived from `dueDate`. If it turns out to be
    derived, the column becomes redundant but needs no migration.
 3. **Nutrition age bands.** ✅ Resolved — `minAgeMonths` / `maxAgeMonths` added to `Program`. The
    seed sets 0–6 for "Nutrition Infant <6m" and 6–null for "Nutrition Child 6m+". Advisory only:
    the database never enforces them, so a worker can still admit outside the band.
-4. **Location prefill.** ⏳ Still open — a UI concern, deferred with the rest of the visit UI.
+4. **Location prefill.** ✅ Resolved. `getVisitPrefill()` in `visit.service.ts` returns the previous
+   visit's location, falling back to the subject's home community and its site, with a `source` flag
+   so the form can tell the worker where the default came from. The date is deliberately not
+   returned — the client's "today" is the honest one. `VisitForm` consumes it.
 5. **`parent.role` mapping.** ➖ Moot for now. V1 was migrated by resetting the database
    (`20260920222141_init_v2` is a fresh init), so no mother/person split was written. This becomes
    live again only if a production V1 database has to be carried forward.
@@ -869,14 +874,14 @@ of existing rows — cheap to reverse into.
 
 ## 13. Build order
 
-1. ✅ `@naru/shared` — Zod schemas for all new entities, new enums. (WHO length/height tables
-   still outstanding — see §12.1.)
+1. ✅ `@naru/shared` — Zod schemas for all new entities, new enums, and the full WHO table set
+   (§12.1).
 2. ✅ `schema.prisma` + migration (including the raw-SQL constraints in §7) + seed programs.
 3. ➖ Data migration script (§9) — moot, the database was reset (§12.5).
-4. Services: ✅ `program`, ✅ `enrollment`, ⏳ `visit` and the detail/join writes.
-   `mother` and `person` CRUD were also built here: they are the subjects of four of the six
-   programs, so nothing could be enrolled without them.
-5. ✅ Routes for the above, mounted in `app.ts` (`/api/programs`, `/api/enrollments`,
-   `/api/mothers`, `/api/people`). ⏳ `/api/visits`.
-6. ✅ Backend tests against `naru_test` for the above. ⏳ visit tests.
-7. ⏳ Web API clients, then pages — none started; see `WEB_DESIGN_V2.md` §14.
+4. ✅ Services: `program`, `enrollment`, `visit` and the detail/join writes, `mother`, `person`,
+   `question`, `question_set`, `event`, `photo_attachment`, `report`.
+5. ✅ Routes for the above, mounted in `app.ts` (`/api/programs`, `/api/enrollments`, `/api/visits`,
+   `/api/mothers`, `/api/people`, `/api/questions`, `/api/question-sets`, `/api/events`,
+   `/api/photos`, `/api/reports`).
+6. ✅ Backend tests against `naru_test` for all of the above.
+7. ✅ Web API clients and every page in the §3 route map — see `WEB_DESIGN_V2.md` §14.

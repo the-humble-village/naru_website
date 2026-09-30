@@ -289,10 +289,6 @@ describe('FamiliesPage', () => {
         expect(mockFamiliesApi.listFamilies).toHaveBeenCalledWith({
           search: undefined,
           communityId: undefined,
-          phone: null,
-          caretaker2Name: null,
-          incomeSources: null,
-          deathsNotes: null,
           inCrisis: true,
           skip: 0,
           limit: 20,

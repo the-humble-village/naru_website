@@ -76,11 +76,12 @@ export const MothersPage: React.FC = () => {
   const params = useMemo(
     () => ({
       search: search.trim() || undefined,
+      siteId: filters.siteId ?? undefined,
       communityId: filters.communityId ?? undefined,
       skip: page * PAGE_SIZE,
       limit: PAGE_SIZE,
     }),
-    [search, filters.communityId, page]
+    [search, filters.siteId, filters.communityId, page]
   );
 
   const { data, isLoading, isError } = useQuery({
@@ -88,16 +89,7 @@ export const MothersPage: React.FC = () => {
     queryFn: () => mothersApi.listMothers(params),
   });
 
-  const partialSiteFilter = Boolean(filters.siteId) && !filters.communityId;
-
-  const rows = useMemo(() => {
-    const items = data?.items ?? [];
-    if (!partialSiteFilter) return items;
-    return items.filter(
-      (mother) =>
-        mother.communityId !== null && siteOfCommunity.get(mother.communityId) === filters.siteId
-    );
-  }, [data, partialSiteFilter, siteOfCommunity, filters.siteId]);
+  const rows = data?.items ?? [];
 
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -162,10 +154,6 @@ export const MothersPage: React.FC = () => {
           sites={siteOptions}
           communities={communityOptions}
         />
-
-        {partialSiteFilter && (
-          <p className="text-sm text-hv-gray">{t('subject.site_filter_hint')}</p>
-        )}
       </div>
 
       {isLoading && <LoadingState message={t('common.loading')} />}

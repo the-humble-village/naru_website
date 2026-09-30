@@ -613,16 +613,28 @@ Also still open from `SCHEMA_V2.md` §12 and relevant to the UI:
 
 ## 14. Build order
 
-1. `Layout` sidebar shell + routing skeleton with placeholder pages.
-2. `/admin/programs` + seed the six program rows — nothing else works without programs.
-3. Subject list and profile pages (mothers, children, people, families) with empty enrollment
-   sections.
-4. Enroll wizard + `EnrollmentCard`.
-5. `VisitForm` + visit detail, one kind at a time: Nutrition, Pregnancy, then the spine-only kinds.
-6. Program roster with stats and filters.
-7. Dashboard.
-8. Reports.
-9. Remaining admin pages.
-10. Events.
+**✅ All ten steps are built.** Every route in §3 resolves to a real page; nothing routes to
+`PlaceholderPage`.
 
-Every page gets a render test in `pages/__tests__/` per the existing convention.
+1. ✅ `Layout` sidebar shell + routing skeleton.
+2. ✅ `/admin/programs` + the six seeded program rows.
+3. ✅ Subject list and profile pages (mothers, children, people, families) + `/unenrolled`.
+4. ✅ Enroll wizard + `EnrollmentCard` + enrollment detail + exit.
+5. ✅ `VisitForm` + visit list/detail/edit, kind-aware across all five kinds.
+6. ✅ Program index and roster with stats, tabs and filters.
+7. ✅ Dashboard, rebuilt around *Needs attention*.
+8. ✅ Reports index + generic report renderer + CSV export.
+9. ✅ Remaining admin pages (question sets, community site column, resource default unit).
+10. ✅ Events.
+
+Every page has a render test in `pages/__tests__/` per the existing convention.
+
+### Carried forward
+
+- The roster and dashboard derive several columns client-side because `EnrollmentListItem` carries
+  no `birthDate`, `communityName` or latest visit weight/status and `GET /enrollments` has no
+  `search`/`orderBy`. Adding those would collapse the roster from five requests to one and remove
+  its 20-page cap.
+- `mothersAssigned` (Midwife) and `memberCount` (PAF) render as `—` — both need a per-row query.
+- The `census` chart plots across programs, not time; a real trend needs a multi-date endpoint.
+- Report enum *values* render as server English so the screen and the CSV cannot disagree.

@@ -8,8 +8,31 @@ import {
   FamiliesPage,
   FamilyDetailPage,
   ChildDetailPage,
+  ChildrenPage,
+  EditChildPage,
   AddFamilyPage,
+  EditFamilyPage,
   AddChildPage,
+  MothersPage,
+  AddMotherPage,
+  EditMotherPage,
+  MotherDetailPage,
+  PeoplePage,
+  AddPersonPage,
+  EditPersonPage,
+  PersonDetailPage,
+  ProgramsPage,
+  ProgramRosterPage,
+  EnrollPage,
+  EnrollmentDetailPage,
+  ExitEnrollmentPage,
+  RecordVisitPage,
+  VisitsPage,
+  VisitDetailPage,
+  EditVisitPage,
+  ReportsPage,
+  ReportDetailPage,
+  UnenrolledPage,
   AdminPage,
   AdminUsersPage,
   AdminLookupsPage,
@@ -65,49 +88,49 @@ const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
 
       // Programs
-      { path: 'programs', element: soon('Programs') },
-      { path: 'programs/:id', element: soon('Program roster') },
-      { path: 'programs/:id/enroll', element: soon('Enroll') },
+      { path: 'programs', element: <ProgramsPage /> },
+      { path: 'programs/:id', element: <ProgramRosterPage /> },
+      { path: 'programs/:id/enroll', element: <EnrollPage /> },
 
       // Mothers
-      { path: 'mothers', element: soon('Mothers') },
-      { path: 'mothers/new', element: soon('New mother') },
-      { path: 'mothers/:id', element: soon('Mother') },
-      { path: 'mothers/:id/edit', element: soon('Edit mother') },
+      { path: 'mothers', element: <MothersPage /> },
+      { path: 'mothers/new', element: <AddMotherPage /> },
+      { path: 'mothers/:id', element: <MotherDetailPage /> },
+      { path: 'mothers/:id/edit', element: <EditMotherPage /> },
 
       // Children
-      { path: 'children', element: soon('Children') },
+      { path: 'children', element: <ChildrenPage /> },
       { path: 'children/new', element: <AddChildPage /> },
       { path: 'children/:id', element: <ChildDetailPage /> },
-      { path: 'children/:id/edit', element: <RedirectRoute to="/children/:id" /> },
+      { path: 'children/:id/edit', element: <EditChildPage /> },
 
       // Persons
-      { path: 'people', element: soon('Persons') },
-      { path: 'people/new', element: soon('New person') },
-      { path: 'people/:id', element: soon('Person') },
-      { path: 'people/:id/edit', element: soon('Edit person') },
+      { path: 'people', element: <PeoplePage /> },
+      { path: 'people/new', element: <AddPersonPage /> },
+      { path: 'people/:id', element: <PersonDetailPage /> },
+      { path: 'people/:id/edit', element: <EditPersonPage /> },
 
       // Families
       { path: 'families', element: <FamiliesPage /> },
       { path: 'families/new', element: <AddFamilyPage /> },
       { path: 'families/:id', element: <FamilyDetailPage /> },
-      { path: 'families/:id/edit', element: <RedirectRoute to="/families/:id" /> },
+      { path: 'families/:id/edit', element: <EditFamilyPage /> },
 
-      { path: 'unenrolled', element: soon('Unenrolled') },
+      { path: 'unenrolled', element: <UnenrolledPage /> },
 
       // Enrollments
-      { path: 'enrollments/:id', element: soon('Enrollment') },
-      { path: 'enrollments/:id/exit', element: soon('Exit program') },
-      { path: 'enrollments/:id/visits/new', element: soon('Record visit') },
+      { path: 'enrollments/:id', element: <EnrollmentDetailPage /> },
+      { path: 'enrollments/:id/exit', element: <ExitEnrollmentPage /> },
+      { path: 'enrollments/:id/visits/new', element: <RecordVisitPage /> },
 
       // Visits
-      { path: 'visits', element: soon('Visits') },
-      { path: 'visits/:id', element: soon('Visit') },
-      { path: 'visits/:id/edit', element: soon('Edit visit') },
+      { path: 'visits', element: <VisitsPage /> },
+      { path: 'visits/:id', element: <VisitDetailPage /> },
+      { path: 'visits/:id/edit', element: <EditVisitPage /> },
 
       // Reports
-      { path: 'reports', element: soon('Reports') },
-      { path: 'reports/:slug', element: soon('Report') },
+      { path: 'reports', element: <ReportsPage /> },
+      { path: 'reports/:slug', element: <ReportDetailPage /> },
 
       // Events
       { path: 'events', element: <EventsPage /> },

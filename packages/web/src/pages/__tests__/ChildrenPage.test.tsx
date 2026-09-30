@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -90,6 +90,21 @@ describe('ChildrenPage', () => {
     const links = await screen.findAllByRole('link', { name: 'Jose Ramirez' });
     expect(links[0]).toHaveAttribute('href', '/children/5');
     expect(screen.getAllByText('children.no_mother').length).toBeGreaterThan(0);
+  });
+
+  it('sends the site filter to the server rather than filtering the page', async () => {
+    const { container } = renderPage();
+
+    await screen.findAllByRole('link', { name: 'Jose Ramirez' });
+
+    const siteSelect = container.querySelector('#filter-site') as HTMLSelectElement;
+    fireEvent.change(siteSelect, { target: { value: '9' } });
+
+    await waitFor(() => {
+      expect(childrenApi.listChildren).toHaveBeenLastCalledWith(
+        expect.objectContaining({ siteId: 9, skip: 0 })
+      );
+    });
   });
 
   it('shows an empty state when nothing matches', async () => {

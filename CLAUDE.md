@@ -8,20 +8,17 @@ The data model is **program-centric**: people are *enrolled* in *programs*, and 
 
 ## Rearchitecture status — READ THIS FIRST
 
-The V2 schema has landed, the **backend enrollment spine** is built on top of it, and the **web shell** (step 1 of `WEB_DESIGN_V2.md` §14) is in place. `SCHEMA_V2.md` §13 lists the schema build order; `WEB_DESIGN_V2.md` §14 lists the web one.
+**The V2 rearchitecture is complete.** Every step of `SCHEMA_V2.md` §13 and `WEB_DESIGN_V2.md` §14 is built: schema, backend, all 14 components, every page in the §3 route map, and both i18n dictionaries. A subject can be enrolled and a visit recorded end to end through the UI.
 
-**Built (schema):** Zod schemas for every V2 entity, `schema.prisma`, the init + constraints + `visit_interval_days` migrations, the program seed.
+**Backend:** Services, routes and tests for `program`, `enrollment`, `visit`, `question`, `question_set`, `mother`, `person`, `event`, `photo_attachment` and `report`, plus everything rewritten against V2 (auth, users, files, admin lookups, sites, birthing assistants, families, children, dashboard, search). All twelve answerable `SCHEMA_V2.md` §8 reports are implemented behind `/api/reports`, table + CSV from one query path.
 
-**Built (backend):** Services, routes and tests for `program`, `enrollment`, `visit`, `question`, `question_set`, `mother` and `person`, mounted at `/api/programs`, `/api/enrollments`, `/api/visits`, `/api/questions`, `/api/question-sets`, `/api/mothers`, `/api/people`. Plus everything that survived the cut and was rewritten against V2 (auth, users, files, admin lookups, sites, birthing assistants, families, children, dashboard, search).
+**Web:** `App.tsx` is the full §3 route map with no placeholders left. `PlaceholderPage` still exists but nothing routes to it.
 
-**The backend is now feature-complete for everything the V2 web app needs.** A visit can be recorded end to end over HTTP.
-
-**Built (web shell — §14 step 1):** `Layout` is the sidebar shell with a data-driven program list (`GET /api/programs?activeOnly=true`) and an Unenrolled badge fed by `GET /api/dashboard/unenrolled-count`. `App.tsx` is the full `WEB_DESIGN_V2.md` §3 route map; routes whose pages are unbuilt render `PlaceholderPage`. `RedirectRoute` collapses the V1 family-nested paths onto the flat V2 ones. `api/programs.ts` exists. `/children/:id` and `/children/new?familyId=` replaced the family-nested child routes.
-
-**Not built yet:**
-- **Every V2 page.** The shell routes to placeholders; there is still **no way in the UI to enrol a subject or record a visit**. `WEB_DESIGN_V2.md` §14 steps 2–10 remain: admin/programs, subject lists and profiles, enroll wizard, visit form, program roster, dashboard, reports, events. No component from §11's *New* list exists yet.
-- **A reports service.** All twelve queries in `SCHEMA_V2.md` §8 are unimplemented; the schema was designed around them. Needed before the Reports pages.
-- Services/routes for `event` and `photo_attachment`. Both tables exist and nothing reads or writes them — `photo_attachment` is what the visit form's *Add photos* control needs.
+**Known gaps, by design or deferred:**
+- **Event attendance** is deferred (`SCHEMA_V2.md` §11), so the mobile-clinics report is served as `available: false` and rendered disabled rather than hidden (§12.8).
+- **The program roster derives its stats client-side.** `EnrollmentListItem` carries no `birthDate`, `communityName` or latest visit weight/status, and `GET /enrollments` has no `search` or `orderBy`, so `ProgramRosterPage` fetches the program's enrollments and subjects and joins them in the browser, capped at 20 pages. Adding those fields plus `search`/`orderBy` to the enrollments endpoint would collapse it to one request and remove the cap — worth doing before any program passes ~2000 enrollments.
+- `mothersAssigned` (Midwife roster) and `memberCount` (PAF roster) render as `—`; the only sources are per-row endpoints and an N+1 was not worth it.
+- **Enum *data* values from reports** (`NutritionalStatus`, `ProgramKind`, chart legends) render as server English, deliberately: translating them would desync the screen from the CSV export.
 
 **Watch out:** `middleware/soft-delete.ts` carries a hand-maintained list of models with a `deletedAt` column. **Add every new soft-deleted model to it** — a model missing from that list silently returns soft-deleted rows from every query.
 
@@ -137,7 +134,8 @@ DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrat
 - **`child.motherId` and `child.familyId` are nullable and must stay that way.** A malnourished infant has to be admittable with neither; nothing may block admission.
 - **Site is a rollup of Community.** Subjects store only `communityId`; their site is derived via `community.siteId`. Never add a `siteId` to a subject table — two fields could contradict each other.
 - **Age at admission is derived** (`enrolledAt - birthDate`), never stored.
-- **Z-scores are computed at write time and persisted** on `nutrition_visit_details`, so reports index the enum rather than recalculating WHO tables. `heightForAgeZ`/`weightForHeightZ` stay null until the length/height tables are added to `who-data.ts`. The one calculation lives in `computeNutritionZScores()` in `@naru/shared` — the backend persists its result and the web renders the live badge from it, so the two can never disagree. It also owns the millimetre→centimetre conversion that `armCircumferenceForAge()` expects.
+- **Z-scores are computed at write time and persisted** on `nutrition_visit_details`, so reports index the enum rather than recalculating WHO tables. All four are live: `who-data.ts` carries weight-for-age, arm-circumference-for-age, length/height-for-age and weight-for-length/height. The one calculation lives in `computeNutritionZScores()` in `@naru/shared` — the backend persists its result and the web renders the live badge from it, so the two can never disagree. It also owns the millimetre→centimetre conversion that `armCircumferenceForAge()` expects.
+- **The WHO tables are keyed in the units the database stores.** Age-indexed tables (`WFA_*`, `ACFA_*`, `LHFA_*`) are keyed by age in days; `WFL_*` and `WFH_*` are keyed by **millimetres**, not centimetres, so the key is an integer. WHO publishes two non-interchangeable weight-for-size tables — recumbent length under two years, standing height from two — and `weightForHeight()` switches at 731 days. Picking the wrong one shifts every z-score in the same direction.
 - **`nutritionalStatus` follows MUAC-for-age, falling back to weight-for-age** when no arm circumference was taken. MUAC is the WHO measure for the acute malnutrition this programme treats. `classifyZScore`'s `above`/`high` labels both collapse to `NORMAL` — the raw z-scores are persisted, so an overweight report needs no migration.
 - **Midwife ≠ birthing assistant.** A midwife is community support for a pregnant woman, modelled as a `Person` in the Midwives program (`mother.midwifeId`). A birthing assistant is a medically-trained professional who attends a birth (`pregnancy_enrollment_details.birthingAssistantId`). Never merge them.
 - **`photo_attachment.ownerId` has no FK** — the service must verify the row named by `ownerType` exists. Entry/exit photos are *not* attachments; they are named FK slots on `Enrollment`.

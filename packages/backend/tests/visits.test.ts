@@ -478,6 +478,67 @@ describe('Visits Routes', () => {
       expect(body.items[0].program.kind).toBe('PREGNANCY');
     });
 
+
+    it('searches subject names before pagination and returns the filtered total', async () => {
+      await testDb.child.update({ where: { id: child.id }, data: { name: 'Ana Lopez' } });
+      const res = await client.get('/visits?search=%20LOPEZ%20ana%20&skip=1&limit=1', caseworkerToken);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.total).toBe(2);
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].subjectName).toBe('Ana Lopez');
+      expect(body.items[0].visitDate).toBe('2026-03-01');
+    });
+
+    it('searches mother, family and person names and combines search with other filters', async () => {
+      await createTestVisit(familyEnrollment.id);
+      const person = await createTestPerson({ name: 'Marta Perez' });
+      const program = await createTestProgram({ name: 'Midwives', kind: 'MIDWIFE', subjectType: 'PERSON' });
+      const enrollment = await createTestEnrollment(program.id, { personId: person.id });
+      await createTestVisit(enrollment.id);
+      for (const name of ['María', 'López', 'Marta Perez']) {
+        const res = await client.get('/visits?search=' + encodeURIComponent(name), caseworkerToken);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.total).toBe(1);
+        expect(body.items[0].subjectName).toBe(name);
+      }
+      const filtered = await client.get(
+        '/visits?search=Ana&from=2026-03-10&to=2026-04-10&programId=' + nutrition.id,
+        caseworkerToken
+      );
+      expect((await filtered.json()).total).toBe(1);
+      const noMatch = await client.get('/visits?search=Ana&programId=' + pregnancy.id, caseworkerToken);
+      expect((await noMatch.json()).total).toBe(0);
+    });
+
+    it('treats search wildcard characters literally and ignores blank searches', async () => {
+      const literal = await client.get('/visits?search=%25', caseworkerToken);
+      expect((await literal.json()).total).toBe(0);
+      const blank = await client.get('/visits?search=%20%20', caseworkerToken);
+      expect((await blank.json()).total).toBe(3);
+    });
+
+    it('still excludes soft-deleted enrollments when searching', async () => {
+      await testDb.enrollment.update({ where: { id: childEnrollment.id }, data: { deletedAt: new Date() } });
+      const res = await client.get('/visits?search=Ana', caseworkerToken);
+      expect((await res.json()).total).toBe(0);
+    });
+
+    it.each([
+      [null, null, null],
+      ['Ana', null, 'Ana'],
+      [null, 'Perez', 'Perez'],
+      [' Ana ', ' Perez ', 'Ana Perez'],
+    ])('formats missing and partial recorder names (%s, %s)', async (firstName, lastName, expected) => {
+      await testDb.user.update({ where: { id: caseworker.id }, data: { firstName, lastName } });
+      const visit = await createTestVisit(childEnrollment.id, { recordedById: caseworker.id, visitDate: new Date('2026-05-01') });
+      const res = await client.get('/visits?recordedById=' + caseworker.id, caseworkerToken);
+      const body = await res.json();
+      expect(body.items[0].id).toBe(visit.id);
+      expect(body.items[0].recordedByName).toBe(expected);
+    });
+
     it('filters by enrollment', async () => {
       const res = await client.get(`/visits?enrollmentId=${childEnrollment.id}`, caseworkerToken);
       expect((await res.json()).total).toBe(2);

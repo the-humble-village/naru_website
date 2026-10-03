@@ -20,6 +20,7 @@ type Variables = {
 const app = new Hono<{ Variables: Variables }>();
 
 const ListQuerySchema = z.object({
+  search: z.string().trim().max(120).optional(),
   enrollmentId: z.string().optional(),
   programId: z.string().optional(),
   siteId: z.string().optional(),
@@ -54,6 +55,7 @@ app.get('/', auth, zValidator('query', ListQuerySchema), async (c) => {
   const user = c.get('user') as UserRead;
 
   const result = await visitService.listVisits({
+    search: query.search,
     enrollmentId: toInt(query.enrollmentId),
     programId: toInt(query.programId),
     siteId: toInt(query.siteId),

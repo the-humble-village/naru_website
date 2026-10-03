@@ -129,8 +129,8 @@ const router = createBrowserRouter([
       { path: 'visits/:id/edit', element: <EditVisitPage /> },
 
       // Reports
-      { path: 'reports', element: <ReportsPage /> },
-      { path: 'reports/:slug', element: <ReportDetailPage /> },
+      { path: 'reports', element: supervisorPlus(<ReportsPage />) },
+      { path: 'reports/:slug', element: supervisorPlus(<ReportDetailPage />) },
 
       // Events
       { path: 'events', element: <EventsPage /> },

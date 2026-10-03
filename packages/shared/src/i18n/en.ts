@@ -495,6 +495,7 @@ export const en = {
   'nav.reports': 'Reports',
   'nav.events': 'Events',
   'nav.no_programs': 'No programs yet',
+  'nav.all_programs': 'All programs',
   'nav.open_menu': 'Open menu',
   'nav.close_menu': 'Close menu',
 

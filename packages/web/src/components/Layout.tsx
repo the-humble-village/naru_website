@@ -7,7 +7,6 @@ import { SearchBar } from './SearchBar';
 import { programsApi } from '../api/programs';
 import { dashboardApi } from '../api/dashboard';
 import {
-  LayoutDashboard,
   Layers,
   Users,
   User,
@@ -25,23 +24,92 @@ import {
   Languages,
 } from 'lucide-react';
 
-const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+const topLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
     isActive ? 'bg-hv-green-hover text-white' : 'text-white/80 hover:text-white hover:bg-white/10'
   }`;
 
-const subLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center justify-between gap-2 pl-9 pr-3 py-1.5 rounded-md text-sm transition-colors ${
-    isActive ? 'bg-hv-green-hover text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
+const triggerClass = (isActive: boolean) =>
+  `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+    isActive ? 'bg-hv-green-hover text-white' : 'text-white/80 hover:text-white hover:bg-white/10'
   }`;
 
-interface SidebarNavProps {
-  onNavigate?: () => void;
+const menuItemClass = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center justify-between gap-2 px-4 py-2.5 text-sm transition-colors ${
+    isActive ? 'bg-hv-page text-hv-green font-medium' : 'text-hv-charcoal hover:bg-hv-page'
+  }`;
+
+const mobileLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center justify-between gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+    isActive ? 'bg-hv-green-hover text-white' : 'text-white/80 hover:text-white hover:bg-white/10'
+  }`;
+
+const countBadgeClass =
+  'px-2 py-0.5 rounded-full bg-hv-terracotta text-white text-xs font-semibold';
+
+interface NavMenuProps {
+  buttonClass: string;
+  trigger: (open: boolean) => React.ReactNode;
+  align?: 'left' | 'right';
+  width?: string;
+  children: (close: () => void) => React.ReactNode;
 }
 
-const SidebarNav: React.FC<SidebarNavProps> = ({ onNavigate }) => {
+const NavMenu: React.FC<NavMenuProps> = ({
+  buttonClass,
+  trigger,
+  align = 'left',
+  width = 'w-60',
+  children,
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointer = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={buttonClass}
+      >
+        {trigger(open)}
+      </button>
+      {open && (
+        <div
+          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} mt-2 ${width} bg-white rounded-xl shadow-lg border border-hv-border z-50 overflow-hidden py-1`}
+        >
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const useNavData = () => {
   const { user } = useAuthStore();
-  const { t } = useTranslation();
 
   // The program list is data-driven: adding a program row in Admin makes it
   // appear here with no code change (WEB_DESIGN_V2 §2).
@@ -57,243 +125,277 @@ const SidebarNav: React.FC<SidebarNavProps> = ({ onNavigate }) => {
     staleTime: 60 * 1000,
   });
 
-  const unenrolledCount = unenrolled?.total ?? 0;
-  const isStaff = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR';
-
-  return (
-    <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5" aria-label="Main">
-      <NavLink to="/" end className={linkClass} onClick={onNavigate}>
-        <LayoutDashboard size={16} />
-        {t('nav.dashboard')}
-      </NavLink>
-
-      <div className="space-y-0.5">
-        <NavLink to="/programs" end className={linkClass} onClick={onNavigate}>
-          <Layers size={16} />
-          {t('nav.programs')}
-        </NavLink>
-        {programs?.items.length === 0 && (
-          <p className="pl-9 pr-3 py-1.5 text-sm text-white/50">{t('nav.no_programs')}</p>
-        )}
-        {programs?.items.map((program) => (
-          <NavLink
-            key={program.id}
-            to={`/programs/${program.id}`}
-            className={subLinkClass}
-            onClick={onNavigate}
-          >
-            <span className="truncate">{program.name}</span>
-          </NavLink>
-        ))}
-      </div>
-
-      <div className="space-y-0.5">
-        <p className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white">
-          <Users size={16} />
-          {t('nav.people')}
-        </p>
-        <NavLink to="/mothers" className={subLinkClass} onClick={onNavigate}>
-          <span className="flex items-center gap-2">
-            <User size={14} />
-            {t('nav.mothers')}
-          </span>
-        </NavLink>
-        <NavLink to="/children" className={subLinkClass} onClick={onNavigate}>
-          <span className="flex items-center gap-2">
-            <Baby size={14} />
-            {t('nav.children')}
-          </span>
-        </NavLink>
-        <NavLink to="/people" className={subLinkClass} onClick={onNavigate}>
-          <span className="flex items-center gap-2">
-            <User size={14} />
-            {t('nav.persons')}
-          </span>
-        </NavLink>
-        <NavLink to="/families" className={subLinkClass} onClick={onNavigate}>
-          <span className="flex items-center gap-2">
-            <Home size={14} />
-            {t('nav.families')}
-          </span>
-        </NavLink>
-        {unenrolledCount > 0 && (
-          <NavLink to="/unenrolled" className={subLinkClass} onClick={onNavigate}>
-            <span className="flex items-center gap-2">
-              <AlertTriangle size={14} className="text-hv-terracotta" />
-              {t('nav.unenrolled')}
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-hv-terracotta text-white text-xs font-semibold">
-              {unenrolledCount}
-            </span>
-          </NavLink>
-        )}
-      </div>
-
-      <div className="space-y-0.5">
-        <NavLink to="/visits" className={linkClass} onClick={onNavigate}>
-          <ClipboardList size={16} />
-          {t('nav.visits')}
-        </NavLink>
-        <NavLink to="/reports" className={linkClass} onClick={onNavigate}>
-          <BarChart3 size={16} />
-          {t('nav.reports')}
-        </NavLink>
-        <NavLink to="/events" className={linkClass} onClick={onNavigate}>
-          <Calendar size={16} />
-          {t('nav.events')}
-        </NavLink>
-        {isStaff && (
-          <NavLink to="/admin" className={linkClass} onClick={onNavigate}>
-            <ShieldCheck size={16} />
-            {t('nav.admin')}
-          </NavLink>
-        )}
-      </div>
-    </nav>
-  );
+  return {
+    programs: programs?.items ?? [],
+    programsLoaded: programs !== undefined,
+    unenrolledCount: unenrolled?.total ?? 0,
+    isStaff: user?.role === 'ADMIN' || user?.role === 'SUPERVISOR',
+  };
 };
 
-/**
- * Sidebar shell: brand + data-driven nav on the left, header with global search
- * and the user menu on top, routed content beneath.
- */
+const peopleRoots = ['/mothers', '/children', '/people', '/families', '/unenrolled'];
+
 export const Layout: React.FC = () => {
   const { user, logout } = useAuthStore();
   const { t } = useTranslation();
   const location = useLocation();
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { programs, programsLoaded, unenrolledCount, isStaff } = useNavData();
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setUserMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    setDrawerOpen(false);
+    setMobileOpen(false);
   }, [location.pathname]);
 
   const initials = user
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase()
     : '';
 
-  const brand = (
-    <Link to="/" className="flex items-center h-16 px-5 shrink-0">
-      <span className="text-white text-xl font-serif font-bold tracking-wide leading-none">
-        {t('nav.brand')}
-      </span>
-    </Link>
-  );
+  const programsActive = location.pathname.startsWith('/programs');
+  const peopleActive = peopleRoots.some((root) => location.pathname.startsWith(root));
+
+  const peopleLinks = [
+    { to: '/mothers', label: t('nav.mothers'), icon: <User size={14} /> },
+    { to: '/children', label: t('nav.children'), icon: <Baby size={14} /> },
+    { to: '/people', label: t('nav.persons'), icon: <User size={14} /> },
+    { to: '/families', label: t('nav.families'), icon: <Home size={14} /> },
+  ];
+
+  const sectionLinks = [
+    { to: '/visits', label: t('nav.visits'), icon: <ClipboardList size={16} />, staffOnly: false },
+    { to: '/events', label: t('nav.events'), icon: <Calendar size={16} />, staffOnly: false },
+    { to: '/reports', label: t('nav.reports'), icon: <BarChart3 size={16} />, staffOnly: true },
+    { to: '/admin', label: t('nav.admin'), icon: <ShieldCheck size={16} />, staffOnly: true },
+  ].filter((link) => !link.staffOnly || isStaff);
 
   return (
-    <div className="min-h-screen bg-hv-page flex">
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col w-64 shrink-0 bg-hv-green sticky top-0 h-screen">
-        {brand}
-        <SidebarNav />
-      </aside>
+    <div className="min-h-screen bg-hv-page flex flex-col">
+      <header className="sticky top-0 z-40 bg-hv-green shadow-lg">
+        <div className="flex items-center gap-2 h-16 px-4 sm:px-6">
+          <Link to="/" className="flex items-center shrink-0 pr-2">
+            <span className="text-white text-xl font-serif font-bold tracking-wide leading-none">
+              {t('nav.brand')}
+            </span>
+          </Link>
 
-      {/* Mobile drawer */}
-      {drawerOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setDrawerOpen(false)}
-            aria-hidden="true"
-          />
-          <aside className="relative flex flex-col w-64 max-w-[80%] h-full bg-hv-green shadow-xl">
-            <div className="flex items-center justify-between pr-2">
-              {brand}
-              <button
-                onClick={() => setDrawerOpen(false)}
-                aria-label={t('nav.close_menu')}
-                className="text-white/80 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <SidebarNav onNavigate={() => setDrawerOpen(false)} />
-          </aside>
-        </div>
-      )}
-
-      <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-40 bg-hv-card border-b border-hv-border">
-          <div className="flex items-center gap-3 h-16 px-4 sm:px-6">
-            <button
-              className="md:hidden text-hv-charcoal p-1.5 rounded-md hover:bg-hv-page transition-colors"
-              onClick={() => setDrawerOpen(true)}
-              aria-label={t('nav.open_menu')}
+          <nav className="hidden md:flex items-center gap-1 shrink-0" aria-label="Main">
+            <NavMenu
+              buttonClass={triggerClass(programsActive)}
+              trigger={(open) => (
+                <>
+                  <Layers size={16} />
+                  {t('nav.programs')}
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform ${open ? 'rotate-180' : ''}`}
+                  />
+                </>
+              )}
             >
-              <Menu size={20} />
-            </button>
+              {(close) => (
+                <>
+                  <NavLink to="/programs" end className={menuItemClass} onClick={close}>
+                    {t('nav.all_programs')}
+                  </NavLink>
+                  <div className="my-1 border-t border-hv-border" />
+                  {programsLoaded && programs.length === 0 && (
+                    <p className="px-4 py-2.5 text-sm text-hv-sage">{t('nav.no_programs')}</p>
+                  )}
+                  {programs.map((program) => (
+                    <NavLink
+                      key={program.id}
+                      to={`/programs/${program.id}`}
+                      className={menuItemClass}
+                      onClick={close}
+                    >
+                      <span className="truncate">{program.name}</span>
+                    </NavLink>
+                  ))}
+                </>
+              )}
+            </NavMenu>
 
-            <div className="flex flex-1 min-w-0 max-w-md">
-              <SearchBar className="w-full" />
-            </div>
+            <NavMenu
+              buttonClass={triggerClass(peopleActive)}
+              trigger={(open) => (
+                <>
+                  <Users size={16} />
+                  {t('nav.people')}
+                  {unenrolledCount > 0 && <span className={countBadgeClass}>{unenrolledCount}</span>}
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform ${open ? 'rotate-180' : ''}`}
+                  />
+                </>
+              )}
+            >
+              {(close) => (
+                <>
+                  {peopleLinks.map((link) => (
+                    <NavLink
+                      key={link.to}
+                      to={link.to}
+                      className={menuItemClass}
+                      onClick={close}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-hv-sage">{link.icon}</span>
+                        {link.label}
+                      </span>
+                    </NavLink>
+                  ))}
+                  {unenrolledCount > 0 && (
+                    <>
+                      <div className="my-1 border-t border-hv-border" />
+                      <NavLink to="/unenrolled" className={menuItemClass} onClick={close}>
+                        <span className="flex items-center gap-2">
+                          <AlertTriangle size={14} className="text-hv-terracotta" />
+                          {t('nav.unenrolled')}
+                        </span>
+                        <span className={countBadgeClass}>{unenrolledCount}</span>
+                      </NavLink>
+                    </>
+                  )}
+                </>
+              )}
+            </NavMenu>
+          </nav>
 
-            {user && (
-              <div className="relative shrink-0" ref={userMenuRef}>
-                <button
-                  onClick={() => setUserMenuOpen((o) => !o)}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-hv-page transition-colors"
-                >
+          <div className="flex flex-1 min-w-0 justify-center px-1 sm:px-3">
+            <SearchBar className="w-full max-w-md" />
+          </div>
+
+          <nav className="hidden md:flex items-center gap-1 shrink-0" aria-label="Sections">
+            {sectionLinks.map((link) => (
+              <NavLink key={link.to} to={link.to} className={topLinkClass}>
+                {link.icon}
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          {user && (
+            <NavMenu
+              align="right"
+              width="w-52"
+              buttonClass="flex items-center gap-2 px-1.5 py-1.5 rounded-md hover:bg-white/10 transition-colors shrink-0"
+              trigger={() => (
+                <>
                   <div className="w-8 h-8 rounded-full bg-hv-terracotta flex items-center justify-center text-white text-xs font-bold select-none">
                     {initials}
                   </div>
-                  <div className="hidden sm:flex flex-col items-start leading-tight">
-                    <span className="text-hv-charcoal text-sm font-medium">
+                  <ChevronDown size={14} className="text-white/70 hidden sm:block" />
+                </>
+              )}
+            >
+              {(close) => (
+                <>
+                  <div className="px-4 py-3 border-b border-hv-border bg-hv-page">
+                    <p className="text-sm font-semibold text-hv-charcoal">
                       {user.firstName} {user.lastName}
-                    </span>
-                    <span className="text-hv-sage text-xs capitalize">{user.role?.toLowerCase()}</span>
+                    </p>
+                    <p className="text-xs text-hv-sage capitalize">{user.role?.toLowerCase()}</p>
                   </div>
-                  <ChevronDown size={14} className="text-hv-sage hidden sm:block" />
-                </button>
+                  <Link
+                    to="/admin/language"
+                    onClick={close}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-sm text-hv-charcoal hover:bg-hv-page transition-colors"
+                  >
+                    <Languages size={15} className="text-hv-sage" />
+                    {t('admin.language')}
+                  </Link>
+                  <div className="border-t border-hv-border" />
+                  <button
+                    onClick={() => {
+                      close();
+                      logout();
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-sm text-hv-crisis hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={15} />
+                    {t('profile.logout')}
+                  </button>
+                </>
+              )}
+            </NavMenu>
+          )}
 
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-hv-border z-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-hv-border bg-hv-page">
-                      <p className="text-sm font-semibold text-hv-charcoal">
-                        {user.firstName} {user.lastName}
-                      </p>
-                      <p className="text-xs text-hv-sage capitalize">{user.role?.toLowerCase()}</p>
-                    </div>
-                    <Link
-                      to="/admin/language"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-hv-charcoal hover:bg-hv-page transition-colors"
-                    >
-                      <Languages size={15} className="text-hv-sage" />
-                      {t('admin.language')}
-                    </Link>
-                    <div className="border-t border-hv-border" />
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        logout();
-                      }}
-                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-hv-crisis hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut size={15} />
-                      {t('profile.logout')}
-                    </button>
-                  </div>
-                )}
-              </div>
+          <button
+            className="md:hidden text-white/80 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors shrink-0"
+            onClick={() => setMobileOpen((o) => !o)}
+            aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? t('nav.close_menu') : t('nav.open_menu')}
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+
+        {mobileOpen && (
+          <nav
+            className="md:hidden border-t border-white/10 px-3 py-3 space-y-1 max-h-[70vh] overflow-y-auto"
+            aria-label="Mobile"
+          >
+            <NavLink to="/programs" end className={mobileLinkClass}>
+              <span className="flex items-center gap-2">
+                <Layers size={16} />
+                {t('nav.programs')}
+              </span>
+            </NavLink>
+            {programs.map((program) => (
+              <NavLink
+                key={program.id}
+                to={`/programs/${program.id}`}
+                className={({ isActive }) => `${mobileLinkClass({ isActive })} pl-9`}
+              >
+                <span className="truncate">{program.name}</span>
+              </NavLink>
+            ))}
+
+            <p className="flex items-center gap-2 px-3 pt-3 pb-1 text-sm font-medium text-white">
+              <Users size={16} />
+              {t('nav.people')}
+            </p>
+            {peopleLinks.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) => `${mobileLinkClass({ isActive })} pl-9`}
+              >
+                <span className="flex items-center gap-2">
+                  {link.icon}
+                  {link.label}
+                </span>
+              </NavLink>
+            ))}
+            {unenrolledCount > 0 && (
+              <NavLink
+                to="/unenrolled"
+                className={({ isActive }) => `${mobileLinkClass({ isActive })} pl-9`}
+              >
+                <span className="flex items-center gap-2">
+                  <AlertTriangle size={14} className="text-hv-terracotta" />
+                  {t('nav.unenrolled')}
+                </span>
+                <span className={countBadgeClass}>{unenrolledCount}</span>
+              </NavLink>
             )}
-          </div>
-        </header>
 
-        <main className="flex-1 py-6 px-4 sm:px-6 lg:px-8">
-          <Outlet />
-        </main>
-      </div>
+            <div className="pt-3 space-y-1">
+              {sectionLinks.map((link) => (
+                <NavLink key={link.to} to={link.to} className={mobileLinkClass}>
+                  <span className="flex items-center gap-2">
+                    {link.icon}
+                    {link.label}
+                  </span>
+                </NavLink>
+              ))}
+            </div>
+          </nav>
+        )}
+      </header>
+
+      <main className="flex-1 py-6 px-4 sm:px-6 lg:px-8">
+        <Outlet />
+      </main>
     </div>
   );
 };

@@ -202,6 +202,18 @@ export const en = {
 
   // Admin
   'admin.title': 'Admin',
+  'admin.overview_title': 'Administration',
+  'admin.overview_description': 'Manage your team, programs, and reference information.',
+  'admin.reference_data': 'Reference Data',
+  'admin.team_description': 'Accounts and permissions',
+  'admin.assistants_description': 'Care providers and training',
+  'admin.programs_description': 'Enrollment and program settings',
+  'admin.questions_description': 'Visit forms and questions',
+  'admin.communities_description': 'Community directory',
+  'admin.sites_description': 'Locations and service areas',
+  'admin.resources_description': 'Supplies and support',
+  'admin.training_description': 'Learning topics',
+  'admin.examinations_description': 'Visit examination options',
   'admin.my_team': 'My Team',
   'admin.communities': 'Communities',
   'admin.birthing_assistants': 'Birthing Assistants',

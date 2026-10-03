@@ -8,10 +8,10 @@ type TranslationKey = keyof typeof en;
 type Language = 'en' | 'es';
 
 // Translation dictionaries
-const translations = {
+const translations: Record<Language, Partial<Record<TranslationKey, string>>> = {
   en,
   es,
-} as const;
+};
 
 /**
  * Translation function that returns localized strings

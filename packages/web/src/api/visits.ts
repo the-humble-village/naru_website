@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import { VisitRead, VisitListItem, VisitCreate, VisitUpdate, VisitPrefill } from '@naru/shared';
 
 export interface ListVisitsParams {
+  search?: string;
   enrollmentId?: number;
   programId?: number;
   siteId?: number;
@@ -24,6 +25,7 @@ export interface ListVisitsResponse {
 export const listVisits = async (params: ListVisitsParams = {}): Promise<ListVisitsResponse> => {
   const searchParams = new URLSearchParams();
 
+  if (params.search?.trim()) searchParams.set('search', params.search.trim());
   if (params.enrollmentId !== undefined)
     searchParams.set('enrollmentId', params.enrollmentId.toString());
   if (params.programId !== undefined) searchParams.set('programId', params.programId.toString());

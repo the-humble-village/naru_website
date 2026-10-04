@@ -103,6 +103,7 @@ function toVisitRead(row: any): VisitRead {
  * subject lives — a mobile clinic is counted where it occurred (SCHEMA_V2.md §6.5).
  */
 export async function listVisits(options: {
+  search?: string;
   enrollmentId?: number;
   programId?: number;
   siteId?: number;
@@ -128,6 +129,22 @@ export async function listVisits(options: {
   if (options.communityId !== undefined) where.communityId = options.communityId;
   if (options.eventId !== undefined) where.eventId = options.eventId;
   if (options.recordedById !== undefined) where.recordedById = options.recordedById;
+
+  // Apply name search before counting and pagination, across all subject types.
+  const searchTerms = options.search?.trim().split(/\s+/).filter(Boolean) ?? [];
+  if (searchTerms.length > 0) {
+    where.enrollment.AND = searchTerms.map(term => {
+      const name = { contains: term.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' };
+      return {
+        OR: [
+          { mother: { name } },
+          { child: { name } },
+          { person: { name } },
+          { family: { familyName: name } },
+        ],
+      };
+    });
+  }
 
   if (options.from !== undefined || options.to !== undefined) {
     where.visitDate = {};
@@ -167,9 +184,8 @@ export async function listVisits(options: {
       program,
       subjectName:
         mother?.name ?? child?.name ?? person?.name ?? family?.familyName ?? null,
-      recordedByName: recordedBy
-        ? `${recordedBy.firstName} ${recordedBy.lastName}`.trim()
-        : null,
+      recordedByName: [recordedBy?.firstName, recordedBy?.lastName]
+        .map(name => name?.trim()).filter(Boolean).join(' ') || null,
     };
   });
 

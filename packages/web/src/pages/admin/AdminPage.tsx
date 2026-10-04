@@ -49,32 +49,32 @@ export const AdminPage: React.FC = () => {
     .filter(section => section.cards.length > 0);
 
   return (
-    <div className="mx-auto max-w-6xl py-3 sm:py-5">
-      <header className="mb-6 text-center sm:mb-8">
-        <h1 className="font-serif text-3xl font-bold tracking-tight text-hv-green sm:text-4xl lg:text-5xl">
+    <div className="mx-auto max-w-6xl py-1">
+      <header className="mb-4 text-center">
+        <h1 className="font-serif text-3xl font-bold tracking-tight text-hv-green sm:text-4xl">
           {t('admin.overview_title')}
         </h1>
-        <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-hv-gray sm:text-base">
+        <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-hv-gray sm:text-base">
           {t('admin.overview_description')}
         </p>
       </header>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {visibleSections.map(section => (
           <section
             key={section.category}
             aria-labelledby={`admin-${section.category}-heading`}
-            className={`flex min-w-0 flex-col rounded-2xl border border-hv-green/15 bg-[#eaf0e9] p-4 sm:p-5 ${
+            className={`flex min-w-0 flex-col rounded-2xl border border-hv-green/15 bg-[#eaf0e9] p-3 ${
               section.category === 'reference' ? 'lg:col-span-2' : ''
             }`}
           >
             <h2
               id={`admin-${section.category}-heading`}
-              className="mb-3 text-center font-serif text-2xl font-bold text-hv-green"
+              className="mb-2 text-center font-serif text-xl font-bold text-hv-green"
             >
               {t(section.label)}
             </h2>
-            <ul className={`grid flex-1 gap-3 sm:gap-4 ${
+            <ul className={`grid flex-1 gap-3 ${
               section.category === 'reference'
                 ? 'grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
                 : section.cards.length > 1 ? 'grid-cols-1 min-[400px]:grid-cols-2' : 'grid-cols-1'
@@ -87,15 +87,15 @@ export const AdminPage: React.FC = () => {
                       to={card.to}
                       aria-labelledby={`admin-${id}-label`}
                       aria-describedby={`admin-${id}-description`}
-                      className="flex h-full min-h-[168px] flex-col items-center rounded-xl border border-hv-green/15 bg-white px-4 py-6 text-center transition-[border-color,box-shadow] hover:border-hv-green hover:shadow-[0_4px_12px_rgba(47,79,57,0.16)] focus-visible:border-hv-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-4 focus-visible:ring-offset-[#eaf0e9] motion-reduce:transition-none"
+                      className="flex h-full min-h-[132px] flex-col items-center rounded-xl border border-hv-green/15 bg-white p-3 text-center transition-[border-color,box-shadow] hover:border-hv-green hover:shadow-[0_4px_12px_rgba(47,79,57,0.16)] focus-visible:border-hv-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-4 focus-visible:ring-offset-[#eaf0e9] motion-reduce:transition-none"
                     >
-                      <span aria-hidden="true" className="mb-3 flex h-10 w-10 shrink-0 items-center justify-center text-hv-terracotta">
-                        <i className={`${card.icon} text-4xl`} />
+                      <span aria-hidden="true" className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center text-hv-terracotta">
+                        <i className={`${card.icon} text-3xl`} />
                       </span>
                       <h3 id={`admin-${id}-label`} className="text-base font-medium leading-snug text-hv-charcoal">
                         {t(card.label)}
                       </h3>
-                      <p id={`admin-${id}-description`} className="mt-2 max-w-[15rem] text-sm leading-relaxed text-hv-gray">
+                      <p id={`admin-${id}-description`} className="mt-1 max-w-[15rem] text-sm leading-5 text-hv-gray">
                         {t(card.description)}
                       </p>
                     </Link>

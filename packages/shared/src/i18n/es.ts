@@ -514,6 +514,27 @@ export const es = {
   'nav.close_menu': 'Cerrar menú',
 
   // Visit history
+  // Event calendar
+  'events.new': 'Nuevo evento',
+  'events.overview_description': 'Planifica eventos y consulta sus visitas vinculadas.',
+  'events.month_agenda': 'Agenda del mes',
+  'events.showing_month': 'Eventos en {month}',
+  'events.previous_month': 'Mes anterior',
+  'events.next_month': 'Mes siguiente',
+  'events.clear_search': 'Borrar búsqueda de eventos',
+  'events.search_label': 'Buscar eventos',
+  'events.search_placeholder': 'Buscar por nombre...',
+  'events.linked_visit': '{count} visita vinculada',
+  'events.linked_visits': '{count} visitas vinculadas',
+  'events.more_events': '+{count} más',
+  'events.show_day_events': 'Mostrar todos los eventos del {date}',
+  'events.all_dates': 'Todas las fechas',
+  'events.empty_month': 'Ningún evento coincide con este mes y estos filtros.',
+  'events.empty_day': 'No hay eventos que coincidan con esta fecha.',
+  'events.invalid_range': 'Elige una fecha final igual o posterior a la fecha inicial.',
+  'events.retry': 'Reintentar',
+  'events.load_error': 'No se pudieron cargar los eventos.',
+
   'visit.all_visits': 'Todas las visitas',
   'visit.list_description': 'Consulta las visitas de los programas y las comunidades.',
   'visit.filter_visits': 'Filtrar visitas',

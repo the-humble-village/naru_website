@@ -231,8 +231,8 @@ describe('UnenrolledPage', () => {
       'href',
       '/children/5'
     );
-    expect(screen.getAllByText('subject_type.mother').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('subject_type.child').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Mother').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Child').length).toBeGreaterThan(0);
   });
 
   it('only offers programs whose subject type matches the row', async () => {
@@ -240,9 +240,9 @@ describe('UnenrolledPage', () => {
 
     await screen.findAllByRole('link', { name: 'Jose Ramirez' });
 
-    const childSelects = screen.getAllByLabelText('unenrolled.enroll: Jose Ramirez');
+    const childSelects = screen.getAllByLabelText('Enroll in...: Jose Ramirez');
     expect(childSelects[0]).toHaveTextContent('Nutrition Infant');
-    expect(screen.getAllByText('unenrolled.no_program').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No program available').length).toBeGreaterThan(0);
   });
 
   it('lists unenrolled families alongside the other subjects', async () => {
@@ -252,7 +252,7 @@ describe('UnenrolledPage', () => {
       'href',
       '/families/11'
     );
-    expect(screen.getAllByText('subject_type.family').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Family').length).toBeGreaterThan(0);
     expect(familiesApi.listFamilies).toHaveBeenCalledWith(
       expect.objectContaining({ unenrolled: true })
     );
@@ -263,7 +263,7 @@ describe('UnenrolledPage', () => {
 
     await screen.findAllByRole('link', { name: 'Ramirez Family' });
 
-    const [select] = screen.getAllByLabelText('unenrolled.enroll: Ramirez Family');
+    const [select] = screen.getAllByLabelText('Enroll in...: Ramirez Family');
     expect(select).toHaveTextContent('Family PAF');
     expect(select).not.toHaveTextContent('Nutrition Infant');
   });
@@ -273,11 +273,33 @@ describe('UnenrolledPage', () => {
     renderPage();
 
     await screen.findAllByRole('link', { name: 'Jose Ramirez' });
-    const [select] = screen.getAllByLabelText('unenrolled.enroll: Jose Ramirez');
+    const [select] = screen.getAllByLabelText('Enroll in...: Jose Ramirez');
     await user.selectOptions(select as HTMLElement, '2');
 
     await waitFor(() => {
       expect(screen.getByText('enroll wizard')).toBeInTheDocument();
     });
   });
+
+  it('filters the complete worklist on the server and keeps the type tab when clearing', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findAllByRole('link', { name: 'Maria Lopez' });
+    await user.click(screen.getByRole('tab', { name: /^Mothers/ }));
+    await user.type(screen.getByRole('searchbox'), 'Maria');
+    await user.selectOptions(screen.getByLabelText('Site'), '9');
+    await user.selectOptions(screen.getByLabelText('Community'), '3');
+    await waitFor(() => expect(mothersApi.listMothers).toHaveBeenLastCalledWith(expect.objectContaining({ unenrolled: true, search: 'Maria', siteId: 9, communityId: 3, skip: 0 })));
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(mothersApi.listMothers).toHaveBeenLastCalledWith(expect.objectContaining({ unenrolled: true, search: undefined, siteId: undefined, communityId: undefined, skip: 0 })));
+    expect(screen.getByRole('tab', { name: /^Mothers/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('shows a failed request rather than an empty worklist', async () => {
+    vi.mocked(childrenApi.listChildren).mockRejectedValue(new Error('Request failed'));
+    renderPage();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load unenrolled records.');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
 });

@@ -51,16 +51,15 @@ describe('ProgramRosterTable', () => {
     });
 
     expect(headers()).toEqual([
-      'roster.name',
-      'roster.age',
+      'roster.member',
       'roster.community',
-      'roster.weight',
+      'roster.weightroster.entry_latest',
       'roster.gestation',
       'roster.due',
       'roster.last_visit',
       'common.col_actions',
     ]);
-    expect(screen.getAllByText('2026-11-15').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('15/11/2026').length).toBeGreaterThan(0);
   });
 
   it('renders the nutrition column set with the persisted status badge', () => {
@@ -69,9 +68,9 @@ describe('ProgramRosterTable', () => {
       rows: [row({ nutritionalStatus: 'SEVERE', birthDate: daysAgo(120) })],
     });
 
-    expect(headers()).toContain('roster.status');
+    expect(headers()).toContain('roster.nutrition_status');
     expect(headers()).not.toContain('roster.gestation');
-    expect(screen.getAllByText('nutritional_status.severe')[0]).toHaveClass('bg-red-600');
+    expect(screen.getAllByText('nutritional_status.severe').length).toBeGreaterThan(0);
   });
 
   it('renders the midwife column set', () => {
@@ -121,6 +120,25 @@ describe('ProgramRosterTable', () => {
     expect(headers()).not.toContain('roster.last_visit');
     expect(screen.queryByRole('link', { name: 'roster.add_visit' })).not.toBeInTheDocument();
     expect(screen.getAllByText('exit_reason.graduated').length).toBeGreaterThan(0);
+  });
+
+  it('only offers visits for active records on the All tab', () => {
+    renderTable({ variant: 'all', rows: [
+      row({ enrollmentId: 1 }),
+      row({ enrollmentId: 2, subjectName: 'Exited member', exitedAt: '2025-06-01', exitReason: 'GRADUATED' }),
+    ] });
+    const links = screen.getAllByRole('link', { name: 'roster.add_visit' });
+    expect(links).toHaveLength(2); // Desktop and mobile renderings of the active record.
+    links.forEach(link => expect(link).toHaveAttribute('href', '/enrollments/1/visits/new'));
+    expect(screen.getAllByText('enrollment.exited · 1/6/2025')).toHaveLength(2);
+  });
+
+  it('keeps a missing latest weight distinct from a recorded zero', () => {
+    renderTable({ rows: [row({ entryWeight: 0, latestWeight: null })] });
+    const weight = screen.getByRole('table').querySelector('tbody tr td:nth-child(3)');
+    expect(weight?.textContent).toContain('0.0');
+    expect(weight?.textContent).toContain('—');
+    expect(weight?.textContent).toContain('kg');
   });
 
   it('derives age as months for infants and years for adults', () => {

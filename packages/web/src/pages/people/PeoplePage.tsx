@@ -1,37 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ageInDays, type PersonRead } from '@naru/shared';
+import type { PersonRead } from '@naru/shared';
 import { peopleApi } from '../../api/people';
 import { adminApi } from '../../api/admin';
-import {
-  EmptyState,
-  FilterBar,
-  LoadingState,
-  PageHeader,
-  type FilterValues,
-} from '../../components';
+import { EmptyState, LoadingState, type FilterValues } from '../../components';
+import { DirectoryHeader, DirectoryFilters, DirectoryPanel, DirectoryTable, DirectoryNameLink, DirectoryEditLink, DirectoryPagination, directoryCount, formatDirectoryAge, type DirectoryColumn } from '../../components/people/PeopleDirectory';
 import { useTranslation } from '../../hooks';
 
 const PAGE_SIZE = 25;
 
-const TH = 'px-4 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider';
-const TD = 'px-4 py-3 text-sm text-hv-charcoal';
-
-const ageLabel = (birthDate: string | null | undefined): string => {
-  if (!birthDate) return '—';
-  const date = new Date(birthDate);
-  if (Number.isNaN(date.getTime())) return '—';
-  const days = ageInDays(date);
-  if (days === null || days < 0) return '—';
-  if (days < 61) return `${days}d`;
-  const months = Math.floor(days / 30.4375);
-  if (months < 24) return `${months}m`;
-  return `${Math.floor(days / 365.25)}y`;
-};
-
 export const PeoplePage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<FilterValues>({ siteId: null, communityId: null });
   const [page, setPage] = useState(0);
@@ -97,7 +76,7 @@ export const PeoplePage: React.FC = () => {
   const handleFilterChange = (next: FilterValues) => {
     const siteChanged = next.siteId !== filters.siteId;
     const communityStillValid =
-      !siteChanged || !next.communityId || siteOfCommunity.get(next.communityId) === next.siteId;
+      !siteChanged || !next.siteId || !next.communityId || siteOfCommunity.get(next.communityId) === next.siteId;
     setFilters({
       ...next,
       communityId: communityStillValid ? next.communityId ?? null : null,
@@ -119,158 +98,39 @@ export const PeoplePage: React.FC = () => {
         : '—',
   });
 
+  const nameLink = (row: PersonRead) => <DirectoryNameLink to={`/people/${row.id}`}>{row.name}</DirectoryNameLink>;
+  const columns: DirectoryColumn<PersonRead>[] = [
+    { key: 'name', label: t('subject.col_name'), render: nameLink },
+    { key: 'age', label: t('subject.col_age'), render: row => formatDirectoryAge(row.birthDate, lang) },
+    { key: 'sex', label: t('subject.col_sex'), render: row => sexLabel(row.sex) },
+    { key: 'community', label: t('subject.col_community'), render: row => placeFor(row).community },
+    { key: 'site', label: t('subject.col_site'), render: row => placeFor(row).site },
+    { key: 'phone', label: t('subject.col_phone'), render: row => row.phone || <span className="text-hv-gray">{t('directory.not_recorded')}</span> },
+    { key: 'actions', label: t('subject.col_actions'), render: row => <DirectoryEditLink to={`/people/${row.id}/edit`} /> },
+  ];
+  const filtersActive = search.trim() !== '' || filters.siteId != null || filters.communityId != null;
+  const showing = t('roster.showing')
+    .replace('{from}', String(rows.length ? page * PAGE_SIZE + 1 : 0))
+    .replace('{to}', String(page * PAGE_SIZE + rows.length))
+    .replace('{total}', String(total));
+
   return (
-    <div>
-      <PageHeader
-        title={t('nav.persons')}
-        actions={
-          <Link
-            to="/people/new"
-            className="bg-hv-terracotta text-white px-4 py-2 rounded-md hover:bg-hv-terracotta-hover transition-colors"
-          >
-            {t('people.add')}
-          </Link>
-        }
-      />
-
-      <div className="space-y-3 mb-6">
-        <div>
-          <label htmlFor="person-search" className="block text-sm font-medium text-hv-gray mb-1">
-            {t('subject.search')}
-          </label>
-          <input
-            id="person-search"
-            type="search"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(0);
-            }}
-            placeholder={t('subject.search_placeholder')}
-            className="w-full md:max-w-sm px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
-          />
-        </div>
-
-        <FilterBar
-          fields={['site', 'community']}
-          value={filters}
-          onChange={handleFilterChange}
-          sites={siteOptions}
-          communities={communityOptions}
-        />
-      </div>
-
-      {isLoading && <LoadingState message={t('common.loading')} />}
-      {isError && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <p className="text-hv-crisis">{t('people.load_failed')}</p>
-        </div>
-      )}
-
-      {!isLoading && !isError && rows.length === 0 && <EmptyState message={t('people.empty')} />}
-
-      {!isLoading && !isError && rows.length > 0 && (
-        <>
-          <div className="hidden md:block bg-white rounded-xl border border-hv-border overflow-x-auto">
-            <table className="min-w-full divide-y divide-hv-border">
-              <thead className="bg-hv-page">
-                <tr>
-                  <th className={TH}>{t('subject.col_name')}</th>
-                  <th className={TH}>{t('subject.col_age')}</th>
-                  <th className={TH}>{t('subject.col_sex')}</th>
-                  <th className={TH}>{t('subject.col_community')}</th>
-                  <th className={TH}>{t('subject.col_site')}</th>
-                  <th className={TH}>{t('subject.col_phone')}</th>
-                  <th className={TH}>{t('subject.col_actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-hv-border">
-                {rows.map((person) => {
-                  const place = placeFor(person);
-                  return (
-                    <tr key={person.id} className="hover:bg-hv-page">
-                      <td className={TD}>
-                        <Link
-                          to={`/people/${person.id}`}
-                          className="font-medium text-hv-terracotta hover:underline"
-                        >
-                          {person.name}
-                        </Link>
-                      </td>
-                      <td className={TD}>{ageLabel(person.birthDate)}</td>
-                      <td className={TD}>{sexLabel(person.sex)}</td>
-                      <td className={TD}>{place.community}</td>
-                      <td className={TD}>{place.site}</td>
-                      <td className={TD}>{person.phone || '—'}</td>
-                      <td className={TD}>
-                        <Link
-                          to={`/people/${person.id}/edit`}
-                          className="text-hv-terracotta hover:underline"
-                        >
-                          {t('common.edit')}
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <ul className="md:hidden space-y-3">
-            {rows.map((person) => {
-              const place = placeFor(person);
-              return (
-                <li key={person.id} className="bg-white p-4 rounded-xl border border-hv-border">
-                  <div className="flex items-start justify-between gap-3">
-                    <Link
-                      to={`/people/${person.id}`}
-                      className="font-medium text-hv-terracotta hover:underline"
-                    >
-                      {person.name}
-                    </Link>
-                    <Link
-                      to={`/people/${person.id}/edit`}
-                      className="text-sm text-hv-terracotta hover:underline shrink-0"
-                    >
-                      {t('common.edit')}
-                    </Link>
-                  </div>
-                  <p className="text-sm text-hv-gray mt-1">
-                    {ageLabel(person.birthDate)} · {sexLabel(person.sex)} · {place.community} (
-                    {place.site})
-                  </p>
-                  {person.phone && <p className="text-sm text-hv-gray">{person.phone}</p>}
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="flex items-center justify-between gap-3 mt-4">
-            <span className="text-sm text-hv-gray">
-              {t('common.page')} {page + 1} {t('common.of')} {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="px-3 py-2 text-sm rounded-md border border-hv-border text-hv-charcoal hover:bg-hv-page disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {t('common.previous')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page + 1 >= totalPages}
-                className="px-3 py-2 text-sm rounded-md border border-hv-border text-hv-charcoal hover:bg-hv-page disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {t('common.next')}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+    <div className="mx-auto max-w-screen-2xl py-1">
+      <DirectoryHeader title={t('nav.persons')} description={t('directory.persons_description')}
+        action={{ to: '/people/new', label: t('people.add') }} />
+      <DirectoryFilters search={search} searchLabel={t('directory.search_persons')}
+        onSearchChange={value => { setSearch(value); setPage(0); }}
+        value={filters} onChange={handleFilterChange} sites={siteOptions} communities={communityOptions}
+        onClear={() => { setSearch(''); setFilters({ siteId: null, communityId: null }); setPage(0); }} />
+      <DirectoryPanel title={isLoading || isError ? t('nav.persons') : directoryCount(t, 'persons', total)}>
+        {isLoading && <LoadingState message={t('common.loading')} />}
+        {isError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-hv-crisis">{t('people.load_failed')}</div>}
+        {!isLoading && !isError && rows.length === 0 && <EmptyState message={t(filtersActive ? 'directory.no_matches' : 'people.empty')} />}
+        {!isLoading && !isError && rows.length > 0 && (
+          <DirectoryTable rows={rows} columns={columns} rowKey={row => row.id} rowTitle={nameLink} label={t('nav.persons')} />
+        )}
+        {!isLoading && !isError && <DirectoryPagination page={page} totalPages={totalPages} onPageChange={setPage} resultText={showing} />}
+      </DirectoryPanel>
     </div>
   );
 };

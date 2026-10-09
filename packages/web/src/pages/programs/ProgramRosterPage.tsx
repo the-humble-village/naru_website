@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
+import { ArrowLeft, Plus, UsersRound, FilePlus2, LogOut, Clock3, SlidersHorizontal, RotateCcw, Search, X } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import type {
@@ -17,15 +18,8 @@ import { childrenApi } from '../../api/children';
 import { peopleApi } from '../../api/people';
 import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
-import {
-  FilterBar,
-  LoadingState,
-  PageHeader,
-  ProgramRosterTable,
-  StatStrip,
-  Tabs,
-} from '../../components';
-import type { FilterValues, RosterRow, StatStripItem } from '../../components';
+import { LoadingState, ProgramRosterTable, Tabs } from '../../components';
+import type { RosterRow } from '../../components';
 import { useTranslation } from '../../hooks';
 
 type TabKey = 'active' | 'exited' | 'all';
@@ -35,6 +29,9 @@ const ROWS_PER_PAGE = 25;
 const FETCH_PAGE_SIZE = 100;
 const MAX_FETCH_PAGES = 20;
 const MS_PER_DAY = 86_400_000;
+const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
+const FIELD = 'min-h-11 w-full min-w-0 rounded-lg border border-hv-border bg-white px-3 py-2 text-sm text-hv-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green';
+const LABEL = 'mb-1 block text-sm font-medium text-hv-gray';
 
 const STATUS_ORDER: NutritionalStatus[] = ['SEVERE', 'MODERATE', 'MILD', 'NORMAL'];
 
@@ -147,6 +144,7 @@ export const ProgramRosterPage: React.FC = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const programId = Number(id);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const rawTab = searchParams.get('tab');
@@ -155,7 +153,7 @@ export const ProgramRosterPage: React.FC = () => {
   const siteId = toId(searchParams.get('siteId'));
   const communityId = toId(searchParams.get('communityId'));
   const rawStatus = searchParams.get('status');
-  const status = STATUS_ORDER.includes(rawStatus as NutritionalStatus)
+  const requestedStatus = STATUS_ORDER.includes(rawStatus as NutritionalStatus)
     ? (rawStatus as NutritionalStatus)
     : null;
   const page = Math.max(0, Number(searchParams.get('page') ?? '0') || 0);
@@ -184,6 +182,7 @@ export const ProgramRosterPage: React.FC = () => {
   });
 
   const program: ProgramRead | undefined = programQuery.data;
+  const status = program?.kind === 'NUTRITION' ? requestedStatus : null;
 
   const enrollmentsQuery = useQuery({
     queryKey: ['program-roster', programId],
@@ -345,159 +344,154 @@ export const ProgramRosterPage: React.FC = () => {
     );
   }
 
-  const statItems: StatStripItem[] = [
-    { label: t('roster.stat_active'), value: stats.active },
-    { label: t('roster.stat_new_this_month'), value: stats.newThisMonth },
-    { label: t('roster.stat_exited_this_month'), value: stats.exitedThisMonth },
+  const hasRosterError = enrollmentsQuery.isError || subjectsQuery.isError || (needsVisitDetail && visitsQuery.isError);
+  const isFamily = program.kind === 'FAMILY_PAF';
+  const statItems = [
+    { label: t('roster.stat_active'), value: stats.active, icon: UsersRound, alert: false },
+    { label: t('roster.stat_new_this_month'), value: stats.newThisMonth, icon: FilePlus2, alert: false },
+    { label: t('roster.stat_exited_this_month'), value: stats.exitedThisMonth, icon: LogOut, alert: false },
   ];
-
-  // A program with no cadence never flags overdue, so the stat is omitted
-  // rather than shown as a wrong zero.
+  // Programs without a visit schedule have no overdue metric.
   if (program.visitIntervalDays !== null) {
-    statItems.push({
-      label: t('roster.stat_overdue'),
-      tone: 'crisis',
-      value: (
-        <span className="inline-flex items-center gap-2">
-          {stats.overdue}
-          {stats.overdue > 0 && <span aria-hidden="true">&#9888;</span>}
-        </span>
-      ),
-    });
+    statItems.push({ label: t('roster.stat_overdue'), value: stats.overdue, icon: Clock3, alert: stats.overdue > 0 });
   }
-
-  const filterValues: FilterValues = { siteId, communityId };
-
-  const handleFilterChange = (value: FilterValues) => {
-    updateParams({
-      siteId: value.siteId != null ? String(value.siteId) : null,
-      communityId: value.communityId != null ? String(value.communityId) : null,
-    });
-  };
-
-  const filtersActive =
-    search.trim() !== '' || siteId !== null || communityId !== null || status !== null;
-
-  const statusFilter = (
-    <div className="min-w-0 md:w-48">
-      <label htmlFor="roster-status" className="block text-sm font-medium text-hv-gray mb-1">
-        {t('roster.status')}
-      </label>
-      <select
-        id="roster-status"
-        value={status ?? ''}
-        onChange={(event) => updateParams({ status: event.target.value || null })}
-        className="w-full px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
-      >
-        <option value="">{t('common.all')}</option>
-        {STATUS_ORDER.map((value) => (
-          <option key={value} value={value}>
-            {t(STATUS_LABEL[value])}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
+  const filtersActive = search.trim() !== '' || siteId !== null || communityId !== null || status !== null;
+  const communityOptions = communities.filter(community => siteId === null || community.siteId === siteId);
+  const clearFilters = () => updateParams({ q: null, siteId: null, communityId: null, status: null });
+  const countLabel = filteredRows.length > ROWS_PER_PAGE
+    ? t('roster.showing')
+      .replace('{from}', String(currentPage * ROWS_PER_PAGE + 1))
+      .replace('{to}', String(currentPage * ROWS_PER_PAGE + visibleRows.length))
+      .replace('{total}', String(filteredRows.length))
+    : t('roster.result_count').replace('{count}', String(filteredRows.length));
 
   return (
-    <div>
-      <PageHeader
-        title={program.name}
-        backTo="/programs"
-        backLabel={t('nav.programs')}
-        actions={
-          <Link
-            to={`/programs/${program.id}/enroll`}
-            className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors"
-          >
-            {t('roster.enroll')}
-          </Link>
-        }
-      />
-
-      <StatStrip stats={statItems} className="mb-6" />
-
-      <Tabs
-        label={t('roster.tabs_label')}
-        value={tab}
-        onChange={(key) => updateParams({ tab: key === 'active' ? null : key })}
-        tabs={[
-          { key: 'active', label: t('enrollment.active'), count: stats.active },
-          {
-            key: 'exited',
-            label: t('enrollment.exited'),
-            count: enrollments.length - stats.active,
-          },
-          { key: 'all', label: t('common.all'), count: enrollments.length },
-        ]}
-        className="mb-4"
-      />
-
-      <div className="flex flex-col gap-3 md:flex-row md:items-end mb-6">
-        <div className="min-w-0 md:w-64">
-          <label htmlFor="roster-search" className="block text-sm font-medium text-hv-gray mb-1">
-            {t('roster.search')}
-          </label>
-          <input
-            id="roster-search"
-            type="search"
-            value={search}
-            placeholder={t('roster.search_placeholder')}
-            onChange={(event) => updateParams({ q: event.target.value })}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
-          />
+    <div className="mx-auto max-w-screen-2xl py-1">
+      <header className="mb-4 grid grid-cols-[1fr_auto] items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
+        <Link to="/programs" className={`inline-flex min-h-11 items-center gap-1.5 justify-self-start rounded text-sm font-medium text-hv-terracotta hover:text-hv-green ${FOCUS}`}>
+          <ArrowLeft aria-hidden="true" size={16} />{t('nav.all_programs')}
+        </Link>
+        <div className="order-3 col-span-2 text-center lg:order-2 lg:col-span-1">
+          <h1 className="break-words font-serif text-3xl font-bold tracking-tight text-hv-green">{program.name}</h1>
+          {program.description && <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-hv-gray">{program.description}</p>}
         </div>
+        <Link to={`/programs/${program.id}/enroll`}
+          className={`order-2 inline-flex min-h-11 items-center justify-center gap-2 justify-self-end rounded-lg bg-hv-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-hv-terracotta-hover lg:order-3 ${FOCUS}`}>
+          <Plus aria-hidden="true" size={17} />{t(isFamily ? 'roster.enroll_family' : 'roster.enroll')}
+        </Link>
+      </header>
 
-        <FilterBar
-          fields={['site', 'community']}
-          value={filterValues}
-          onChange={handleFilterChange}
-          sites={sites}
-          communities={communities}
-          actions={program.kind === 'NUTRITION' ? statusFilter : undefined}
-          className="flex-1"
-        />
-      </div>
+      <section aria-label={t('roster.summary')} className="mb-4 rounded-xl border border-hv-green/15 bg-[#eaf0e9] p-2.5">
+        <dl className={`grid grid-cols-2 gap-2.5 ${statItems.length === 4 ? 'md:grid-cols-4' : 'sm:grid-cols-3'}`}>
+          {statItems.map(stat => (
+            <div key={stat.label} className="relative flex min-w-0 flex-col rounded-lg bg-white p-3">
+              <dt className="order-2 mt-1 text-xs text-hv-gray">{stat.label}</dt>
+              <dd className={`order-1 pr-10 text-3xl font-semibold leading-none tabular-nums ${stat.alert ? 'text-hv-crisis' : 'text-hv-green'}`}>
+                {enrollmentsQuery.isLoading || enrollmentsQuery.isError ? '—' : stat.value}
+              </dd>
+              <span aria-hidden="true" className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full ${stat.alert ? 'bg-red-50 text-hv-crisis' : 'bg-[#eaf0e9] text-hv-green'}`}>
+                <stat.icon size={17} />
+              </span>
+            </div>
+          ))}
+        </dl>
+      </section>
 
-      <div className="bg-white rounded-lg border border-hv-border overflow-hidden md:shadow-sm">
-        <ProgramRosterTable
-          kind={program.kind}
-          rows={visibleRows}
-          visitIntervalDays={program.visitIntervalDays}
-          variant={tab === 'exited' ? 'exited' : 'active'}
-          isLoading={isLoading}
-          emptyMessage={filtersActive ? t('roster.no_matches') : t('roster.empty')}
-        />
-      </div>
-
-      {filteredRows.length > ROWS_PER_PAGE && (
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="text-sm text-hv-gray">
-            {t('roster.showing')
-              .replace('{from}', String(currentPage * ROWS_PER_PAGE + 1))
-              .replace('{to}', String(currentPage * ROWS_PER_PAGE + visibleRows.length))
-              .replace('{total}', String(filteredRows.length))}
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={currentPage === 0}
-              onClick={() => updateParams({ page: String(currentPage - 1) })}
-              className="px-4 py-2 rounded border border-hv-border text-hv-charcoal hover:bg-hv-page transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {t('common.previous')}
-            </button>
-            <button
-              type="button"
-              disabled={currentPage >= pageCount - 1}
-              onClick={() => updateParams({ page: String(currentPage + 1) })}
-              className="px-4 py-2 rounded border border-hv-border text-hv-charcoal hover:bg-hv-page transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {t('common.next')}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[208px_minmax(0,1fr)]">
+        <aside aria-labelledby="roster-filter-heading" className="min-w-0 rounded-xl border border-hv-green/15 bg-[#eaf0e9] p-4">
+          <h2 id="roster-filter-heading" className="mb-4 flex items-center gap-2 font-serif text-xl font-bold text-hv-green">
+            <SlidersHorizontal aria-hidden="true" size={22} className="shrink-0 text-hv-terracotta" />
+            {t(isFamily ? 'roster.filter_families' : 'roster.filter_members')}
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="min-w-0">
+              <label htmlFor="filter-site" className={LABEL}>{t('filter.site')}</label>
+              <select id="filter-site" value={siteId ?? ''} className={FIELD} onChange={event => {
+                const nextSite = toId(event.target.value);
+                const keepCommunity = nextSite === null || communities.find(community => community.id === communityId)?.siteId === nextSite;
+                updateParams({ siteId: event.target.value, communityId: keepCommunity && communityId !== null ? String(communityId) : null });
+              }}>
+                <option value="">{t('visit.all_sites')}</option>
+                {sites.map(site => <option key={site.id} value={site.id}>{site.title}</option>)}
+              </select>
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="filter-community" className={LABEL}>{t('filter.community')}</label>
+              <select id="filter-community" value={communityId ?? ''} className={FIELD} onChange={event => updateParams({ communityId: event.target.value })}>
+                <option value="">{t('visit.all_communities')}</option>
+                {communityOptions.map(community => <option key={community.id} value={community.id}>{community.title}</option>)}
+              </select>
+            </div>
+            {program.kind === 'NUTRITION' && (
+              <div className="min-w-0">
+                <label htmlFor="roster-status" className={LABEL}>{t('roster.nutrition_status')}</label>
+                <select id="roster-status" value={status ?? ''} className={FIELD} onChange={event => updateParams({ status: event.target.value })}>
+                  <option value="">{t('roster.all_statuses')}</option>
+                  {STATUS_ORDER.map(value => <option key={value} value={value}>{t(STATUS_LABEL[value])}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="mt-5 border-t border-hv-green/15 pt-3">
+            <button type="button" onClick={clearFilters} disabled={!filtersActive}
+              className={`inline-flex min-h-11 items-center gap-2 rounded text-sm text-hv-terracotta hover:text-hv-green disabled:cursor-default disabled:text-hv-gray ${FOCUS}`}>
+              <RotateCcw aria-hidden="true" size={16} />{t('roster.clear_filters')}
             </button>
           </div>
-        </div>
-      )}
+        </aside>
+
+        <section aria-label={t('roster.records')} className="min-w-0 rounded-xl border border-hv-border bg-white p-3">
+          <Tabs label={t('roster.tabs_label')} value={tab}
+            onChange={key => updateParams({ tab: key === 'active' ? null : key })}
+            tabs={[
+              { key: 'active', label: t('enrollment.active'), count: stats.active },
+              { key: 'exited', label: t('enrollment.exited'), count: enrollments.length - stats.active },
+              { key: 'all', label: t('common.all'), count: enrollments.length },
+            ]} className="mb-3" />
+          <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
+            <div className="relative mb-3">
+              <label htmlFor="roster-search" className="sr-only">{t('roster.search')}</label>
+              <Search aria-hidden="true" size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-hv-gray" />
+              <input ref={searchRef} id="roster-search" type="search" value={search}
+                placeholder={t(isFamily ? 'roster.search_families_placeholder' : 'roster.search_placeholder')}
+                onChange={event => updateParams({ q: event.target.value })}
+                className={`${FIELD} pl-10 pr-12 [&::-webkit-search-cancel-button]:appearance-none`} />
+              {search && (
+                <button type="button" aria-label={t('roster.clear_search')}
+                  onClick={() => { updateParams({ q: null }); searchRef.current?.focus(); }}
+                  className={`absolute right-0 top-0 flex h-full w-11 items-center justify-center rounded-r-lg text-hv-gray hover:text-hv-green ${FOCUS}`}>
+                  <X aria-hidden="true" size={18} />
+                </button>
+              )}
+            </div>
+            {hasRosterError ? (
+              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-hv-crisis">
+                <p>{t('roster.load_failed')}</p>
+                <button type="button" className={`mt-2 min-h-11 rounded px-2 underline ${FOCUS}`}
+                  onClick={() => { void enrollmentsQuery.refetch(); void subjectsQuery.refetch(); if (needsVisitDetail) void visitsQuery.refetch(); }}>
+                  {t('roster.retry')}
+                </button>
+              </div>
+            ) : (
+              <ProgramRosterTable kind={program.kind} rows={visibleRows} visitIntervalDays={program.visitIntervalDays}
+                variant={tab} isLoading={isLoading} emptyMessage={filtersActive ? t('roster.no_matches') : t('roster.empty')} />
+            )}
+            {!isLoading && !hasRosterError && (
+              <footer className="mt-3 flex flex-wrap items-center justify-between gap-3 px-1">
+                <p role="status" className="text-xs text-hv-gray">{countLabel}</p>
+                {filteredRows.length > ROWS_PER_PAGE && (
+                  <div className="flex gap-2">
+                    <button type="button" disabled={currentPage === 0} onClick={() => updateParams({ page: String(currentPage - 1) })}
+                      className={`min-h-11 rounded-lg border border-hv-border px-3 text-sm text-hv-green hover:bg-[#eaf0e9] disabled:opacity-50 ${FOCUS}`}>{t('common.previous')}</button>
+                    <button type="button" disabled={currentPage >= pageCount - 1} onClick={() => updateParams({ page: String(currentPage + 1) })}
+                      className={`min-h-11 rounded-lg border border-hv-border px-3 text-sm text-hv-green hover:bg-[#eaf0e9] disabled:opacity-50 ${FOCUS}`}>{t('common.next')}</button>
+                  </div>
+                )}
+              </footer>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 };

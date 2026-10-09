@@ -177,7 +177,7 @@ export const Layout: React.FC = () => {
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1 shrink-0" aria-label="Main">
+          <nav className="hidden lg:flex items-center gap-1 shrink-0" aria-label="Main">
             <NavMenu
               buttonClass={triggerClass(programsActive)}
               trigger={(open) => (
@@ -264,7 +264,7 @@ export const Layout: React.FC = () => {
             <SearchBar className="w-full max-w-md" />
           </div>
 
-          <nav className="hidden md:flex items-center gap-1 shrink-0" aria-label="Sections">
+          <nav className="hidden lg:flex items-center gap-1 shrink-0" aria-label="Sections">
             {sectionLinks.map((link) => (
               <NavLink key={link.to} to={link.to} className={topLinkClass}>
                 {link.icon}
@@ -320,7 +320,7 @@ export const Layout: React.FC = () => {
           )}
 
           <button
-            className="md:hidden text-white/80 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors shrink-0"
+            className="lg:hidden text-white/80 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors shrink-0"
             onClick={() => setMobileOpen((o) => !o)}
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? t('nav.close_menu') : t('nav.open_menu')}
@@ -331,7 +331,7 @@ export const Layout: React.FC = () => {
 
         {mobileOpen && (
           <nav
-            className="md:hidden border-t border-white/10 px-3 py-3 space-y-1 max-h-[70vh] overflow-y-auto"
+            className="lg:hidden border-t border-white/10 px-3 py-3 space-y-1 max-h-[70vh] overflow-y-auto"
             aria-label="Mobile"
           >
             <NavLink to="/programs" end className={mobileLinkClass}>

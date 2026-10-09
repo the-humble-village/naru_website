@@ -1,26 +1,21 @@
 import { serve } from '@hono/node-server';
 import app from './app.js';
 import { appConfig } from './config.js';
+import { validateAuthConfig, validateStorageConfig } from './config-validation.js';
 import { getPrisma } from './db.js';
 
 const port = appConfig.PORT;
 
-/**
- * Touch the config the selected storage driver needs so a misconfigured server
- * dies at boot rather than 500-ing on the first photo request — the latter
- * sails past deployment health checks and only surfaces in front of a user.
- */
-function validateStorageConfig() {
-  if (appConfig.STORAGE_DRIVER !== 's3') return;
-  void appConfig.AWS_S3_BUCKET;
-  void appConfig.AWS_S3_REGION;
-}
-
 async function startServer() {
   try {
+    validateAuthConfig();
     validateStorageConfig();
   } catch (error) {
-    console.error('Invalid storage configuration:', error);
+    // Print the message, not the Error — a deploy health check dumps this via
+    // `journalctl`, where a stack trace buries the one line that matters.
+    console.error(
+      `Invalid configuration: ${error instanceof Error ? error.message : String(error)}`
+    );
     process.exit(1);
   }
 

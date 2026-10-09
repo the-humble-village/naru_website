@@ -3,7 +3,15 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import childrenRoutes from '../src/routes/children';
-import { testDb, createTestUser, createTestFamily, createTestChild } from './setup';
+import {
+  testDb,
+  createTestUser,
+  createTestFamily,
+  createTestChild,
+  createTestMother,
+  createTestProgram,
+  createTestEnrollment,
+} from './setup';
 import { appConfig } from '../src/config';
 
 // Create test app with children routes and error handler
@@ -17,8 +25,7 @@ app.onError((err, c) => {
   return c.json({ message: 'Internal Server Error' }, 500);
 });
 
-// Mount children routes under /families/:familyId/children
-app.route('/families/:familyId/children', childrenRoutes);
+app.route('/children', childrenRoutes);
 
 // Helper to create JWT tokens
 const createTokens = (userId: number, role: string, lang: string = 'en') => {
@@ -96,95 +103,128 @@ describe('Children Routes', () => {
   let testFamily: any;
 
   beforeEach(async () => {
-    // Create test users
-    caseworkerUser = await createTestUser({
-      login: 'caseworker',
-      role: 'CASEWORKER',
-    });
-    supervisorUser = await createTestUser({
-      login: 'supervisor',
-      role: 'SUPERVISOR',
-    });
-    adminUser = await createTestUser({
-      login: 'admin',
-      role: 'ADMIN',
-    });
+    caseworkerUser = await createTestUser({ login: 'caseworker', role: 'CASEWORKER' });
+    supervisorUser = await createTestUser({ login: 'supervisor', role: 'SUPERVISOR' });
+    adminUser = await createTestUser({ login: 'admin', role: 'ADMIN' });
 
-    // Create tokens
     caseworkerToken = createTokens(caseworkerUser.id, caseworkerUser.role);
     supervisorToken = createTokens(supervisorUser.id, supervisorUser.role);
     adminToken = createTokens(adminUser.id, adminUser.role);
 
-    // Create test family
     testFamily = await createTestFamily({ familyName: 'Children Test Family' });
   });
 
-  describe('GET /families/:familyId/children', () => {
-    it('should return empty array for family with no children', async () => {
-      const response = await testClient.get(`/families/${testFamily.id}/children`, caseworkerToken);
+  describe('GET /children', () => {
+    it('should return an empty page when there are no children', async () => {
+      const response = await testClient.get('/children', caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(0);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
-    it('should return children for family with children', async () => {
-      // Create test children
-      await createTestChild(testFamily.id, 'Child One', { sex: 'FEMALE' });
-      await createTestChild(testFamily.id, 'Child Two', { sex: 'MALE' });
+    it('should return children with the V2 shape', async () => {
+      await createTestChild({ name: 'Child One', sex: 'FEMALE', familyId: testFamily.id });
+      await createTestChild({ name: 'Child Two', sex: 'MALE', familyId: testFamily.id });
 
-      const response = await testClient.get(`/families/${testFamily.id}/children`, caseworkerToken);
+      const response = await testClient.get('/children', caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(2);
+      expect(result.items.length).toBe(2);
+      expect(result.total).toBe(2);
 
-      // Check child structure
-      const child = result[0];
+      const child = result.items[0];
       expect(child.id).toBeDefined();
       expect(child.name).toBeDefined();
       expect(child.birthDate).toBeDefined();
       expect(child.sex).toBeDefined();
-      expect(child.weight).toBeDefined();
+      expect(child.motherId).toBeDefined();
+      expect(child.communityId).toBeDefined();
       expect(child.familyId).toBe(testFamily.id);
       expect(child.createdAt).toBeDefined();
-      expect(child.updatedAt).toBeDefined();
       expect(child.deletedAt).toBeUndefined(); // Should not be exposed
+
+      // Measurements moved to nutrition visit details.
+      expect(child.weight).toBeUndefined();
+      expect(child.nutritionalState).toBeUndefined();
+    });
+
+    it('should filter by familyId', async () => {
+      const otherFamily = await createTestFamily({ familyName: 'Other Family' });
+      await createTestChild({ name: 'Ours', familyId: testFamily.id });
+      await createTestChild({ name: 'Theirs', familyId: otherFamily.id });
+
+      const response = await testClient.get(`/children?familyId=${testFamily.id}`, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.total).toBe(1);
+      expect(result.items[0].name).toBe('Ours');
+    });
+
+    it('should filter by motherId', async () => {
+      const mother = await createTestMother({ name: 'Linked Mother' });
+      await createTestChild({ name: 'Hers', motherId: mother.id });
+      await createTestChild({ name: 'Unlinked' });
+
+      const response = await testClient.get(`/children?motherId=${mother.id}`, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.total).toBe(1);
+      expect(result.items[0].name).toBe('Hers');
+    });
+
+    it('should filter to children with no active enrollment', async () => {
+      const enrolled = await createTestChild({ name: 'Enrolled Child' });
+      await createTestChild({ name: 'Unenrolled Child' });
+
+      const program = await createTestProgram();
+      await createTestEnrollment(program.id, { childId: enrolled.id });
+
+      const response = await testClient.get('/children?unenrolled=true', caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.total).toBe(1);
+      expect(result.items[0].name).toBe('Unenrolled Child');
+    });
+
+    it('should treat an exited enrollment as unenrolled', async () => {
+      const child = await createTestChild({ name: 'Graduated Child' });
+      const program = await createTestProgram();
+      await createTestEnrollment(program.id, { childId: child.id }, {
+        exitedAt: new Date('2026-03-01'),
+        exitReason: 'GRADUATED',
+      });
+
+      const response = await testClient.get('/children?unenrolled=true', caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.total).toBe(1);
+      expect(result.items[0].name).toBe('Graduated Child');
     });
 
     it('should return 401 without auth token', async () => {
-      const response = await testClient.get(`/families/${testFamily.id}/children`);
-
+      const response = await testClient.get('/children');
       expect(response.status).toBe(401);
-    });
-
-    it('should return 404 for non-existent family', async () => {
-      const response = await testClient.get('/families/99999/children', caseworkerToken);
-
-      expect(response.status).toBe(404);
-
-      if (response.headers.get('content-type')?.includes('application/json')) {
-        const result = await response.json();
-        expect(result.message).toContain('Family not found');
-      }
     });
   });
 
-  describe('POST /families/:familyId/children', () => {
+  describe('POST /children', () => {
     it('should create child successfully', async () => {
       const childData = {
         name: 'New Test Child',
         birthDate: '2022-06-15T00:00:00.000Z',
         sex: 'FEMALE' as const,
-        weight: 12, // kg
-        nutritionalState: 'Normal',
-        reasonEnrollment: 'Routine monitoring',
-        observations: 'Healthy child',
+        familyId: testFamily.id,
+        notes: 'Healthy child',
       };
 
-      const response = await testClient.post(`/families/${testFamily.id}/children`, childData, caseworkerToken);
+      const response = await testClient.post('/children', childData, caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(201);
@@ -192,32 +232,41 @@ describe('Children Routes', () => {
       expect(result.name).toBe(childData.name);
       expect(result.birthDate).toBe(childData.birthDate);
       expect(result.sex).toBe(childData.sex);
-      expect(result.weight).toBe(childData.weight);
-      expect(result.nutritionalState).toBe(childData.nutritionalState);
+      expect(result.notes).toBe(childData.notes);
       expect(result.familyId).toBe(testFamily.id);
 
-      // Verify in database
-      const dbChild = await testDb.child.findUnique({
-        where: { id: result.id },
-      });
-      expect(dbChild).toBeTruthy();
+      const dbChild = await testDb.child.findUnique({ where: { id: result.id } });
       expect(dbChild?.name).toBe(childData.name);
     });
 
-    it('should create child with minimal data', async () => {
+    it('should admit a child with no family and no mother', async () => {
       const childData = {
-        name: 'Minimal Child',
-        birthDate: '2023-01-01T00:00:00.000Z',
+        name: 'Unaccompanied Infant',
+        birthDate: '2026-01-01T00:00:00.000Z',
         sex: 'MALE' as const,
       };
 
-      const response = await testClient.post(`/families/${testFamily.id}/children`, childData, caseworkerToken);
+      const response = await testClient.post('/children', childData, caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(201);
-      expect(result.name).toBe(childData.name);
-      expect(result.weight).toBe(0); // Default value
-      expect(result.nutritionalState).toBeNull();
+      expect(result.familyId).toBeNull();
+      expect(result.motherId).toBeNull();
+    });
+
+    it('should link a child to a mother', async () => {
+      const mother = await createTestMother({ name: 'Linked Mother' });
+
+      const response = await testClient.post('/children', {
+        name: 'Linked Child',
+        birthDate: '2025-02-01T00:00:00.000Z',
+        sex: 'FEMALE' as const,
+        motherId: mother.id,
+      }, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(201);
+      expect(result.motherId).toBe(mother.id);
     });
 
     it('should handle localId for offline sync', async () => {
@@ -228,7 +277,7 @@ describe('Children Routes', () => {
         localId: '550e8400-e29b-41d4-a716-446655440000',
       };
 
-      const response = await testClient.post(`/families/${testFamily.id}/children`, childData, caseworkerToken);
+      const response = await testClient.post('/children', childData, caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(201);
@@ -237,18 +286,14 @@ describe('Children Routes', () => {
 
     it('should reject duplicate localId', async () => {
       const localId = '550e8400-e29b-41d4-a716-446655440001';
+      await createTestChild({ name: 'First Child', localId });
 
-      // Create first child
-      await createTestChild(testFamily.id, 'First Child', { localId });
-
-      const childData = {
+      const response = await testClient.post('/children', {
         name: 'Duplicate LocalId Child',
         birthDate: '2022-05-01T00:00:00.000Z',
         sex: 'MALE' as const,
         localId,
-      };
-
-      const response = await testClient.post(`/families/${testFamily.id}/children`, childData, caseworkerToken);
+      }, caseworkerToken);
 
       expect(response.status).toBe(400);
 
@@ -258,87 +303,79 @@ describe('Children Routes', () => {
       }
     });
 
-    it('should return 401 without auth token', async () => {
-      const childData = {
-        name: 'Unauthorized Child',
-        birthDate: '2022-01-01T00:00:00.000Z',
-        sex: 'MALE' as const,
-      };
-
-      const response = await testClient.post(`/families/${testFamily.id}/children`, childData);
-
-      expect(response.status).toBe(401);
-    });
-
     it('should return 404 for non-existent family', async () => {
-      const childData = {
+      const response = await testClient.post('/children', {
         name: 'Orphan Child',
         birthDate: '2022-01-01T00:00:00.000Z',
         sex: 'FEMALE' as const,
-      };
-
-      const response = await testClient.post('/families/99999/children', childData, caseworkerToken);
+        familyId: 99999,
+      }, caseworkerToken);
 
       expect(response.status).toBe(404);
     });
 
+    it('should return 404 for non-existent mother', async () => {
+      const response = await testClient.post('/children', {
+        name: 'Orphan Child',
+        birthDate: '2022-01-01T00:00:00.000Z',
+        sex: 'FEMALE' as const,
+        motherId: 99999,
+      }, caseworkerToken);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 401 without auth token', async () => {
+      const response = await testClient.post('/children', {
+        name: 'Unauthorized Child',
+        birthDate: '2022-01-01T00:00:00.000Z',
+        sex: 'MALE' as const,
+      });
+
+      expect(response.status).toBe(401);
+    });
+
     it('should validate request body', async () => {
-      const invalidChildData = {
+      const response = await testClient.post('/children', {
         name: 'Invalid Child',
         // Missing required birthDate and sex
-      };
+      }, caseworkerToken);
 
-      const response = await testClient.post(`/families/${testFamily.id}/children`, invalidChildData, caseworkerToken);
-
-      expect(response.status).toBe(400); // Validation error
+      expect(response.status).toBe(400);
     });
   });
 
-  describe('GET /families/:familyId/children/:id', () => {
+  describe('GET /children/:id', () => {
     let testChild: any;
 
     beforeEach(async () => {
-      testChild = await createTestChild(testFamily.id, 'Detail Test Child', {
+      testChild = await createTestChild({
+        name: 'Detail Test Child',
         sex: 'MALE',
-        weight: 18, // kg
-        birthDate: new Date('2020-01-15'), // About 4 years old
+        birthDate: new Date('2020-01-15'),
+        familyId: testFamily.id,
       });
     });
 
-    it('should return child with z-score calculation', async () => {
-      const response = await testClient.get(`/families/${testFamily.id}/children/${testChild.id}`, caseworkerToken);
+    it('should return the child', async () => {
+      const response = await testClient.get(`/children/${testChild.id}`, caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(200);
       expect(result.id).toBe(testChild.id);
       expect(result.name).toBe(testChild.name);
       expect(result.sex).toBe(testChild.sex);
-      expect(result.weight).toBe(testChild.weight);
       expect(result.familyId).toBe(testFamily.id);
       expect(result.deletedAt).toBeUndefined(); // Should not be exposed
-
-      // Check z-score calculation
-      expect(result.zScores).toBeDefined();
-      expect(result.zScores.ageInDays).toBeDefined();
-      expect(typeof result.zScores.ageInDays).toBe('number');
-
-      if (result.zScores.weightForAge) {
-        expect(result.zScores.weightForAge.zScore).toBeDefined();
-        expect(result.zScores.weightForAge.classification).toBeDefined();
-        expect(['severe', 'moderate', 'mild', 'normal', 'above', 'high']).toContain(
-          result.zScores.weightForAge.classification
-        );
-      }
     });
 
     it('should return 401 without auth token', async () => {
-      const response = await testClient.get(`/families/${testFamily.id}/children/${testChild.id}`);
-
+      const response = await testClient.get(`/children/${testChild.id}`);
       expect(response.status).toBe(401);
     });
 
     it('should return 404 for non-existent child', async () => {
-      const response = await testClient.get(`/families/${testFamily.id}/children/99999`, caseworkerToken);
+      const response = await testClient.get('/children/99999', caseworkerToken);
 
       expect(response.status).toBe(404);
 
@@ -347,76 +384,61 @@ describe('Children Routes', () => {
         expect(result.message).toContain('Child not found');
       }
     });
-
-    it('should return 404 for child in wrong family', async () => {
-      const otherFamily = await createTestFamily({ familyName: 'Other Family' });
-      const otherChild = await createTestChild(otherFamily.id, 'Other Child');
-
-      const response = await testClient.get(`/families/${testFamily.id}/children/${otherChild.id}`, caseworkerToken);
-
-      expect(response.status).toBe(404);
-    });
-
-    it('should return 404 for non-existent family', async () => {
-      const response = await testClient.get(`/families/99999/children/${testChild.id}`, caseworkerToken);
-
-      expect(response.status).toBe(404);
-
-      if (response.headers.get('content-type')?.includes('application/json')) {
-        const result = await response.json();
-        expect(result.message).toContain('Family not found');
-      }
-    });
   });
 
-  describe('PUT /families/:familyId/children/:id', () => {
+  describe('PUT /children/:id', () => {
     let testChild: any;
 
     beforeEach(async () => {
-      testChild = await createTestChild(testFamily.id, 'Update Test Child', {
+      testChild = await createTestChild({
+        name: 'Update Test Child',
         sex: 'FEMALE',
-        weight: 15,
+        familyId: testFamily.id,
       });
     });
 
     it('should update child successfully', async () => {
       const updateData = {
         name: 'Updated Child Name',
-        weight: 20,
-        nutritionalState: 'Improved',
-        observations: 'Updated observations',
+        notes: 'Updated notes',
       };
 
-      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}`, updateData, caseworkerToken);
+      const response = await testClient.put(`/children/${testChild.id}`, updateData, caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(200);
       expect(result.id).toBe(testChild.id);
       expect(result.name).toBe(updateData.name);
-      expect(result.weight).toBe(updateData.weight);
-      expect(result.nutritionalState).toBe(updateData.nutritionalState);
-      expect(result.observations).toBe(updateData.observations);
+      expect(result.notes).toBe(updateData.notes);
 
-      // Verify in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
         includeDeleted: true,
       } as any);
       expect(dbChild?.name).toBe(updateData.name);
-      expect(dbChild?.weight).toBe(updateData.weight);
     });
 
     it('should handle partial updates', async () => {
-      const updateData = {
-        weight: 25, // Only update weight
-      };
-
-      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}`, updateData, caseworkerToken);
+      const response = await testClient.put(`/children/${testChild.id}`, {
+        notes: 'Only the notes changed',
+      }, caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(200);
       expect(result.name).toBe(testChild.name); // Unchanged
-      expect(result.weight).toBe(updateData.weight); // Updated
+      expect(result.notes).toBe('Only the notes changed');
+    });
+
+    it('should reparent a child to a family', async () => {
+      const orphan = await createTestChild({ name: 'Orphan Child' });
+
+      const response = await testClient.put(`/children/${orphan.id}`, {
+        familyId: testFamily.id,
+      }, caseworkerToken);
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.familyId).toBe(testFamily.id);
     });
 
     it('should update localId if provided', async () => {
@@ -424,7 +446,7 @@ describe('Children Routes', () => {
         localId: '661f9511-f30c-52e5-b827-557766551111',
       };
 
-      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}`, updateData, caseworkerToken);
+      const response = await testClient.put(`/children/${testChild.id}`, updateData, caseworkerToken);
       const result = await response.json();
 
       expect(response.status).toBe(200);
@@ -433,15 +455,11 @@ describe('Children Routes', () => {
 
     it('should reject duplicate localId on update', async () => {
       const existingLocalId = '772a0622-042d-63f6-c938-668877662222';
+      await createTestChild({ name: 'Other Child', localId: existingLocalId });
 
-      // Create another child with a localId
-      await createTestChild(testFamily.id, 'Other Child', { localId: existingLocalId });
-
-      const updateData = {
+      const response = await testClient.put(`/children/${testChild.id}`, {
         localId: existingLocalId,
-      };
-
-      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}`, updateData, caseworkerToken);
+      }, caseworkerToken);
 
       expect(response.status).toBe(400);
 
@@ -452,35 +470,25 @@ describe('Children Routes', () => {
     });
 
     it('should return 404 for non-existent child', async () => {
-      const updateData = {
-        name: 'Non-existent Child',
-      };
-
-      const response = await testClient.put(`/families/${testFamily.id}/children/99999`, updateData, caseworkerToken);
-
+      const response = await testClient.put('/children/99999', { name: 'Nope' }, caseworkerToken);
       expect(response.status).toBe(404);
     });
 
     it('should return 401 without auth token', async () => {
-      const updateData = {
-        name: 'Unauthorized Update',
-      };
-
-      const response = await testClient.put(`/families/${testFamily.id}/children/${testChild.id}`, updateData);
-
+      const response = await testClient.put(`/children/${testChild.id}`, { name: 'Unauthorized' });
       expect(response.status).toBe(401);
     });
   });
 
-  describe('DELETE /families/:familyId/children/:id', () => {
+  describe('DELETE /children/:id', () => {
     let testChild: any;
 
     beforeEach(async () => {
-      testChild = await createTestChild(testFamily.id, 'Delete Test Child');
+      testChild = await createTestChild({ name: 'Delete Test Child', familyId: testFamily.id });
     });
 
     it('should soft delete child for supervisor', async () => {
-      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}`, supervisorToken);
+      const response = await testClient.delete(`/children/${testChild.id}`, supervisorToken);
 
       expect(response.status).toBe(200);
 
@@ -489,29 +497,27 @@ describe('Children Routes', () => {
         expect(result.message).toContain('deleted successfully');
       }
 
-      // Verify soft delete in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
         includeDeleted: true,
       } as any);
-      expect(dbChild?.deletedAt).toBeTruthy(); // Should be soft deleted
+      expect(dbChild?.deletedAt).toBeTruthy();
     });
 
     it('should soft delete child for admin', async () => {
-      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}`, adminToken);
+      const response = await testClient.delete(`/children/${testChild.id}`, adminToken);
 
       expect(response.status).toBe(200);
 
-      // Verify soft delete in database
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
         includeDeleted: true,
       } as any);
-      expect(dbChild?.deletedAt).toBeTruthy(); // Should be soft deleted
+      expect(dbChild?.deletedAt).toBeTruthy();
     });
 
     it('should return 403 for caseworker users', async () => {
-      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}`, caseworkerToken);
+      const response = await testClient.delete(`/children/${testChild.id}`, caseworkerToken);
 
       expect(response.status).toBe(403);
 
@@ -520,23 +526,20 @@ describe('Children Routes', () => {
         expect(result.message).toContain('Access denied');
       }
 
-      // Verify child was NOT deleted
       const dbChild = await testDb.child.findUnique({
         where: { id: testChild.id },
         includeDeleted: true,
       } as any);
-      expect(dbChild?.deletedAt).toBeNull(); // Should NOT be deleted
+      expect(dbChild?.deletedAt).toBeNull();
     });
 
     it('should return 404 for non-existent child', async () => {
-      const response = await testClient.delete(`/families/${testFamily.id}/children/99999`, supervisorToken);
-
+      const response = await testClient.delete('/children/99999', supervisorToken);
       expect(response.status).toBe(404);
     });
 
     it('should return 401 for unauthenticated requests', async () => {
-      const response = await testClient.delete(`/families/${testFamily.id}/children/${testChild.id}`);
-
+      const response = await testClient.delete(`/children/${testChild.id}`);
       expect(response.status).toBe(401);
     });
   });

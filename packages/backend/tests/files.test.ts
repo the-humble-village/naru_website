@@ -7,11 +7,9 @@ import jwt from 'jsonwebtoken';
 import {
   testDb,
   createTestUser,
-  createTestFamily,
-  createTestParent,
   createTestChild,
-  createTestChildVisit,
-  createTestFamilyVisit,
+  createTestProgram,
+  createTestEnrollment,
   generateTokens,
 } from './setup';
 import { appConfig } from '../src/config';
@@ -438,42 +436,33 @@ describe('File Routes', () => {
       const file = await createTestFile();
       const other = await createTestFile();
 
-      const family = await createTestFamily({ photos: [file.id, other.id] });
-      const parent = await createTestParent(family.id, 'Photo Parent', 'mother', {
-        photos: [file.id],
+      const child = await createTestChild();
+      const program = await createTestProgram();
+      const enrollment = await createTestEnrollment(program.id, { childId: child.id }, {
+        entryPhotoId: file.id,
+        exitPhotoId: other.id,
       });
-      const child = await createTestChild(family.id, 'Photo Child', {
-        photos: [other.id, file.id],
+
+      const attachment = await testDb.photoAttachment.create({
+        data: { fileId: file.id, ownerType: 'CHILD', ownerId: child.id },
       });
-      const childVisit = await createTestChildVisit(family.id, child.id, {
-        photos: [file.id],
-      });
-      const familyVisit = await createTestFamilyVisit(family.id, { photos: [file.id] });
-      const parentVisit = await testDb.parentVisit.create({
-        data: {
-          familyId: family.id,
-          parentId: parent.id,
-          visitDate: new Date('2024-02-01T10:00:00.000Z'),
-          photos: [file.id],
-        },
+      const otherAttachment = await testDb.photoAttachment.create({
+        data: { fileId: other.id, ownerType: 'CHILD', ownerId: child.id },
       });
 
       const response = await testClient.delete(`/files/${file.id}`, testToken);
       expect(response.status).toBe(200);
 
-      // The deleted id is gone everywhere; unrelated ids survive.
-      expect((await testDb.family.findUnique({ where: { id: family.id } }))?.photos)
-        .toEqual([other.id]);
-      expect((await testDb.parent.findUnique({ where: { id: parent.id } }))?.photos)
-        .toEqual([]);
-      expect((await testDb.child.findUnique({ where: { id: child.id } }))?.photos)
-        .toEqual([other.id]);
-      expect((await testDb.childVisit.findUnique({ where: { id: childVisit.id } }))?.photos)
-        .toEqual([]);
-      expect((await testDb.familyVisit.findUnique({ where: { id: familyVisit.id } }))?.photos)
-        .toEqual([]);
-      expect((await testDb.parentVisit.findUnique({ where: { id: parentVisit.id } }))?.photos)
-        .toEqual([]);
+      // The named entry slot is cleared; the exit slot pointing elsewhere survives.
+      const afterEnrollment = await testDb.enrollment.findUnique({ where: { id: enrollment.id } });
+      expect(afterEnrollment?.entryPhotoId).toBeNull();
+      expect(afterEnrollment?.exitPhotoId).toBe(other.id);
+
+      // The attachment is soft-deleted, never removed; unrelated ones survive.
+      expect((await testDb.photoAttachment.findUnique({ where: { id: attachment.id } }))?.deletedAt)
+        .not.toBeNull();
+      expect((await testDb.photoAttachment.findUnique({ where: { id: otherAttachment.id } }))?.deletedAt)
+        .toBeNull();
 
       // The other file is untouched.
       const otherFile = await testDb.file.findUnique({ where: { id: other.id } });
@@ -483,12 +472,17 @@ describe('File Routes', () => {
     it('should leave records that never referenced the file alone', async () => {
       const file = await createTestFile();
       const other = await createTestFile();
-      const family = await createTestFamily({ photos: [other.id] });
+
+      const child = await createTestChild();
+      const program = await createTestProgram();
+      const enrollment = await createTestEnrollment(program.id, { childId: child.id }, {
+        entryPhotoId: other.id,
+      });
 
       await testClient.delete(`/files/${file.id}`, testToken);
 
-      expect((await testDb.family.findUnique({ where: { id: family.id } }))?.photos)
-        .toEqual([other.id]);
+      expect((await testDb.enrollment.findUnique({ where: { id: enrollment.id } }))?.entryPhotoId)
+        .toBe(other.id);
     });
 
     it('should succeed when the storage object is already gone', async () => {

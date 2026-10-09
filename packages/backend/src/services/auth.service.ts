@@ -1,8 +1,9 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { HTTPException } from 'hono/http-exception';
+import { ZodError } from 'zod';
 import {
-  type Register,
+  TokenPayloadSchema,
   type Login,
   type AuthResponse,
   type UserRead,
@@ -15,63 +16,9 @@ const BCRYPT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = '1h';
 const REFRESH_TOKEN_EXPIRY = '30d';
 
-/**
- * Register a new user account
- */
-export async function register(data: Register): Promise<AuthResponse> {
-  // Check if user already exists
-  const existingUser = await prisma.user.findUnique({
-    where: { login: data.login },
-  });
-
-  if (existingUser) {
-    throw new HTTPException(400, { message: 'User with this login already exists' });
-  }
-
-  // Hash password
-  const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
-
-  // Create user
-  const user = await prisma.user.create({
-    data: {
-      login: data.login,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      passwordHash,
-      role: 'CASEWORKER', // Default role for registration
-      lang: data.lang || 'en',
-    },
-    select: {
-      id: true,
-      localId: true,
-      login: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      role: true,
-      lang: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude passwordHash and deletedAt
-    },
-  });
-
-  // Transform dates to ISO strings
-  const userRead: UserRead = {
-    ...user,
-    createdAt: user.createdAt.toISOString(),
-    updatedAt: user.updatedAt.toISOString(),
-  };
-
-  // Generate tokens
-  const tokens = generateTokens(userRead);
-
-  return {
-    user: userRead,
-    ...tokens,
-  };
-}
+// Account creation lives in user.service.ts createUser(), behind admin auth.
+// There is no self-service registration: it could only ever mint CASEWORKERs,
+// and being unauthenticated it handed any caller read access to patient data.
 
 /**
  * Login with existing credentials
@@ -90,6 +37,7 @@ export async function login(data: Login): Promise<AuthResponse> {
       role: true,
       lang: true,
       passwordHash: true,
+      tokenVersion: true,
       createdAt: true,
       updatedAt: true,
       // Explicitly exclude deletedAt
@@ -106,8 +54,9 @@ export async function login(data: Login): Promise<AuthResponse> {
     throw new HTTPException(401, { message: 'Invalid credentials' });
   }
 
-  // Remove passwordHash from response
-  const { passwordHash, ...userWithoutPassword } = user;
+  // Strip both before building the response. tokenVersion is an internal
+  // revocation counter and is not part of UserRead.
+  const { passwordHash, tokenVersion, ...userWithoutPassword } = user;
 
   // Transform dates to ISO strings
   const userRead: UserRead = {
@@ -117,7 +66,7 @@ export async function login(data: Login): Promise<AuthResponse> {
   };
 
   // Generate tokens
-  const tokens = generateTokens(userRead);
+  const tokens = generateTokens(userRead, tokenVersion);
 
   return {
     user: userRead,
@@ -130,8 +79,11 @@ export async function login(data: Login): Promise<AuthResponse> {
  */
 export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
   try {
-    // Verify refresh token
-    const decoded = jwt.verify(refreshToken, appConfig.JWT_REFRESH_SECRET) as TokenPayload;
+    // Verify refresh token. Parsed rather than cast so a validly signed but
+    // malformed payload is a 401 here, not an unhandled 500 downstream.
+    const decoded = TokenPayloadSchema.parse(
+      jwt.verify(refreshToken, appConfig.JWT_REFRESH_SECRET, { algorithms: ['HS256'] })
+    );
 
     // Fetch current user data
     const user = await prisma.user.findUnique({
@@ -145,6 +97,7 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
         lastName: true,
         role: true,
         lang: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
         // Explicitly exclude passwordHash and deletedAt
@@ -155,25 +108,41 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
       throw new HTTPException(401, { message: 'User not found' });
     }
 
+    // Refresh has to check the counter too — this is the half that matters. A
+    // refresh token stolen before a password reset would otherwise stay valid for
+    // its full 30 days and could mint fresh access tokens indefinitely.
+    if ((decoded.tokenVersion ?? 0) !== user.tokenVersion) {
+      throw new HTTPException(401, { message: 'Session expired. Please sign in again.' });
+    }
+
+    const { tokenVersion, ...userWithoutTokenVersion } = user;
+
     // Transform dates to ISO strings
     const userRead: UserRead = {
-      ...user,
+      ...userWithoutTokenVersion,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
 
     // Generate new tokens
-    const tokens = generateTokens(userRead);
+    const tokens = generateTokens(userRead, tokenVersion);
 
     return {
       user: userRead,
       ...tokens,
     };
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
-      if (error instanceof jwt.JsonWebTokenError) {
-        console.error(`Refresh JWT Error: ${error.message}`);
-      }
+    // 401s raised inside the try (e.g. "User not found") must pass through intact.
+    if (error instanceof HTTPException) {
+      throw error;
+    }
+    // TokenExpiredError extends JsonWebTokenError, so one check covers both.
+    if (error instanceof jwt.JsonWebTokenError) {
+      console.warn(`Refresh rejected: ${error.message}`);
+      throw new HTTPException(401, { message: 'Invalid refresh token' });
+    }
+    if (error instanceof ZodError) {
+      console.warn('Refresh rejected: malformed token payload');
       throw new HTTPException(401, { message: 'Invalid refresh token' });
     }
     throw error;
@@ -181,20 +150,30 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
 }
 
 /**
- * Generate access and refresh tokens for a user
+ * Generate access and refresh tokens for a user.
+ *
+ * `tokenVersion` is passed separately rather than read off `user` on purpose:
+ * UserRead is the API response contract, and the revocation counter must never
+ * appear in a payload sent to a client.
  */
-function generateTokens(user: UserRead): { accessToken: string; refreshToken: string } {
+function generateTokens(
+  user: UserRead,
+  tokenVersion: number
+): { accessToken: string; refreshToken: string } {
   const payload: TokenPayload = {
     userId: user.id,
     role: user.role,
     lang: user.lang,
+    tokenVersion,
   };
 
   const accessToken = jwt.sign(payload, appConfig.JWT_SECRET, {
+    algorithm: 'HS256',
     expiresIn: ACCESS_TOKEN_EXPIRY,
   });
 
   const refreshToken = jwt.sign(payload, appConfig.JWT_REFRESH_SECRET, {
+    algorithm: 'HS256',
     expiresIn: REFRESH_TOKEN_EXPIRY,
   });
 

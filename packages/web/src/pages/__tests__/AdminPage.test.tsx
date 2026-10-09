@@ -1,10 +1,9 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import { AdminPage } from '../admin/AdminPage';
 
-// Mock the auth store
 const mockUser = {
   id: 1,
   login: 'admin',
@@ -24,104 +23,96 @@ vi.mock('../../store/auth', () => ({
   useAuthStore: () => mockUseAuthStore(),
 }));
 
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(
-    <MemoryRouter>
-      {component}
-    </MemoryRouter>
-  );
-};
+const renderPage = () => render(
+  <MemoryRouter>
+    <AdminPage />
+  </MemoryRouter>
+);
 
 describe('AdminPage', () => {
   beforeEach(() => {
-    // Reset mock to default admin user
-    mockUseAuthStore.mockReturnValue({
-      user: mockUser,
-    });
+    mockUseAuthStore.mockReturnValue({ user: mockUser, lang: 'en' });
   });
 
-  it('should render admin section headings', () => {
-    renderWithRouter(<AdminPage />);
-    expect(screen.getByText('People')).toBeInTheDocument();
-    expect(screen.getByText('Lookup Tables')).toBeInTheDocument();
-    expect(screen.getByText('Visit Questions')).toBeInTheDocument();
+  it('renders the administration heading and the three named sections', () => {
+    renderPage();
+    expect(screen.getByRole('heading', { name: 'Administration', level: 1 })).toBeInTheDocument();
+    for (const name of ['People', 'Programs', 'Reference Data']) {
+      expect(screen.getByRole('heading', { name, level: 2 })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name })).toBeInTheDocument();
+    }
   });
 
-  it('should show admin sections for admin users', () => {
-    renderWithRouter(<AdminPage />);
-
-    // Admin-only sections should be visible
-    expect(screen.getByText('My Team')).toBeInTheDocument();
-    expect(screen.getByText('Communities')).toBeInTheDocument();
-    expect(screen.getByText('Sites')).toBeInTheDocument();
-    expect(screen.getByText('Resources')).toBeInTheDocument();
-    expect(screen.getByText('Training')).toBeInTheDocument();
-    expect(screen.getByText('Child Visit')).toBeInTheDocument();
-    expect(screen.getByText('Parent Visit')).toBeInTheDocument();
-    expect(screen.getByText('Family Visit')).toBeInTheDocument();
-
-    // Supervisor+ sections should also be visible
-    expect(screen.getByText('Birthing Assistants')).toBeInTheDocument();
+  it('groups all destinations under the appropriate sections', () => {
+    renderPage();
+    expect(screen.getAllByRole('link')).toHaveLength(9);
+    for (const [category, labels] of [
+      ['People', ['My Team', 'Birthing Assistants']],
+      ['Programs', ['Programs', 'Question Sets']],
+      ['Reference Data', ['Communities', 'Sites', 'Resources', 'Training', 'Examination Types']],
+    ] as const) {
+      const section = within(screen.getByRole('region', { name: category }));
+      expect(section.getAllByRole('link')).toHaveLength(labels.length);
+      for (const label of labels) {
+        expect(section.getByRole('link', { name: label })).toBeInTheDocument();
+      }
+    }
   });
 
-  it('should have working navigation links', () => {
-    renderWithRouter(<AdminPage />);
-
-    // Check that links are present with correct href attributes
-    expect(screen.getByRole('link', { name: /My Team/ })).toHaveAttribute('href', '/admin/users');
-    expect(screen.getByRole('link', { name: /Communities/ })).toHaveAttribute('href', '/admin/communities');
-    expect(screen.getByRole('link', { name: /Sites/ })).toHaveAttribute('href', '/admin/sites');
-    expect(screen.getByRole('link', { name: /Resources/ })).toHaveAttribute('href', '/admin/resources');
-    expect(screen.getByRole('link', { name: /Training/ })).toHaveAttribute('href', '/admin/training');
-    expect(screen.getByRole('link', { name: /Birthing Assistants/ })).toHaveAttribute('href', '/admin/birthing-assistants');
-    expect(screen.getByRole('link', { name: /^Child Visit$/ })).toHaveAttribute('href', '/admin/question-sets/child');
-    expect(screen.getByRole('link', { name: /^Parent Visit$/ })).toHaveAttribute('href', '/admin/question-sets/parent');
-    expect(screen.getByRole('link', { name: /^Family Visit$/ })).toHaveAttribute('href', '/admin/question-sets/family');
-  });
-});
-
-describe('AdminPage - Role-based access', () => {
-  it('should hide admin-only sections for supervisors', () => {
-    const supervisorUser = { ...mockUser, role: 'SUPERVISOR' as const };
-
-    mockUseAuthStore.mockReturnValue({
-      user: supervisorUser,
-    });
-
-    renderWithRouter(<AdminPage />);
-
-    // Supervisor should not see admin-only sections
-    expect(screen.queryByText('My Team')).not.toBeInTheDocument();
-    expect(screen.queryByText('Communities')).not.toBeInTheDocument();
-    expect(screen.queryByText('Sites')).not.toBeInTheDocument();
-    expect(screen.queryByText('Resources')).not.toBeInTheDocument();
-    expect(screen.queryByText('Training')).not.toBeInTheDocument();
-    expect(screen.queryByText('Child Visit')).not.toBeInTheDocument();
-    expect(screen.queryByText('Parent Visit')).not.toBeInTheDocument();
-    expect(screen.queryByText('Family Visit')).not.toBeInTheDocument();
-
-    // But should see birthing assistants
-    expect(screen.getByText('Birthing Assistants')).toBeInTheDocument();
+  it('preserves navigation and accessible card descriptions', () => {
+    renderPage();
+    for (const [name, path] of [
+      ['My Team', 'users'],
+      ['Birthing Assistants', 'birthing-assistants'],
+      ['Programs', 'programs'],
+      ['Question Sets', 'question-sets'],
+      ['Communities', 'communities'],
+      ['Sites', 'sites'],
+      ['Resources', 'resources'],
+      ['Training', 'training'],
+      ['Examination Types', 'examination-types'],
+    ]) {
+      expect(screen.getByRole('link', { name })).toHaveAttribute('href', `/admin/${path}`);
+    }
+    expect(screen.getByRole('link', { name: 'My Team' })).toHaveAccessibleDescription('Accounts and permissions');
   });
 
-  it('should hide all admin sections for caseworkers', () => {
-    const caseworkerUser = { ...mockUser, role: 'CASEWORKER' as const };
+  it('translates the heading, sections, and descriptions into Spanish', () => {
+    mockUseAuthStore.mockReturnValue({ user: { ...mockUser, lang: 'es' }, lang: 'es' });
+    renderPage();
+    expect(screen.getByRole('heading', { name: 'Administración', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Personas' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Programas' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Datos de referencia' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mi Equipo' })).toHaveAccessibleDescription('Cuentas y permisos');
+  });
 
-    mockUseAuthStore.mockReturnValue({
-      user: caseworkerUser,
-    });
+  it('shows only the permitted People section for a supervisor', () => {
+    mockUseAuthStore.mockReturnValue({ user: { ...mockUser, role: 'SUPERVISOR' }, lang: 'en' });
+    renderPage();
+    expect(screen.getAllByRole('region')).toHaveLength(1);
+    expect(screen.getByRole('region', { name: 'People' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Birthing Assistants' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'My Team' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Programs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Reference Data' })).not.toBeInTheDocument();
+  });
 
-    renderWithRouter(<AdminPage />);
+  it('updates the visible sections when permissions change', () => {
+    const { rerender } = renderPage();
+    expect(screen.getAllByRole('link')).toHaveLength(9);
+    mockUseAuthStore.mockReturnValue({ user: { ...mockUser, role: 'SUPERVISOR' }, lang: 'en' });
+    rerender(<MemoryRouter><AdminPage /></MemoryRouter>);
+    expect(screen.getAllByRole('region')).toHaveLength(1);
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Birthing Assistants' })).toBeInTheDocument();
+  });
 
-    // Caseworker should not see any admin sections
-    expect(screen.queryByText('My Team')).not.toBeInTheDocument();
-    expect(screen.queryByText('Communities')).not.toBeInTheDocument();
-    expect(screen.queryByText('Sites')).not.toBeInTheDocument();
-    expect(screen.queryByText('Resources')).not.toBeInTheDocument();
-    expect(screen.queryByText('Training')).not.toBeInTheDocument();
-    expect(screen.queryByText('Child Visit')).not.toBeInTheDocument();
-    expect(screen.queryByText('Parent Visit')).not.toBeInTheDocument();
-    expect(screen.queryByText('Family Visit')).not.toBeInTheDocument();
-    expect(screen.queryByText('Birthing Assistants')).not.toBeInTheDocument();
+  it.each(['CASEWORKER', null])('hides all admin destinations without a staff role (%s)', role => {
+    mockUseAuthStore.mockReturnValue({ user: role ? { ...mockUser, role } : null, lang: 'en' });
+    renderPage();
+    expect(screen.queryAllByRole('region')).toHaveLength(0);
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
   });
 });

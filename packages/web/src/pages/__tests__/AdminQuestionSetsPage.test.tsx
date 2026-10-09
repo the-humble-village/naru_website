@@ -5,39 +5,40 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { AdminQuestionSetsPage } from '../admin/AdminQuestionSetsPage';
-import { adminApi } from '../../api/admin';
 import { questionSetsApi } from '../../api/question-sets';
-import { type LookupRead, type QuestionSetItemRead, type QuestionSetRead } from '@naru/shared';
-
-vi.mock('../../api/admin', () => ({
-  adminApi: {
-    fetchLookupTable: vi.fn(),
-    createLookupEntry: vi.fn(),
-    updateLookupEntry: vi.fn(),
-    deleteLookupEntry: vi.fn(),
-    reorderLookupEntries: vi.fn(),
-    fetchChildVisitQuestions: vi.fn(),
-    fetchParentVisitQuestions: vi.fn(),
-    fetchFamilyVisitQuestions: vi.fn(),
-  },
-}));
+import { questionsApi } from '../../api/questions';
+import { programsApi } from '../../api/programs';
+import { type ProgramRead, type QuestionRead, type QuestionSetRead } from '@naru/shared';
 
 vi.mock('../../api/question-sets', () => ({
   questionSetsApi: {
-    list: vi.fn(),
-    fetch: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
+    listQuestionSets: vi.fn(),
+    fetchQuestionSet: vi.fn(),
+    createQuestionSet: vi.fn(),
+    updateQuestionSet: vi.fn(),
+    deleteQuestionSet: vi.fn(),
   },
 }));
 
-const mockUseParams = vi.fn<() => { visitType: string | undefined }>(() => ({ visitType: 'child' }));
+vi.mock('../../api/questions', () => ({
+  questionsApi: {
+    listQuestions: vi.fn(),
+    fetchQuestion: vi.fn(),
+    createQuestion: vi.fn(),
+    updateQuestion: vi.fn(),
+    deleteQuestion: vi.fn(),
+  },
+}));
 
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useParams: () => mockUseParams() };
-});
+vi.mock('../../api/programs', () => ({
+  programsApi: {
+    listPrograms: vi.fn(),
+    fetchProgram: vi.fn(),
+    createProgram: vi.fn(),
+    updateProgram: vi.fn(),
+    deleteProgram: vi.fn(),
+  },
+}));
 
 const mockAdminUser = {
   id: 1,
@@ -58,45 +59,69 @@ vi.mock('../../store/auth', () => ({
   useAuthStore: () => ({ user: mockUser() }),
 }));
 
-const questionHow: LookupRead = {
-  id: 10,
-  title: 'How are you?',
-  sortOrder: 0,
+const program: ProgramRead = {
+  id: 3,
+  name: 'Nutrition Infant',
+  kind: 'NUTRITION',
+  subjectType: 'CHILD',
+  description: null,
+  minAgeMonths: null,
+  maxAgeMonths: null,
+  visitIntervalDays: 30,
+  active: true,
+  sortOrder: 1,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };
 
-const mockQuestions: LookupRead[] = [
-  questionHow,
-  { id: 11, title: 'Any concerns?', sortOrder: 1, createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
+const questions: QuestionRead[] = [
+  {
+    id: 10,
+    title: 'Does the family have a kitchen garden?',
+    answerType: 'BOOL',
+    choices: null,
+    sortOrder: 0,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 11,
+    title: 'Water source',
+    answerType: 'CHOICE',
+    choices: ['Well', 'River'],
+    sortOrder: 1,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
 ];
 
-const concernsItem: QuestionSetItemRead = {
-  id: 1001,
-  questionId: 11,
-  questionTitle: 'Any concerns?',
-  sortOrder: 1,
-};
-
-const firstVisitSet: QuestionSetRead = {
+const programSet: QuestionSetRead = {
   id: 100,
-  name: 'First Visit',
+  name: 'Monthly nutrition',
+  programId: 3,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
   items: [
-    { id: 1000, questionId: 10, questionTitle: 'How are you?', sortOrder: 0 },
-    concernsItem,
+    { id: 1, questionId: 10, questionTitle: questions[0]!.title, answerType: 'BOOL', choices: null, sortOrder: 0 },
+    { id: 2, questionId: 11, questionTitle: questions[1]!.title, answerType: 'CHOICE', choices: ['Well', 'River'], sortOrder: 1 },
   ],
 };
 
-const mockSets: QuestionSetRead[] = [firstVisitSet];
+const sharedSet: QuestionSetRead = {
+  id: 101,
+  name: 'Household basics',
+  programId: null,
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
+  items: [],
+};
 
 const renderPage = () => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <MemoryRouter initialEntries={['/admin/question-sets/child']}>
+    <MemoryRouter initialEntries={['/admin/question-sets']}>
       <QueryClientProvider client={queryClient}>
         <AdminQuestionSetsPage />
       </QueryClientProvider>
@@ -104,28 +129,40 @@ const renderPage = () => {
   );
 };
 
-/** The questions lookup table row (the sets list uses <li>, not <tr>). */
-const questionRow = (title: string) => {
-  const cells = screen.getAllByText(title).map((el) => el.closest('tr')).filter(Boolean);
-  return cells[0] as HTMLElement;
-};
+const setsTable = () => screen.getAllByRole('table')[0] as HTMLElement;
+const questionsTable = () => screen.getAllByRole('table')[1] as HTMLElement;
 
 describe('AdminQuestionSetsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseParams.mockReturnValue({ visitType: 'child' });
     mockUser.mockReturnValue(mockAdminUser);
-    vi.mocked(adminApi.fetchChildVisitQuestions).mockResolvedValue(mockQuestions);
-    vi.mocked(questionSetsApi.list).mockResolvedValue(mockSets);
+    vi.mocked(programsApi.listPrograms).mockResolvedValue({ items: [program], total: 1 });
+    vi.mocked(questionSetsApi.listQuestionSets).mockResolvedValue([programSet, sharedSet]);
+    vi.mocked(questionsApi.listQuestions).mockResolvedValue(questions);
   });
 
-  it('renders questions and sets', async () => {
+  it('lists sets with their program and labels a null program as shared', async () => {
     renderPage();
 
-    expect(await screen.findByText('Child Visit Questions & Sets')).toBeInTheDocument();
-    expect(await screen.findByText('Questions (2)')).toBeInTheDocument();
-    expect(await screen.findByText('First Visit')).toBeInTheDocument();
-    expect(screen.getByText('2 questions')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
+    expect(within(setsTable()).getByText('Nutrition Infant')).toBeInTheDocument();
+    const sharedRow = within(setsTable()).getByText('Household basics').closest('tr') as HTMLElement;
+    expect(within(sharedRow).getByText('admin.qs_all_programs')).toBeInTheDocument();
+  });
+
+  it('asks the API for an exact program match, without shared sets', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
+
+    await user.selectOptions(screen.getByLabelText('admin.qs_filter_program'), '3');
+
+    await waitFor(() => {
+      expect(questionSetsApi.listQuestionSets).toHaveBeenCalledWith({ programId: 3 });
+    });
+    expect(questionSetsApi.listQuestionSets).not.toHaveBeenCalledWith(
+      expect.objectContaining({ includeShared: true })
+    );
   });
 
   it('hides the page from non-admin users', async () => {
@@ -133,173 +170,116 @@ describe('AdminQuestionSetsPage', () => {
 
     const { container } = renderPage();
 
-    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    await waitFor(() => {
+      expect(container).toBeEmptyDOMElement();
+    });
   });
 
-  it('edits a question title', async () => {
+  it('sends the whole ordered question list when membership changes', async () => {
     const user = userEvent.setup();
-    vi.mocked(adminApi.updateLookupEntry).mockResolvedValue({ ...questionHow, title: 'Updated?' });
+    vi.mocked(questionSetsApi.updateQuestionSet).mockResolvedValue(programSet);
 
     renderPage();
-    await screen.findByText('Questions (2)');
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
 
-    await user.click(within(questionRow('How are you?')).getByRole('button', { name: 'Edit' }));
-    const input = screen.getByDisplayValue('How are you?');
-    await user.clear(input);
-    await user.type(input, 'Updated?');
-    await user.click(screen.getByRole('button', { name: 'Update' }));
+    const row = within(setsTable()).getByText('Monthly nutrition').closest('tr') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: 'Edit' }));
+
+    await user.click(screen.getAllByRole('button', { name: 'admin.qs_move_up' })[1] as HTMLElement);
+    await user.click(screen.getByRole('button', { name: 'Update Set' }));
 
     await waitFor(() => {
-      expect(adminApi.updateLookupEntry).toHaveBeenCalledWith('child-visit-questions', 10, { title: 'Updated?' });
-    });
-  });
-
-  describe('question delete', () => {
-    it('opens the ConfirmDialog instead of window.confirm, showing the referencing set count', async () => {
-      const user = userEvent.setup();
-      const confirmSpy = vi.spyOn(window, 'confirm');
-
-      renderPage();
-      await screen.findByText('Questions (2)');
-      await screen.findByText('First Visit');
-
-      await user.click(within(questionRow('How are you?')).getByRole('button', { name: 'Delete' }));
-
-      const dialog = await screen.findByRole('dialog');
-      expect(within(dialog).getByText('Delete Question')).toBeInTheDocument();
-      expect(
-        within(dialog).getByText(/1 question set references this question \(First Visit\)/i)
-      ).toBeInTheDocument();
-      expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeEnabled();
-      expect(confirmSpy).not.toHaveBeenCalled();
-      expect(adminApi.deleteLookupEntry).not.toHaveBeenCalled();
-
-      confirmSpy.mockRestore();
-    });
-
-    it('falls back to a generic warning when no set references the question', async () => {
-      const user = userEvent.setup();
-      vi.mocked(questionSetsApi.list).mockResolvedValue([]);
-
-      renderPage();
-      await screen.findByText('Questions (2)');
-
-      await user.click(within(questionRow('How are you?')).getByRole('button', { name: 'Delete' }));
-
-      const dialog = await screen.findByRole('dialog');
-      expect(within(dialog).getByText(/Answers already recorded on visits keep their text/i)).toBeInTheDocument();
-    });
-
-    it('deletes the question when confirmed', async () => {
-      const user = userEvent.setup();
-      vi.mocked(adminApi.deleteLookupEntry).mockResolvedValue(undefined);
-
-      renderPage();
-      await screen.findByText('Questions (2)');
-      await user.click(within(questionRow('Any concerns?')).getByRole('button', { name: 'Delete' }));
-
-      const dialog = await screen.findByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
-
-      await waitFor(() => {
-        expect(adminApi.deleteLookupEntry).toHaveBeenCalledWith('child-visit-questions', 11);
+      expect(questionSetsApi.updateQuestionSet).toHaveBeenCalledWith(100, {
+        name: 'Monthly nutrition',
+        programId: 3,
+        questionIds: [11, 10],
       });
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    });
-
-    it('does not delete the question when cancelled', async () => {
-      const user = userEvent.setup();
-
-      renderPage();
-      await screen.findByText('Questions (2)');
-      await user.click(within(questionRow('How are you?')).getByRole('button', { name: 'Delete' }));
-
-      const dialog = await screen.findByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(adminApi.deleteLookupEntry).not.toHaveBeenCalled();
     });
   });
 
-  describe('set delete', () => {
-    it('opens the ConfirmDialog and deletes on confirm', async () => {
-      const user = userEvent.setup();
-      const confirmSpy = vi.spyOn(window, 'confirm');
-      vi.mocked(questionSetsApi.delete).mockResolvedValue(undefined);
-
-      renderPage();
-      const setCard = (await screen.findByText('First Visit')).closest('div.rounded-xl') as HTMLElement;
-      await user.click(within(setCard).getByRole('button', { name: 'Delete' }));
-
-      const dialog = await screen.findByRole('dialog');
-      expect(within(dialog).getByText('Delete Question Set')).toBeInTheDocument();
-      expect(confirmSpy).not.toHaveBeenCalled();
-
-      await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
-
-      await waitFor(() => {
-        expect(questionSetsApi.delete).toHaveBeenCalledWith('child', 100);
-      });
-
-      confirmSpy.mockRestore();
-    });
-
-    it('surfaces a failed set delete', async () => {
-      const user = userEvent.setup();
-      vi.mocked(questionSetsApi.delete).mockRejectedValue(new Error('Boom'));
-
-      renderPage();
-      const setCard = (await screen.findByText('First Visit')).closest('div.rounded-xl') as HTMLElement;
-      await user.click(within(setCard).getByRole('button', { name: 'Delete' }));
-
-      const dialog = await screen.findByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
-
-      expect(await screen.findByText(/Failed to delete set: Boom/)).toBeInTheDocument();
-    });
-  });
-
-  describe('removing a single question from a set', () => {
-    it('confirms then updates the set with the remaining ordered question ids', async () => {
-      const user = userEvent.setup();
-      vi.mocked(questionSetsApi.update).mockResolvedValue({ ...firstVisitSet, items: [concernsItem] });
-
-      renderPage();
-      await screen.findByText('First Visit');
-
-      await user.click(screen.getByRole('button', { name: 'Remove "How are you?" from First Visit' }));
-
-      const dialog = await screen.findByRole('dialog');
-      expect(within(dialog).getByText('Remove Question From Set')).toBeInTheDocument();
-      await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
-
-      await waitFor(() => {
-        expect(questionSetsApi.update).toHaveBeenCalledWith('child', 100, { questionIds: [11] });
-      });
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    });
-
-    it('does not update the set when cancelled', async () => {
-      const user = userEvent.setup();
-
-      renderPage();
-      await screen.findByText('First Visit');
-
-      await user.click(screen.getByRole('button', { name: 'Remove "Any concerns?" from First Visit' }));
-      const dialog = await screen.findByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(questionSetsApi.update).not.toHaveBeenCalled();
-    });
-  });
-
-  it('renders an error for an invalid visit type', () => {
-    mockUseParams.mockReturnValue({ visitType: 'nope' });
+  it('leaves membership alone when only the name changes', async () => {
+    const user = userEvent.setup();
+    vi.mocked(questionSetsApi.updateQuestionSet).mockResolvedValue(programSet);
 
     renderPage();
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
 
-    expect(screen.getByText('Invalid visit type.')).toBeInTheDocument();
+    const row = within(setsTable()).getByText('Monthly nutrition').closest('tr') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: 'Edit' }));
+
+    const nameInput = screen.getByDisplayValue('Monthly nutrition');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Monthly');
+    await user.click(screen.getByRole('button', { name: 'Update Set' }));
+
+    await waitFor(() => {
+      expect(questionSetsApi.updateQuestionSet).toHaveBeenCalledWith(100, {
+        name: 'Monthly',
+        programId: 3,
+      });
+    });
+  });
+
+  it('creates a shared set when no program is chosen', async () => {
+    const user = userEvent.setup();
+    vi.mocked(questionSetsApi.createQuestionSet).mockResolvedValue(sharedSet);
+
+    renderPage();
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
+
+    await user.click(screen.getByRole('button', { name: '+ New Set' }));
+    await user.type(screen.getByLabelText(/Name/), 'Everywhere');
+    await user.click(screen.getByRole('button', { name: 'Create Set' }));
+
+    await waitFor(() => {
+      expect(questionSetsApi.createQuestionSet).toHaveBeenCalledWith({
+        name: 'Everywhere',
+        programId: null,
+        questionIds: [],
+      });
+    });
+  });
+
+  it('only asks for choices on a CHOICE question', async () => {
+    const user = userEvent.setup();
+    vi.mocked(questionsApi.createQuestion).mockResolvedValue(questions[1]!);
+
+    renderPage();
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
+
+    await user.click(screen.getByRole('button', { name: '+ Add Question' }));
+    expect(screen.queryByLabelText('admin.question_choice 1')).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/Title/), 'Water source');
+    await user.selectOptions(screen.getByLabelText('admin.question_answer_type'), 'CHOICE');
+    expect(screen.getByLabelText('admin.question_choice 1')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('admin.question_choice 1'), 'Well');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    await waitFor(() => {
+      expect(questionsApi.createQuestion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Water source',
+          answerType: 'CHOICE',
+          choices: ['Well'],
+        })
+      );
+    });
+  });
+
+  it('frames deleting a question as retirement, not removal from its sets', async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
+
+    const row = within(questionsTable()).getByText('Water source').closest('tr') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: 'admin.question_retire' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('admin.question_retire_title')).toBeInTheDocument();
+    expect(within(dialog).getByText('admin.question_retire_warning')).toBeInTheDocument();
+    expect(questionsApi.deleteQuestion).not.toHaveBeenCalled();
   });
 });

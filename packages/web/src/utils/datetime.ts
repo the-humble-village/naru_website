@@ -46,3 +46,48 @@ export const fromDateTimeLocal = (value: string): string => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toISOString();
 };
+
+/**
+ * App-wide date display format: D/M/YYYY, no leading zeros (5/12/2023, 13/5/2025).
+ */
+const formatDMY = (date: Date, utc: boolean): string => {
+  const day = utc ? date.getUTCDate() : date.getDate();
+  const month = (utc ? date.getUTCMonth() : date.getMonth()) + 1;
+  const year = utc ? date.getUTCFullYear() : date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+/**
+ * Format a calendar-only value (birthDate, dueDate, dateEntered, visitDate) as
+ * D/M/YYYY. These are stored as UTC midnight, so render in UTC — rendering in local
+ * time can shift the date back a day in timezones west of UTC. Returns '' for a
+ * missing or unparseable value.
+ */
+export const formatDateUTC = (value: string | Date | null | undefined): string => {
+  if (value === null || value === undefined || value === '') return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return formatDMY(date, true);
+};
+
+/**
+ * Format an actual point-in-time timestamp (createdAt, updatedAt) as D/M/YYYY in the
+ * user's local timezone. Returns '' for a missing or unparseable value.
+ */
+export const formatDate = (value: string | Date | null | undefined): string => {
+  if (value === null || value === undefined || value === '') return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return formatDMY(date, false);
+};
+
+/**
+ * Format an actual point-in-time timestamp as "D/M/YYYY, HH:mm" in the user's local
+ * timezone. Returns '' for a missing or unparseable value.
+ */
+export const formatDateTime = (value: string | Date | null | undefined): string => {
+  if (value === null || value === undefined || value === '') return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${formatDMY(date, false)}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};

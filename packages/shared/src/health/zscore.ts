@@ -6,6 +6,7 @@
  */
 
 import { WHO_DATA } from './who-data.js';
+import type { NutritionalStatus, Sex } from '../schemas/enums.js';
 
 /**
  * Calculate the age of a child in days from their birth date to a reference date.
@@ -96,6 +97,69 @@ export function armCircumferenceForAge(circumferenceCm: number, ageDays: number,
 }
 
 /**
+ * Calculate length/height-for-age z-score.
+ * @param heightCm Length or height in centimeters
+ * @param ageDays Age in days
+ * @param sex 'MALE' or 'FEMALE' (using enum values from Prisma schema)
+ * @return Z-score or null if out of range
+ */
+export function heightForAge(heightCm: number, ageDays: number, sex: 'MALE' | 'FEMALE'): number | null {
+  const table = sex === 'FEMALE' ? WHO_DATA.LHFA_GIRLS : WHO_DATA.LHFA_BOYS;
+  const lms = getLMS(table, ageDays);
+
+  if (lms === null || heightCm <= 0) {
+    return null;
+  }
+
+  return computeZScore(heightCm, lms);
+}
+
+/**
+ * Age at which WHO switches from recumbent length to standing height. The two
+ * tables are not interchangeable — a child measured lying down reads about
+ * 0.7cm longer than the same child standing — so picking the wrong one shifts
+ * every weight-for-length z-score in the same direction.
+ */
+const STANDING_HEIGHT_FROM_DAYS = 731;
+
+/**
+ * Calculate weight-for-length/height z-score.
+ *
+ * Under two years WHO publishes weight-for-length (recumbent, 45-110cm); from
+ * two years, weight-for-height (standing, 65-120cm). Both tables here are keyed
+ * by millimetres.
+ *
+ * @param weightKg Weight in kilograms
+ * @param heightMm Length or height in millimetres
+ * @param ageDays Age in days, which selects the recumbent or standing table
+ * @param sex 'MALE' or 'FEMALE' (using enum values from Prisma schema)
+ * @return Z-score or null if out of range
+ */
+export function weightForHeight(
+  weightKg: number,
+  heightMm: number,
+  ageDays: number,
+  sex: 'MALE' | 'FEMALE'
+): number | null {
+  const standing = ageDays >= STANDING_HEIGHT_FROM_DAYS;
+  const table = standing
+    ? sex === 'FEMALE'
+      ? WHO_DATA.WFH_GIRLS
+      : WHO_DATA.WFH_BOYS
+    : sex === 'FEMALE'
+      ? WHO_DATA.WFL_GIRLS
+      : WHO_DATA.WFL_BOYS;
+
+  const lms = getLMS(table, Math.round(heightMm));
+
+  if (lms === null || weightKg <= 0) {
+    return null;
+  }
+
+  return computeZScore(weightKg, lms);
+}
+
+/**
  * Get a classification label for a z-score.
  * @param z The z-score
  * @return Classification label
@@ -107,4 +171,99 @@ export function classifyZScore(z: number): 'severe' | 'moderate' | 'mild' | 'nor
   if (z <= 1) return 'normal';
   if (z <= 2) return 'above';
   return 'high';
+}
+
+/**
+ * Collapse a z-score onto the four-value NutritionalStatus enum.
+ *
+ * classifyZScore returns six labels; the enum has four. `above` (+1..+2) and
+ * `high` (>+2) both become NORMAL: this is a malnutrition programme and nobody
+ * is asked to act on an overweight reading. The raw z-scores are persisted
+ * alongside the status, so an overweight report stays possible without a
+ * migration.
+ */
+export function toNutritionalStatus(z: number | null | undefined): NutritionalStatus | null {
+  if (z === null || z === undefined || !Number.isFinite(z)) return null;
+
+  switch (classifyZScore(z)) {
+    case 'severe':
+      return 'SEVERE';
+    case 'moderate':
+      return 'MODERATE';
+    case 'mild':
+      return 'MILD';
+    default:
+      return 'NORMAL';
+  }
+}
+
+/**
+ * Measurements in the units the database stores them in — kilograms for weight,
+ * millimetres for height and arm circumference. Keeping the conversion inside
+ * this module is deliberate: armCircumferenceForAge takes centimetres, and a
+ * missed /10 produces a plausible-looking but badly wrong z-score.
+ */
+export interface NutritionMeasurements {
+  weightKg?: number | null;
+  heightMm?: number | null;
+  armCircumferenceMm?: number | null;
+}
+
+export interface NutritionZScores {
+  weightForAgeZ: number | null;
+  heightForAgeZ: number | null;
+  weightForHeightZ: number | null;
+  muacZ: number | null;
+  nutritionalStatus: NutritionalStatus | null;
+}
+
+function round2(z: number | null): number | null {
+  return z === null ? null : Math.round(z * 100) / 100;
+}
+
+/**
+ * Compute every z-score a nutrition visit persists, plus the derived status.
+ *
+ * The backend calls this at write time and stores the result; the web calls it
+ * to render the live badge as a worker types. Both must agree, which is why it
+ * lives here rather than in the service.
+ *
+ * nutritionalStatus follows MUAC-for-age when an arm circumference was taken,
+ * falling back to weight-for-age otherwise. MUAC is the WHO measure for the
+ * acute malnutrition this programme treats, and it is the one a worker can take
+ * with a tape when the scale is unreliable.
+ */
+export function computeNutritionZScores(
+  measurements: NutritionMeasurements,
+  ageDays: number | null,
+  sex: Sex
+): NutritionZScores {
+  const { weightKg, heightMm, armCircumferenceMm } = measurements;
+
+  const hasWeight = weightKg !== null && weightKg !== undefined;
+  const hasHeight = heightMm !== null && heightMm !== undefined;
+
+  const weightForAgeZ =
+    ageDays !== null && hasWeight ? round2(weightForAge(weightKg, ageDays, sex)) : null;
+
+  const heightForAgeZ =
+    ageDays !== null && hasHeight ? round2(heightForAge(heightMm / 10, ageDays, sex)) : null;
+
+  const weightForHeightZ =
+    ageDays !== null && hasWeight && hasHeight
+      ? round2(weightForHeight(weightKg, heightMm, ageDays, sex))
+      : null;
+
+  const muacZ =
+    ageDays !== null && armCircumferenceMm !== null && armCircumferenceMm !== undefined
+      ? round2(armCircumferenceForAge(armCircumferenceMm / 10, ageDays, sex))
+      : null;
+
+  return {
+    weightForAgeZ,
+    heightForAgeZ,
+    weightForHeightZ,
+    muacZ,
+    nutritionalStatus: toNutritionalStatus(muacZ ?? weightForAgeZ),
+  };
 }

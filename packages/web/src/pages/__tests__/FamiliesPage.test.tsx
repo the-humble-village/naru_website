@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { vi } from 'vitest';
@@ -99,7 +99,7 @@ describe('FamiliesPage', () => {
     it('should render the page title and add family button', async () => {
       renderWithProviders(<FamiliesPage />);
 
-      expect(screen.getByRole('heading', { name: /families/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /families/i, level: 1 })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /add family/i })).toBeInTheDocument();
     });
 
@@ -140,8 +140,8 @@ describe('FamiliesPage', () => {
       renderWithProviders(<FamiliesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
-        expect(screen.getByText('Rodriguez Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Rodriguez Family')).toBeInTheDocument();
       });
 
       expect(mockFamiliesApi.listFamilies).toHaveBeenCalledWith({
@@ -204,7 +204,7 @@ describe('FamiliesPage', () => {
 
       // Wait for initial load
       await waitFor(() => {
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
       });
 
       const searchInput = screen.getByLabelText(/search families/i);
@@ -251,7 +251,7 @@ describe('FamiliesPage', () => {
 
       // Wait for initial load
       await waitFor(() => {
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
       });
 
       const communitySelect = screen.getByLabelText(/community/i);
@@ -280,7 +280,7 @@ describe('FamiliesPage', () => {
 
       // Wait for initial load
       await waitFor(() => {
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByRole('checkbox', { name: /in crisis/i }));
@@ -300,7 +300,7 @@ describe('FamiliesPage', () => {
       renderWithProviders(<FamiliesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
       });
 
       const crisisCheckbox = screen.getByRole('checkbox', { name: /in crisis/i });
@@ -325,18 +325,18 @@ describe('FamiliesPage', () => {
 
       await waitFor(() => {
         // Check table headers
-        expect(screen.getByText('Family Name')).toBeInTheDocument();
-        expect(screen.getAllByText('Community')).toHaveLength(2); // One in filter, one in table header
-        expect(screen.getAllByText('Crisis Status')).toHaveLength(2); // One in filter, one in table header
-        expect(screen.getByText('Last Visited')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Family Name')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByRole('columnheader', { name: /Community/ })).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByRole('columnheader', { name: /Crisis Status/ })).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Last Visited')).toBeInTheDocument();
 
         // Check family data
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
-        expect(screen.getByText('Rodriguez Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Rodriguez Family')).toBeInTheDocument();
 
         // Check crisis status badges
-        expect(screen.getByText('Stable')).toBeInTheDocument();
-        expect(screen.getAllByText('In Crisis')).toHaveLength(2); // One in filter option, one in badge
+        expect(within(screen.getByRole('table')).getByText('Stable')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('In Crisis')).toBeInTheDocument();
       });
     });
 
@@ -388,7 +388,7 @@ describe('FamiliesPage', () => {
       renderWithProviders(<FamiliesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Unnamed Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Unnamed Family')).toBeInTheDocument();
       });
     });
 
@@ -397,10 +397,10 @@ describe('FamiliesPage', () => {
       renderWithProviders(<FamiliesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText('Garcia Family'));
+      fireEvent.click(within(screen.getByRole('table')).getByText('Garcia Family'));
 
       await waitFor(() => {
         expect(window.location.pathname).toBe('/families/1');
@@ -424,20 +424,20 @@ describe('FamiliesPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/showing/i)).toBeInTheDocument();
-        expect(screen.getAllByRole('button', { name: /previous/i })).toHaveLength(2); // Mobile and desktop versions
-        expect(screen.getAllByRole('button', { name: /next/i })).toHaveLength(2); // Mobile and desktop versions
+        expect(screen.getAllByRole('button', { name: /previous/i })).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: /next/i })).toHaveLength(1);
       });
     });
 
-    it('should not show pagination when all results fit on one page', async () => {
+    it('disables pagination when all results fit on one page', async () => {
       renderWithProviders(<FamiliesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
       });
 
-      // Pagination should not be shown for only 2 results
-      expect(screen.queryAllByRole('button', { name: /previous/i })).toHaveLength(0);
+      expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
     });
 
     it('should navigate to next page when next button clicked', async () => {
@@ -452,7 +452,7 @@ describe('FamiliesPage', () => {
       renderWithProviders(<FamiliesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Garcia Family')).toBeInTheDocument();
+        expect(within(screen.getByRole('table')).getByText('Garcia Family')).toBeInTheDocument();
       });
 
       const nextButtons = screen.getAllByRole('button', { name: /next/i });
@@ -482,9 +482,22 @@ describe('FamiliesPage', () => {
       await waitFor(() => {
         const prevButtons = screen.getAllByRole('button', { name: /previous/i });
         expect(prevButtons[0]).toBeDisabled();
-        expect(prevButtons[1]).toBeDisabled();
       });
     });
+  });
+
+
+  it('clears the family search, community, and crisis filter together', async () => {
+    renderWithProviders(<FamiliesPage />);
+    await screen.findAllByText('Garcia Family');
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Garcia' } });
+    fireEvent.change(screen.getByLabelText('Community'), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /in crisis/i }));
+    await waitFor(() => expect(mockFamiliesApi.listFamilies).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'Garcia', communityId: 1, inCrisis: true })));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(mockFamiliesApi.listFamilies).toHaveBeenLastCalledWith(expect.objectContaining({ search: undefined, siteId: undefined, communityId: undefined, inCrisis: undefined, skip: 0 })));
+    expect(screen.getByRole('checkbox', { name: /in crisis/i })).not.toBeChecked();
+    expect(screen.getByRole('searchbox')).toHaveValue('');
   });
 
 });

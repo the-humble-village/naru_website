@@ -89,7 +89,7 @@ describe('ChildrenPage', () => {
 
     const links = await screen.findAllByRole('link', { name: 'Jose Ramirez' });
     expect(links[0]).toHaveAttribute('href', '/children/5');
-    expect(screen.getAllByText('children.no_mother').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No mother on file').length).toBeGreaterThan(0);
   });
 
   it('sends the site filter to the server rather than filtering the page', async () => {
@@ -117,6 +117,6 @@ describe('ChildrenPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('children.empty')).toBeInTheDocument();
+    expect(await screen.findByText('No children found.')).toBeInTheDocument();
   });
 });

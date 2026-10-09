@@ -1,14 +1,15 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ProgramRosterPage } from '../programs/ProgramRosterPage';
 import { programsApi } from '../../api/programs';
 import { enrollmentsApi } from '../../api/enrollments';
 import { visitsApi } from '../../api/visits';
 import { childrenApi } from '../../api/children';
+import { familiesApi } from '../../api/families';
 import { adminApi } from '../../api/admin';
 import type { ChildRead, EnrollmentListItem, ProgramRead, VisitListItem } from '@naru/shared';
 
@@ -267,13 +268,15 @@ const visits: VisitListItem[] = [
   },
 ];
 
+const LocationProbe = () => <output data-testid="route-query">{useLocation().search}</output>;
+
 const renderPage = (initialPath = '/programs/7') => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
-          <Route path="/programs/:id" element={<ProgramRosterPage />} />
+          <Route path="/programs/:id" element={<><ProgramRosterPage /><LocationProbe /></>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -281,7 +284,7 @@ const renderPage = (initialPath = '/programs/7') => {
 };
 
 const statValue = (label: string): string => {
-  const node = screen.getByText(label);
+  const node = within(screen.getByRole('region', { name: 'Program summary' })).getByText(label);
   return node.parentElement?.textContent ?? '';
 };
 
@@ -322,7 +325,7 @@ describe('ProgramRosterPage', () => {
       expect(screen.getByRole('heading', { name: 'Nutrition Infant' })).toBeInTheDocument();
     });
 
-    expect(screen.getByText('roster.enroll').closest('a')).toHaveAttribute(
+    expect(screen.getByText('Enroll someone').closest('a')).toHaveAttribute(
       'href',
       '/programs/7/enroll'
     );
@@ -342,10 +345,10 @@ describe('ProgramRosterPage', () => {
       expect(screen.getAllByText('Pedro Vasquez').length).toBeGreaterThan(0);
     });
 
-    expect(statValue('roster.stat_active')).toContain('5');
-    expect(statValue('roster.stat_new_this_month')).toContain('1');
-    expect(statValue('roster.stat_exited_this_month')).toContain('3');
-    expect(statValue('roster.stat_overdue')).toContain('2');
+    expect(statValue('Active')).toContain('5');
+    expect(statValue('New this month')).toContain('1');
+    expect(statValue('Exited this month')).toContain('3');
+    expect(statValue('Overdue')).toContain('2');
   });
 
   it('hides the overdue stat for a program with no visit interval', async () => {
@@ -357,10 +360,10 @@ describe('ProgramRosterPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('roster.stat_active')).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Program summary' })).toBeInTheDocument();
     });
 
-    expect(screen.queryByText('roster.stat_overdue')).not.toBeInTheDocument();
+    expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
   });
 
   it('filters the roster by the search box and keeps it in the query string', async () => {
@@ -371,13 +374,14 @@ describe('ProgramRosterPage', () => {
       expect(screen.getAllByText('Pedro Vasquez').length).toBeGreaterThan(0);
     });
 
-    await user.type(screen.getByLabelText('roster.search'), 'Ana');
+    await user.type(screen.getByLabelText('Search'), 'Ana');
 
     await waitFor(() => {
       expect(screen.queryByText('Pedro Vasquez')).not.toBeInTheDocument();
     });
 
     expect(screen.getAllByText('Ana Morales').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('route-query')).toHaveTextContent('?q=Ana');
   });
 
   it('reads the tab from the query string and swaps to the exited variant', async () => {
@@ -388,14 +392,62 @@ describe('ProgramRosterPage', () => {
     });
 
     expect(screen.queryByText('Pedro Vasquez')).not.toBeInTheDocument();
-    expect(screen.getAllByText('exit_reason.graduated').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Graduated').length).toBeGreaterThan(0);
   });
 
   it('shows the persisted nutritional status from the latest visit', async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getAllByText('nutritional_status.severe').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Severe').length).toBeGreaterThan(0);
     });
   });
+  it('clears every filter and the page while keeping the selected enrollment tab', async () => {
+    const user = userEvent.setup();
+    renderPage('/programs/7?tab=exited&q=One&siteId=1&communityId=1&status=SEVERE&page=2');
+    await screen.findByText('No enrollments match these filters.');
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByTestId('route-query')).toHaveTextContent(/^\?tab=exited$/);
+    expect(screen.getByRole('tab', { name: 'Exited 3' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('Search')).toHaveValue('');
+    expect(screen.getByLabelText('Site')).toHaveValue('');
+    expect(screen.getByLabelText('Community')).toHaveValue('');
+    expect(screen.getByLabelText('Nutrition status')).toHaveValue('');
+    expect(screen.getAllByText('Exited One')).toHaveLength(2);
+    expect(screen.getAllByText('Exited Two')).toHaveLength(2);
+  });
+
+  it('uses family wording and ignores nutrition status on family rosters', async () => {
+    vi.mocked(programsApi.fetchProgram).mockResolvedValue({ ...nutritionProgram, name: 'PAF', kind: 'FAMILY_PAF', subjectType: 'FAMILY', visitIntervalDays: null });
+    vi.mocked(enrollmentsApi.listEnrollments).mockResolvedValue({ items: [{ ...enrollments[0]!, childId: null, familyId: 1, subjectName: 'Familia Morales' }], total: 1, skip: 0, limit: 100 });
+    vi.mocked(familiesApi.listFamilies).mockResolvedValue({ families: [], total: 0, skip: 0, limit: 100 });
+    renderPage('/programs/7?status=SEVERE');
+    await screen.findAllByText('Familia Morales');
+    expect(screen.getByRole('link', { name: 'Enroll a family' })).toHaveAttribute('href', '/programs/7/enroll');
+    expect(screen.getByRole('heading', { name: 'Filter families' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search by family name...')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Nutrition status')).not.toBeInTheDocument();
+    expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
+    expect(visitsApi.listVisits).not.toHaveBeenCalled();
+  });
+
+  it('resets an incompatible community when the site changes', async () => {
+    const user = userEvent.setup();
+    vi.mocked(adminApi.fetchSites).mockResolvedValue([
+      { id: 1, title: 'Highlands', createdAt: '', updatedAt: '' },
+      { id: 2, title: 'Valley', createdAt: '', updatedAt: '' },
+    ]);
+    vi.mocked(adminApi.fetchCommunities).mockResolvedValue([
+      { id: 1, title: 'Xela', siteId: 1, createdAt: '', updatedAt: '' },
+      { id: 2, title: 'Nebaj', siteId: 2, createdAt: '', updatedAt: '' },
+    ]);
+    renderPage('/programs/7?communityId=1');
+    await screen.findAllByText('Pedro Vasquez');
+    await user.selectOptions(screen.getByLabelText('Site'), '2');
+    expect(screen.getByLabelText('Community')).toHaveValue('');
+    expect(within(screen.getByLabelText('Community')).queryByRole('option', { name: 'Xela' })).not.toBeInTheDocument();
+    expect(within(screen.getByLabelText('Community')).getByRole('option', { name: 'Nebaj' })).toBeInTheDocument();
+    expect(screen.getByTestId('route-query')).toHaveTextContent(/^\?siteId=2$/);
+  });
+
 });

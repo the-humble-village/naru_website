@@ -116,6 +116,6 @@ describe('PeoplePage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('people.empty')).toBeInTheDocument();
+    expect(await screen.findByText('No people found.')).toBeInTheDocument();
   });
 });

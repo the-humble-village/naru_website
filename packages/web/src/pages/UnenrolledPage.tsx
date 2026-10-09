@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SUBJECT_FK, type SubjectType } from '@naru/shared';
 import { mothersApi } from '../api/mothers';
@@ -9,8 +9,9 @@ import { familiesApi } from '../api/families';
 import { programsApi } from '../api/programs';
 import { dashboardApi } from '../api/dashboard';
 import { adminApi } from '../api/admin';
-import { EmptyState, LoadingState, PageHeader, SubjectTypeBadge, Tabs } from '../components';
+import { EmptyState, LoadingState, SubjectTypeBadge, Tabs, type FilterValues } from '../components';
 import { useTranslation } from '../hooks';
+import { DirectoryHeader, DirectoryFilters, DirectoryPanel, DirectoryTable, DirectoryNameLink, DirectoryPagination, directoryCount, DIRECTORY_FIELD, type DirectoryColumn } from '../components/people/PeopleDirectory';
 
 const PAGE_SIZE = 25;
 
@@ -21,6 +22,7 @@ interface WorklistRow {
   id: number;
   name: string;
   communityId: number | null;
+  siteId?: number | null;
 }
 
 const profilePath = (row: WorklistRow): string => {
@@ -42,6 +44,8 @@ export const UnenrolledPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<TabKey>('ALL');
   const [page, setPage] = useState(0);
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<FilterValues>({ siteId: null, communityId: null });
 
   // Coming back here after enrolling someone should not show a stale sidebar
   // badge, and the worklist is exactly where a worker returns.
@@ -64,7 +68,7 @@ export const UnenrolledPage: React.FC = () => {
     queryFn: () => programsApi.listPrograms({ activeOnly: true }),
   });
 
-  const listParams = { unenrolled: true, skip: page * PAGE_SIZE, limit: PAGE_SIZE };
+  const listParams = { unenrolled: true, search: search.trim() || undefined, siteId: filters.siteId ?? undefined, communityId: filters.communityId ?? undefined, skip: page * PAGE_SIZE, limit: PAGE_SIZE };
 
   const wantMothers = tab === 'ALL' || tab === 'MOTHER';
   const wantChildren = tab === 'ALL' || tab === 'CHILD';
@@ -149,6 +153,7 @@ export const UnenrolledPage: React.FC = () => {
           id: family.id,
           name: family.familyName || t('common.unnamed'),
           communityId: family.communityId,
+          siteId: family.siteId,
         })
       );
     }
@@ -208,7 +213,7 @@ export const UnenrolledPage: React.FC = () => {
         aria-label={`${t('unenrolled.enroll')}: ${row.name}`}
         value=""
         onChange={(event) => handleEnroll(row, event.target.value)}
-        className="px-3 py-2 text-sm bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
+        className={`${DIRECTORY_FIELD} max-w-full md:w-auto`}
       >
         <option value="">{t('unenrolled.enroll')}</option>
         {options.map((program) => (
@@ -220,122 +225,50 @@ export const UnenrolledPage: React.FC = () => {
     );
   };
 
-  const placeLabel = (row: WorklistRow) => {
-    if (!row.communityId) return t('unenrolled.no_community');
-    const community = communityTitle.get(row.communityId) ?? t('common.unknown');
-    const site = siteTitleOfCommunity.get(row.communityId);
-    return site ? `${community} (${site})` : community;
-  };
+  const total = (wantMothers ? mothersQuery.data?.total ?? 0 : 0)
+    + (wantChildren ? childrenQuery.data?.total ?? 0 : 0)
+    + (wantPeople ? peopleQuery.data?.total ?? 0 : 0)
+    + (wantFamilies ? familiesQuery.data?.total ?? 0 : 0);
+  const isError = (wantMothers && mothersQuery.isError) || (wantChildren && childrenQuery.isError)
+    || (wantPeople && peopleQuery.isError) || (wantFamilies && familiesQuery.isError);
+  const filtersActive = search.trim() !== '' || filters.siteId != null || filters.communityId != null;
+  const nameLink = (row: WorklistRow) => <DirectoryNameLink to={profilePath(row)}>{row.name}</DirectoryNameLink>;
+  const columns: DirectoryColumn<WorklistRow>[] = [
+    { key: 'name', label: t('subject.col_name'), render: nameLink },
+    { key: 'type', label: t('subject.col_type'), render: row => <SubjectTypeBadge type={row.type} /> },
+    { key: 'community', label: t('subject.col_community'), render: row => row.communityId ? communityTitle.get(row.communityId) ?? t('common.unknown') : t('unenrolled.no_community') },
+    { key: 'site', label: t('subject.col_site'), render: row => row.siteId
+      ? sites.find(site => site.id === row.siteId)?.title ?? t('common.unknown')
+      : row.communityId ? siteTitleOfCommunity.get(row.communityId) ?? '—' : '—' },
+    { key: 'actions', label: t('subject.col_actions'), render: enrollControl },
+  ];
 
   return (
-    <div>
-      <PageHeader title={t('nav.unenrolled')} />
-
-      <p className="text-hv-gray mb-4 max-w-3xl">{t('unenrolled.intro')}</p>
-
-      <Tabs
-        tabs={tabs}
-        value={tab}
-        onChange={(key) => {
-          setTab(key as TabKey);
+    <div className="mx-auto max-w-screen-2xl py-1">
+      <DirectoryHeader title={t('nav.unenrolled')} description={t('directory.unenrolled_description')} />
+      <DirectoryFilters search={search} searchLabel={t('directory.search_unenrolled')}
+        onSearchChange={value => { setSearch(value); setPage(0); }} value={filters}
+        onChange={value => {
+          const communityValid = !value.siteId || communities.find(community => community.id === value.communityId)?.siteId === value.siteId;
+          setFilters({ ...value, communityId: communityValid ? value.communityId ?? null : null });
           setPage(0);
-        }}
-        label={t('nav.unenrolled')}
-        className="mb-4"
-      />
-
-      {isLoading && <LoadingState message={t('common.loading')} />}
-
-      {!isLoading && rows.length === 0 && <EmptyState message={t('unenrolled.empty')} />}
-
-      {!isLoading && rows.length > 0 && (
-        <>
-          <div className="hidden md:block bg-white rounded-xl border border-hv-border overflow-x-auto">
-            <table className="min-w-full divide-y divide-hv-border">
-              <thead className="bg-hv-page">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    {t('subject.col_type')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    {t('subject.col_name')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    {t('subject.col_community')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    {t('subject.col_actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-hv-border">
-                {rows.map((row) => (
-                  <tr key={`${row.type}-${row.id}`} className="hover:bg-hv-page">
-                    <td className="px-4 py-3">
-                      <SubjectTypeBadge type={row.type} />
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <Link
-                        to={profilePath(row)}
-                        className="font-medium text-hv-terracotta hover:underline"
-                      >
-                        {row.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-hv-charcoal">{placeLabel(row)}</td>
-                    <td className="px-4 py-3">{enrollControl(row)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <ul className="md:hidden space-y-3">
-            {rows.map((row) => (
-              <li
-                key={`${row.type}-${row.id}`}
-                className="bg-white p-4 rounded-xl border border-hv-border space-y-2"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <Link
-                    to={profilePath(row)}
-                    className="font-medium text-hv-terracotta hover:underline"
-                  >
-                    {row.name}
-                  </Link>
-                  <SubjectTypeBadge type={row.type} />
-                </div>
-                <p className="text-sm text-hv-gray">{placeLabel(row)}</p>
-                {enrollControl(row)}
-              </li>
-            ))}
-          </ul>
-
-          <div className="flex items-center justify-between gap-3 mt-4">
-            <span className="text-sm text-hv-gray">
-              {t('common.page')} {page + 1} {t('common.of')} {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="px-3 py-2 text-sm rounded-md border border-hv-border text-hv-charcoal hover:bg-hv-page disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {t('common.previous')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page + 1 >= totalPages}
-                className="px-3 py-2 text-sm rounded-md border border-hv-border text-hv-charcoal hover:bg-hv-page disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {t('common.next')}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+        }} sites={sites} communities={communities.filter(community => !filters.siteId || community.siteId === filters.siteId)}
+        onClear={() => { setSearch(''); setFilters({ siteId: null, communityId: null }); setPage(0); }} />
+      <DirectoryPanel title={isLoading || isError ? t('nav.unenrolled') : directoryCount(t, 'unenrolled', total)}>
+        <Tabs tabs={tabs} value={tab} onChange={key => { setTab(key as TabKey); setPage(0); }} label={t('nav.unenrolled')} className="mb-4" />
+        <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
+          {isLoading && <LoadingState message={t('common.loading')} />}
+          {isError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-hv-crisis">{t('directory.unenrolled_load_failed')}</div>}
+          {!isLoading && !isError && rows.length === 0 && <EmptyState message={t(filtersActive ? 'directory.no_matches' : 'unenrolled.empty')} />}
+          {!isLoading && !isError && rows.length > 0 && (
+            <DirectoryTable rows={rows} columns={columns} rowKey={row => `${row.type}-${row.id}`} rowTitle={nameLink} label={t('nav.unenrolled')} mobileActionBelow />
+          )}
+          {!isLoading && !isError && (
+            <DirectoryPagination page={page} totalPages={totalPages} onPageChange={setPage}
+              resultText={t('directory.page_records').replace('{count}', String(rows.length))} />
+          )}
+        </div>
+      </DirectoryPanel>
     </div>
   );
 };

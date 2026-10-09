@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -101,6 +101,29 @@ describe('ProgramsPage', () => {
     expect(screen.getByText('31')).toBeInTheDocument();
   });
 
+  it('keeps every program and its live count in the appropriate care group', async () => {
+    const additional: Array<ProgramRead & { activeEnrollmentCount: number }> = [
+      { ...base, id: 4, name: 'New nutrition program', kind: 'NUTRITION', subjectType: 'CHILD', active: true, activeEnrollmentCount: 17 },
+      { ...base, id: 5, name: 'Midwives', kind: 'MIDWIFE', subjectType: 'PERSON', active: true, activeEnrollmentCount: 9 },
+      { ...base, id: 6, name: 'Family support', kind: 'FAMILY_PAF', subjectType: 'FAMILY', active: true, activeEnrollmentCount: 6 },
+    ];
+    const all = [...programs, ...additional];
+    vi.mocked(programsApi.listPrograms).mockResolvedValue({ items: all, total: all.length });
+    renderPage();
+    await screen.findByRole('region', { name: 'Maternal care' });
+    const namesIn = (name: string) => within(screen.getByRole('region', { name }))
+      .getAllByRole('heading', { level: 3 }).map(heading => heading.textContent);
+    expect(namesIn('Maternal care')).toEqual(['Expectant Mother', 'Midwives']);
+    expect(namesIn('Child nutrition')).toEqual(['Nutrition Infant', 'New nutrition program']);
+    expect(namesIn('Community support')).toEqual(['Retired Youth', 'Family support']);
+    expect(screen.getAllByRole('link')).toHaveLength(all.length);
+    for (const program of all) {
+      const link = screen.getByRole('link', { name: program.name });
+      expect(link).toHaveAttribute('href', '/programs/' + program.id);
+      expect(link).toHaveAccessibleDescription(expect.stringContaining(program.activeEnrollmentCount + ' Active enrollments'));
+    }
+  });
+
   it('links each card to its roster', async () => {
     renderPage();
 
@@ -119,7 +142,7 @@ describe('ProgramsPage', () => {
       expect(screen.getByText('Retired Youth')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('admin.program_inactive')).toBeInTheDocument();
+    expect(screen.getByText('Inactive')).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no programs', async () => {
@@ -128,7 +151,7 @@ describe('ProgramsPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('admin.programs_empty')).toBeInTheDocument();
+      expect(screen.getByText('No programs yet. Create the first one to get started.')).toBeInTheDocument();
     });
   });
 

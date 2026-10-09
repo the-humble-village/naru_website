@@ -9,11 +9,11 @@ export default defineConfig({
     // every tunnelled request. Allowing the ngrok domains means a new random
     // tunnel URL works without touching this file.
     allowedHosts: ['.ngrok-free.app', '.ngrok.app', '.ngrok.io'],
-    // Over a tunnel the browser reaches the dev server on 443, not 5174, so the
+    // Over a tunnel the browser reaches the dev server on 443, not 5173, so the
     // HMR socket has to be told where to connect. Set TUNNEL=1 when sharing.
     hmr: process.env.TUNNEL
       ? { clientPort: 443, protocol: 'wss' }
-      : { clientPort: 5174 },
+      : undefined,
     proxy: {
       '/api': 'http://localhost:3000',
     },

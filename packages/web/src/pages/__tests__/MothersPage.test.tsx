@@ -122,6 +122,25 @@ describe('MothersPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('mothers.empty')).toBeInTheDocument();
+    expect(await screen.findByText('No mothers found.')).toBeInTheDocument();
   });
+
+  it('clears search and location filters and returns to the first page', async () => {
+    vi.mocked(mothersApi.listMothers).mockResolvedValue({ items: [mother], total: 60, skip: 0, limit: 25 });
+    renderPage();
+    await screen.findAllByRole('link', { name: 'Maria Lopez' });
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Maria' } });
+    fireEvent.change(screen.getByLabelText('Site'), { target: { value: '9' } });
+    fireEvent.change(screen.getByLabelText('Community'), { target: { value: '3' } });
+    await waitFor(() => expect(mothersApi.listMothers).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'Maria', siteId: 9, communityId: 3, skip: 0 })));
+    await screen.findAllByRole('link', { name: 'Maria Lopez' });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(mothersApi.listMothers).toHaveBeenLastCalledWith(expect.objectContaining({ skip: 25 })));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(mothersApi.listMothers).toHaveBeenLastCalledWith({ search: undefined, siteId: undefined, communityId: undefined, skip: 0, limit: 25 }));
+    expect(screen.getByRole('searchbox')).toHaveValue('');
+    expect(screen.getByLabelText('Site')).toHaveValue('');
+    expect(screen.getByLabelText('Community')).toHaveValue('');
+  });
+
 });

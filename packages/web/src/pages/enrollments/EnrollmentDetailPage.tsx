@@ -8,7 +8,6 @@ import {
   EnrollmentUpdateSchema,
   KIND_ENROLLMENT_DETAIL,
   LocationType,
-  NutritionalStatus,
   TranslationKey,
 } from '@naru/shared';
 import { enrollmentsApi } from '../../api/enrollments';
@@ -18,6 +17,7 @@ import { birthingAssistantsApi } from '../../api/birthing-assistants';
 import {
   ExitReasonBadge,
   FormSelect,
+  NutritionStatusBadge,
   PageHeader,
   PhotoUpload,
   RoleGate,
@@ -38,13 +38,6 @@ const LOCATION_LABEL: Record<LocationType, TranslationKey> = {
   SITE: 'location_type.site',
   HOME: 'location_type.home',
   MOBILE_CLINIC: 'location_type.mobile_clinic',
-};
-
-const STATUS_LABEL: Record<NutritionalStatus, TranslationKey> = {
-  SEVERE: 'nutritional_status.severe',
-  MODERATE: 'nutritional_status.moderate',
-  MILD: 'nutritional_status.mild',
-  NORMAL: 'nutritional_status.normal',
 };
 
 const numberOrNull = (raw: string): number | null => {
@@ -420,7 +413,7 @@ export const EnrollmentDetailPage: React.FC = () => {
                   </Detail>
                   <Detail label={t('enroll.nutritional_status')}>
                     {enrollment.nutritionDetail?.nutritionalStatus
-                      ? t(STATUS_LABEL[enrollment.nutritionDetail.nutritionalStatus])
+                      ? <NutritionStatusBadge status={enrollment.nutritionDetail.nutritionalStatus} />
                       : null}
                   </Detail>
                 </>
@@ -740,9 +733,7 @@ export const EnrollmentDetailPage: React.FC = () => {
                       <span className="text-hv-gray">{t(LOCATION_LABEL[visit.locationType])}</span>
                       {weight !== null && <span className="tabular-nums">{weight.toFixed(1)} kg</span>}
                       {visit.nutritionDetail?.nutritionalStatus && (
-                        <span className="text-hv-gray">
-                          {t(STATUS_LABEL[visit.nutritionDetail.nutritionalStatus])}
-                        </span>
+                        <NutritionStatusBadge status={visit.nutritionDetail.nutritionalStatus} />
                       )}
                     </Link>
                   </li>

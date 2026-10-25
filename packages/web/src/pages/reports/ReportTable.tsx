@@ -14,6 +14,8 @@ import {
   YAxis,
 } from 'recharts';
 import { useTranslation } from '../../hooks';
+import { NutritionStatusBadge } from '../../components/NutritionStatusBadge';
+import { isNutritionStatus, NUTRITION_STATUS_ORDER, NUTRITION_STATUS_STYLE } from '../../utils/nutritionStatus';
 
 const EM_DASH = '—';
 const CARD_FALLBACK_LIMIT = 20;
@@ -134,6 +136,10 @@ interface ReportCellValueProps {
 }
 
 const ReportCellValue: React.FC<ReportCellValueProps> = ({ column, row, text }) => {
+  const status = row[column.key];
+  if (['fromStatus', 'toStatus', 'latestStatus'].includes(column.key) && isNutritionStatus(status)) {
+    return <NutritionStatusBadge status={status} />;
+  }
   const link = CELL_LINKS[column.key];
   const id = link ? row[link.idKey] : null;
 
@@ -301,13 +307,22 @@ export const ReportChart: React.FC<ReportChartProps> = ({ slug, chart, columns, 
       return complete;
     });
 
-    return { points: filled, series: seriesNames.sort() };
-  }, [rows, spec]);
+    const orderedSeries = slug === 'transitions'
+      ? NUTRITION_STATUS_ORDER.filter(status => seriesNames.includes(status))
+      : seriesNames.sort();
+    return { points: filled, series: orderedSeries };
+  }, [rows, spec, slug]);
 
   if (!chart || !spec || points.length === 0) return null;
 
   const yColumn = columns.find((column) => column.key === spec.y);
   const singleLabel = yColumn ? columnLabel(slug, yColumn) : spec.y;
+  const seriesColor = (name: string, index: number) =>
+    slug === 'transitions' && isNutritionStatus(name)
+      ? NUTRITION_STATUS_STYLE[name].chart
+      : CHART_COLORS[index % CHART_COLORS.length];
+  const statusLabel = (value: string) => isNutritionStatus(value)
+    ? t(NUTRITION_STATUS_STYLE[value].label) : value;
   const axisTick = { fontSize: 11, fill: '#7A8B76' };
   const tooltipStyle = {
     background: '#fff',
@@ -324,15 +339,24 @@ export const ReportChart: React.FC<ReportChartProps> = ({ slug, chart, columns, 
           {chart === 'bar' ? (
             <BarChart data={points} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" vertical={false} />
-              <XAxis dataKey="x" tick={axisTick} axisLine={false} tickLine={false} />
+              <XAxis dataKey="x" tick={axisTick} axisLine={false} tickLine={false}
+                tickFormatter={slug === 'transitions' ? statusLabel : undefined} />
               <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#faf7f2' }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#1A1A1A' }} cursor={{ fill: '#faf7f2' }}
+                labelFormatter={slug === 'transitions' ? value => statusLabel(String(value)) : undefined} />
+              <Legend
+                wrapperStyle={{ fontSize: 12 }}
+                itemSorter={slug === 'transitions'
+                  ? item => isNutritionStatus(item.dataKey) ? NUTRITION_STATUS_ORDER.indexOf(item.dataKey) : NUTRITION_STATUS_ORDER.length
+                  : undefined}
+                formatter={value => <span className="text-hv-charcoal">{value}</span>}
+              />
               {series.map((name, index) => (
                 <Bar
                   key={name}
                   dataKey={name}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                  name={slug === 'transitions' ? statusLabel(name) : name}
+                  fill={seriesColor(name, index)}
                   radius={[3, 3, 0, 0]}
                 />
               ))}
@@ -349,9 +373,9 @@ export const ReportChart: React.FC<ReportChartProps> = ({ slug, chart, columns, 
                   type="monotone"
                   name={singleLabel}
                   dataKey={name}
-                  stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                  stroke={seriesColor(name, index)}
                   strokeWidth={2}
-                  dot={{ r: 3, strokeWidth: 0, fill: CHART_COLORS[index % CHART_COLORS.length] }}
+                  dot={{ r: 3, strokeWidth: 0, fill: seriesColor(name, index) }}
                 />
               ))}
             </LineChart>

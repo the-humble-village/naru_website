@@ -8,7 +8,6 @@ import {
   EnrollmentExitSchema,
   ExitReason,
   KIND_ENROLLMENT_DETAIL,
-  NutritionalStatus,
   TranslationKey,
   computeNutritionZScores,
 } from '@naru/shared';
@@ -18,6 +17,7 @@ import { visitsApi } from '../../api/visits';
 import {
   ConfirmDialog,
   ExitReasonBadge,
+  NutritionStatusBadge,
   PageHeader,
   PhotoUpload,
   WeightDelta,
@@ -51,13 +51,6 @@ const REASON_LABEL: Record<ExitReason, TranslationKey> = {
   TRANSFERRED: 'exit_reason.transferred',
   AGED_OUT: 'exit_reason.aged_out',
   LOST: 'exit_reason.lost',
-};
-
-const STATUS_LABEL: Record<NutritionalStatus, TranslationKey> = {
-  SEVERE: 'nutritional_status.severe',
-  MODERATE: 'nutritional_status.moderate',
-  MILD: 'nutritional_status.mild',
-  NORMAL: 'nutritional_status.normal',
 };
 
 const numberOrNull = (raw: string): number | null => {
@@ -400,16 +393,11 @@ export const ExitEnrollmentPage: React.FC = () => {
             <p className="flex flex-wrap items-center gap-2 text-sm text-hv-gray">
               <span>{t('exit.status')}</span>
               {entryStatus !== null && (
-                <span className="font-medium text-hv-charcoal">{t(STATUS_LABEL[entryStatus])}</span>
+                <NutritionStatusBadge status={entryStatus} />
               )}
               <span aria-hidden="true">&rarr;</span>
               {liveExitStatus !== null ? (
-                <span
-                  data-testid="live-exit-status"
-                  className="font-medium text-hv-charcoal"
-                >
-                  {t(STATUS_LABEL[liveExitStatus])}
-                </span>
+                <NutritionStatusBadge status={liveExitStatus} data-testid="live-exit-status" />
               ) : (
                 <span>{t('exit.status_pending')}</span>
               )}

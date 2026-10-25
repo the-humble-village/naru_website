@@ -10,7 +10,7 @@ describe('ZScoreBadge', () => {
 
       expect(screen.getByText(/Z-Score: Severe/)).toBeInTheDocument();
       expect(screen.getByText(/\(-3\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Severe/)).toHaveClass('bg-red-600', 'text-white');
+      expect(screen.getByText(/Z-Score: Severe/)).toHaveClass('bg-red-100', 'text-red-800');
     });
 
     it('should render moderate classification for z-score between -3 and -2', () => {
@@ -18,7 +18,7 @@ describe('ZScoreBadge', () => {
 
       expect(screen.getByText(/Z-Score: Moderate/)).toBeInTheDocument();
       expect(screen.getByText(/\(-2\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Moderate/)).toHaveClass('bg-red-400', 'text-white');
+      expect(screen.getByText(/Z-Score: Moderate/)).toHaveClass('bg-yellow-100', 'text-yellow-900');
     });
 
     it('should render mild classification for z-score between -2 and -1', () => {
@@ -26,7 +26,7 @@ describe('ZScoreBadge', () => {
 
       expect(screen.getByText(/Z-Score: Mild/)).toBeInTheDocument();
       expect(screen.getByText(/\(-1\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Mild/)).toHaveClass('bg-yellow-500', 'text-white');
+      expect(screen.getByText(/Z-Score: Mild/)).toHaveClass('bg-green-100', 'text-green-800');
     });
 
     it('should render normal classification for z-score between -1 and 1', () => {
@@ -34,7 +34,7 @@ describe('ZScoreBadge', () => {
 
       expect(screen.getByText(/Z-Score: Normal/)).toBeInTheDocument();
       expect(screen.getByText(/\(0\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Normal/)).toHaveClass('bg-green-500', 'text-white');
+      expect(screen.getByText(/Z-Score: Normal/)).toHaveClass('bg-slate-100', 'text-slate-700');
     });
 
     it('should render above normal classification for z-score between 1 and 2', () => {

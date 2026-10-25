@@ -1,3 +1,4 @@
+import { NUTRITION_STATUS_STYLE } from '../../utils/nutritionStatus';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -26,12 +27,6 @@ const STATUS_KEY: Record<NutritionalStatus, TranslationKey> = {
   MODERATE: 'nutrition.moderate',
   MILD: 'nutrition.mild',
   NORMAL: 'nutrition.normal',
-};
-const STATUS_COLOR: Record<NutritionalStatus, string> = {
-  SEVERE: 'bg-red-100 text-red-800',
-  MODERATE: 'bg-orange-100 text-orange-800',
-  MILD: 'bg-amber-100 text-amber-800',
-  NORMAL: 'bg-green-100 text-green-800',
 };
 
 export const VisitsPage: React.FC = () => {
@@ -113,7 +108,7 @@ export const VisitsPage: React.FC = () => {
       <span className="inline-flex flex-wrap items-center gap-2">
         {weight !== null && <span className="whitespace-nowrap tabular-nums">{weight} kg</span>}
         {status !== null && (
-          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[status]}`}>
+          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${NUTRITION_STATUS_STYLE[status].badge}`}>
             {t(STATUS_KEY[status])}
           </span>
         )}

@@ -1,3 +1,4 @@
+import { NUTRITION_STATUS_STYLE } from '../../utils/nutritionStatus';
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -40,12 +41,6 @@ const STATUS_KEY: Record<NutritionalStatus, TranslationKey> = {
   NORMAL: 'nutrition.normal',
 };
 
-const STATUS_COLOR: Record<NutritionalStatus, string> = {
-  SEVERE: 'bg-red-600 text-white',
-  MODERATE: 'bg-red-400 text-white',
-  MILD: 'bg-yellow-500 text-white',
-  NORMAL: 'bg-green-500 text-white',
-};
 
 interface FactProps {
   label: string;
@@ -260,7 +255,7 @@ export const VisitDetailPage: React.FC = () => {
             {nutrition.nutritionalStatus && (
               <span
                 className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  STATUS_COLOR[nutrition.nutritionalStatus]
+                  NUTRITION_STATUS_STYLE[nutrition.nutritionalStatus].badge
                 }`}
               >
                 {t(STATUS_KEY[nutrition.nutritionalStatus])}

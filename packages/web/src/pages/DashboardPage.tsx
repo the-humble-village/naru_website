@@ -1,3 +1,4 @@
+import { NUTRITION_STATUS_STYLE } from '../utils/nutritionStatus';
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -31,12 +32,6 @@ const STATUS_LABEL: Record<NutritionalStatus, TranslationKey> = {
   NORMAL: 'nutritional_status.normal',
 };
 
-const STATUS_TONE: Record<NutritionalStatus, string> = {
-  SEVERE: 'bg-red-600 text-white',
-  MODERATE: 'bg-red-400 text-white',
-  MILD: 'bg-yellow-500 text-white',
-  NORMAL: 'bg-green-500 text-white',
-};
 
 const STATUS_RANK: Record<NutritionalStatus, number> = {
   NORMAL: 0,
@@ -383,7 +378,7 @@ export const DashboardPage: React.FC = () => {
                         )}
                         {status && (
                           <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${STATUS_TONE[status]}`}
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${NUTRITION_STATUS_STYLE[status].badge}`}
                           >
                             {t(STATUS_LABEL[status])}
                           </span>

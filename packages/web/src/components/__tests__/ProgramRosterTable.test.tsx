@@ -45,6 +45,18 @@ const headers = (): string[] =>
   screen.getAllByRole('columnheader').map((cell) => cell.textContent ?? '');
 
 describe('ProgramRosterTable', () => {
+  it.each([
+    ['SEVERE', 'bg-red-100', 'text-red-800'],
+    ['MODERATE', 'bg-yellow-100', 'text-yellow-900'],
+    ['MILD', 'bg-green-100', 'text-green-800'],
+    ['NORMAL', 'bg-slate-100', 'text-slate-700'],
+  ] as const)('uses the consistent %s color in desktop and mobile rosters', (status, background, foreground) => {
+    renderTable({ kind: 'NUTRITION', rows: [row({ nutritionalStatus: status })] });
+    const badges = screen.getAllByText(`nutritional_status.${status.toLowerCase()}`);
+    expect(badges).toHaveLength(2);
+    badges.forEach(badge => expect(badge).toHaveClass(background, foreground));
+  });
+
   it('renders the pregnancy column set', () => {
     renderTable({
       rows: [row({ gestationMonths: 7, dueDate: '2026-11-15' })],

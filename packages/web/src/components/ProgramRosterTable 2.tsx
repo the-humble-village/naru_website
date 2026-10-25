@@ -1,3 +1,4 @@
+import { NUTRITION_STATUS_STYLE } from '../utils/nutritionStatus';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ageInDays } from '@naru/shared';
@@ -50,12 +51,6 @@ interface Column {
   render: (row: RosterRow) => React.ReactNode;
 }
 
-const STATUS_TONE: Record<NutritionalStatus, string> = {
-  SEVERE: 'bg-red-600 text-white',
-  MODERATE: 'bg-red-400 text-white',
-  MILD: 'bg-yellow-500 text-white',
-  NORMAL: 'bg-green-500 text-white',
-};
 
 const STATUS_LABEL: Record<NutritionalStatus, TranslationKey> = {
   SEVERE: 'nutritional_status.severe',
@@ -85,7 +80,7 @@ const NutritionalStatusBadge: React.FC<{ status: NutritionalStatus }> = ({ statu
   const { t } = useTranslation();
   return (
     <span
-      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${STATUS_TONE[status]}`}
+      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${NUTRITION_STATUS_STYLE[status].badge}`}
     >
       {t(STATUS_LABEL[status])}
     </span>

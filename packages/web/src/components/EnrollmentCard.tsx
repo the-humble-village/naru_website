@@ -13,6 +13,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { WeightDelta } from './WeightDelta';
 import { ExitReasonBadge } from './ExitReasonBadge';
 import { RoleGate } from './RoleGate';
+import { NutritionStatusBadge } from './NutritionStatusBadge';
 
 export interface EnrollmentCardProps {
   enrollment: EnrollmentListItem;
@@ -267,9 +268,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                             </span>
                           )}
                         {visit.nutritionDetail?.nutritionalStatus && (
-                          <span className="text-hv-gray">
-                            {visit.nutritionDetail.nutritionalStatus}
-                          </span>
+                          <NutritionStatusBadge status={visit.nutritionDetail.nutritionalStatus} />
                         )}
                       </Link>
                     </li>

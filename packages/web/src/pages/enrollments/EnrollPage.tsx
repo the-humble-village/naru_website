@@ -1,3 +1,4 @@
+import { NUTRITION_STATUS_STYLE } from '../../utils/nutritionStatus';
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -41,12 +42,6 @@ const LABEL = 'block text-sm font-medium text-hv-charcoal mb-1';
 const SECTION = 'text-lg font-semibold text-hv-green';
 const CARD = 'bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4';
 
-const STATUS_TONE: Record<NutritionalStatus, string> = {
-  SEVERE: 'bg-red-600 text-white',
-  MODERATE: 'bg-red-400 text-white',
-  MILD: 'bg-yellow-500 text-white',
-  NORMAL: 'bg-green-500 text-white',
-};
 
 const STATUS_LABEL: Record<NutritionalStatus, TranslationKey> = {
   SEVERE: 'nutritional_status.severe',
@@ -640,7 +635,7 @@ export const EnrollPage: React.FC = () => {
                     <span
                       data-testid="live-nutritional-status"
                       className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        STATUS_TONE[live.nutritionalStatus]
+                        NUTRITION_STATUS_STYLE[live.nutritionalStatus].badge
                       }`}
                     >
                       {t(STATUS_LABEL[live.nutritionalStatus])}

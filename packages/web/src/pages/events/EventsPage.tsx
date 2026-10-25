@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, Plus, Search, X } from 'lucide-react';
 import type { EventWithCount } from '@naru/shared';
 import { eventsApi } from '../../api/events';
 import { EmptyState, LoadingState } from '../../components';
 import { useTranslation } from '../../hooks';
 import { formatDateUTC } from '../../utils/datetime';
+import { getGuatemalanHolidays, normalizeHolidaySearch, type GuatemalanHoliday } from '../../utils/guatemalanHolidays';
+
+type CalendarEntry = (EventWithCount & { kind: 'event' }) | GuatemalanHoliday;
 
 const FIELD = 'min-h-11 w-full min-w-0 rounded-lg border border-hv-border bg-white px-3 py-2 text-sm text-hv-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green';
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
@@ -26,6 +29,7 @@ export const EventsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [showHolidays, setShowHolidays] = useState(true);
   const searchRef = useRef<HTMLInputElement>(null);
   const today = localToday();
 
@@ -69,9 +73,20 @@ export const EventsPage: React.FC = () => {
     },
   });
   const events = hasRange ? data ?? [] : [];
-  const agenda = selectedDay ? events.filter(event => event.eventDate === selectedDay) : events;
-  const byDay = new Map<string, EventWithCount[]>();
-  events.forEach(event => byDay.set(event.eventDate, [...(byDay.get(event.eventDate) ?? []), event]));
+  const holidays = useMemo(() => {
+    if (!showHolidays || !hasRange) return [];
+    const query = normalizeHolidaySearch(search);
+    return getGuatemalanHolidays(month.getUTCFullYear(), lang).filter(holiday =>
+      holiday.eventDate >= rangeFrom && holiday.eventDate <= rangeTo &&
+      (!query || normalizeHolidaySearch(`${holiday.name} ${holiday.alternateName}`).includes(query))
+    );
+  }, [showHolidays, hasRange, month, lang, rangeFrom, rangeTo, search]);
+  const entries: CalendarEntry[] = [
+    ...events.map(event => ({ ...event, kind: 'event' as const })), ...holidays,
+  ].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  const agenda = selectedDay ? entries.filter(entry => entry.eventDate === selectedDay) : entries;
+  const byDay = new Map<string, CalendarEntry[]>();
+  entries.forEach(entry => byDay.set(entry.eventDate, [...(byDay.get(entry.eventDate) ?? []), entry]));
 
   const monthLabel = new Intl.DateTimeFormat(lang, {
     month: 'long', year: 'numeric', timeZone: 'UTC',
@@ -154,6 +169,18 @@ export const EventsPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-hv-green">
+        <label className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg ${FOCUS}`}>
+          <input type="checkbox" checked={showHolidays} onChange={event => setShowHolidays(event.target.checked)}
+            className="h-4 w-4 accent-hv-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2" />
+          {t('events.show_holidays')}
+        </label>
+        {showHolidays && <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+          <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="h-3 w-3 rounded bg-hv-sage" />{t('events.event_legend')}</span>
+          <span className="inline-flex items-center gap-2"><Flag aria-hidden="true" size={14} className="text-hv-terracotta" />{t('events.holiday_legend')}</span>
+        </div>}
+      </div>
+
       {invalidDates && <p role="alert" className="mb-4 text-sm text-hv-crisis">{t('events.invalid_range')}</p>}
 
       <div className="grid grid-cols-1 gap-3 rounded-2xl border border-hv-green/15 bg-[#eaf0e9] p-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -191,11 +218,19 @@ export const EventsPage: React.FC = () => {
                             </button>
                             <ul className="space-y-1">
                               {entries.slice(0, 2).map(event => (
-                                <li key={event.id}>
-                                  <Link to={`/events/${event.id}`} title={event.name}
+                                <li key={`${event.kind}-${event.id}`}>
+                                  {event.kind === 'holiday' ? (
+                                    <button type="button" onClick={() => setSelectedDay(key)}
+                                      title={`${event.name} · ${t(`holidays.${event.category}`)}`}
+                                      aria-label={`${event.name}, ${t(`holidays.${event.category}`)}, ${fullDate(date)}`}
+                                      className={`flex w-full items-center gap-1 rounded bg-hv-terracotta/15 px-1.5 py-1 text-left text-[11px] leading-4 text-hv-green hover:bg-hv-terracotta/25 sm:text-xs ${FOCUS}`}>
+                                      <Flag aria-hidden="true" size={12} className="hidden shrink-0 text-hv-terracotta sm:block" />
+                                      <span className="truncate">{event.name}</span>
+                                    </button>
+                                  ) : <Link to={`/events/${event.id}`} title={event.name}
                                     className={`block truncate rounded bg-[#eaf0e9] px-1.5 py-1 text-[11px] leading-4 text-hv-green hover:bg-hv-terracotta/15 sm:text-xs ${FOCUS}`}>
                                     {event.name}
-                                  </Link>
+                                  </Link>}
                                 </li>
                               ))}
                             </ul>
@@ -230,12 +265,27 @@ export const EventsPage: React.FC = () => {
               <button type="button" onClick={() => refetch()} className={`mt-2 rounded px-2 py-1 underline ${FOCUS}`}>{t('events.retry')}</button>
             </div>
           )}
-          {!invalidDates && !(isLoading && hasRange) && !(isError && hasRange) && (
+          {!invalidDates && (agenda.length > 0 || (!(isLoading && hasRange) && !(isError && hasRange))) && (
             agenda.length === 0 ? <EmptyState message={t(selectedDay ? 'events.empty_day' : 'events.empty_month')} /> : (
               <ul className="space-y-3">
                 {agenda.map(event => (
-                  <li key={event.id}>
-                    <Link to={`/events/${event.id}`}
+                  <li key={`${event.kind}-${event.id}`}>
+                    {event.kind === 'holiday' ? (
+                      <article aria-label={event.name} className="flex items-start gap-3 rounded-xl border border-hv-terracotta/25 bg-hv-terracotta/5 p-3">
+                        <span aria-hidden="true" className="flex w-12 shrink-0 flex-col items-center rounded-lg bg-hv-terracotta/15 py-2 text-hv-green">
+                          <span className="font-serif text-2xl font-bold leading-none">{Number(event.eventDate.slice(8, 10))}</span>
+                          <span className="mt-1 text-xs font-medium uppercase">{shortMonth(event.eventDate)}</span>
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="break-words text-sm font-semibold text-hv-charcoal">{event.name}</h3>
+                          <p className="mt-1 flex items-center gap-1.5 text-xs text-hv-green">
+                            <Flag aria-hidden="true" size={13} className="shrink-0 text-hv-terracotta" />
+                            <span><span className="sr-only">{formatDateUTC(event.eventDate)}. </span>{t(`holidays.${event.category}`)}</span>
+                          </p>
+                          {event.description && <p className="mt-1 text-xs leading-relaxed text-hv-gray">{event.description}</p>}
+                        </div>
+                      </article>
+                    ) : <Link to={`/events/${event.id}`}
                       aria-labelledby={`agenda-event-${event.id}`}
                       aria-describedby={`agenda-description-${event.id}`}
                       className={`flex items-center gap-3 rounded-xl border border-hv-green/15 p-3 transition-colors hover:border-hv-green hover:bg-hv-page ${FOCUS}`}>
@@ -250,7 +300,7 @@ export const EventsPage: React.FC = () => {
                         </span>
                       </span>
                       <ChevronRight aria-hidden="true" size={18} className="shrink-0 text-hv-green" />
-                    </Link>
+                    </Link>}
                   </li>
                 ))}
               </ul>

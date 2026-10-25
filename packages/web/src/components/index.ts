@@ -4,6 +4,7 @@ export { Layout } from './Layout';
 export { RedirectRoute } from './RedirectRoute';
 export { SearchBar } from './SearchBar';
 export { ZScoreBadge } from './ZScoreBadge';
+export { NutritionStatusBadge } from './NutritionStatusBadge';
 export type { Role } from './RoleGate';
 
 export { StatStrip } from './StatStrip';

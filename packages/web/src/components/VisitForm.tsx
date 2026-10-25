@@ -1,3 +1,4 @@
+import { NUTRITION_STATUS_STYLE } from '../utils/nutritionStatus';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -76,12 +77,6 @@ const FIELD =
 const LABEL = 'block text-sm font-medium text-hv-charcoal mb-1';
 const SECTION = 'text-lg font-semibold text-hv-green';
 
-const STATUS_COLOR: Record<NutritionalStatus, string> = {
-  SEVERE: 'bg-red-600 text-white',
-  MODERATE: 'bg-red-400 text-white',
-  MILD: 'bg-yellow-500 text-white',
-  NORMAL: 'bg-green-500 text-white',
-};
 
 const todayLocal = (): string => {
   const now = new Date();
@@ -744,7 +739,7 @@ const NutritionReadout: React.FC<NutritionReadoutProps> = ({
           <span
             data-testid="live-nutritional-status"
             className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              STATUS_COLOR[live.nutritionalStatus]
+              NUTRITION_STATUS_STYLE[live.nutritionalStatus].badge
             }`}
           >
             {statusLabel(live.nutritionalStatus)}
@@ -753,7 +748,10 @@ const NutritionReadout: React.FC<NutritionReadoutProps> = ({
 
         {previous?.nutritionalStatus && (
           <span className="text-sm text-hv-gray">
-            {t('visit.was_status')} {statusLabel(previous.nutritionalStatus)}
+            {t('visit.was_status')}{' '}
+            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${NUTRITION_STATUS_STYLE[previous.nutritionalStatus].badge}`}>
+              {statusLabel(previous.nutritionalStatus)}
+            </span>
             {delta !== null && basis && (
               <span className="ml-1 tabular-nums">
                 ({delta > 0 ? '+' : ''}

@@ -1,3 +1,4 @@
+import { NUTRITION_STATUS_STYLE } from '../utils/nutritionStatus';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarPlus } from 'lucide-react';
@@ -47,12 +48,6 @@ interface Column {
   render: (row: RosterRow) => React.ReactNode;
 }
 
-const STATUS_TONE: Record<NutritionalStatus, string> = {
-  SEVERE: 'bg-red-100 text-red-800',
-  MODERATE: 'bg-orange-100 text-orange-800',
-  MILD: 'bg-amber-100 text-amber-800',
-  NORMAL: 'bg-green-100 text-green-800',
-};
 const STATUS_LABEL: Record<NutritionalStatus, TranslationKey> = {
   SEVERE: 'nutritional_status.severe',
   MODERATE: 'nutritional_status.moderate',
@@ -75,7 +70,7 @@ export const formatSubjectAge = (birthDate?: string | null): string | null => {
 const NutritionalStatusBadge: React.FC<{ status: NutritionalStatus }> = ({ status }) => {
   const { t } = useTranslation();
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_TONE[status]}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${NUTRITION_STATUS_STYLE[status].badge}`}>
       {t(STATUS_LABEL[status])}
     </span>
   );

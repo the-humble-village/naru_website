@@ -156,6 +156,7 @@ describe('EventsPage calendar and agenda', () => {
     const user = userEvent.setup();
     serveEvents([]);
     renderPage();
+    await user.click(screen.getByRole('checkbox', { name: 'Show Guatemalan holidays' }));
     expect(await screen.findByText('No events match this month and these filters.')).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'October 2026' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'October 13, 2026' }));
@@ -189,5 +190,63 @@ describe('EventsPage calendar and agenda', () => {
     expect(screen.getByLabelText('Desde')).toBeInTheDocument();
     expect(spanishAgenda.getByText('1 visita vinculada')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mes siguiente' })).toBeInTheDocument();
+    expect(spanishAgenda.getByRole('article', { name: 'Día de la Revolución' })).toHaveTextContent('Asueto nacional');
+  });
+
+  it('shows holidays with events and opens a holiday’s day without navigating to an event record', async () => {
+    const user = userEvent.setup();
+    serveEvents([...events, { ...events[0]!, id: 3, name: 'Community gathering', eventDate: '2026-10-20' }]);
+    renderPage();
+    await agenda().findByRole('link', { name: 'Community gathering' });
+    expect(agenda().getByRole('article', { name: 'Revolution Day' })).toHaveTextContent('National holiday');
+    expect(agenda().getByRole('article', { name: 'Children’s Day' })).toHaveTextContent('Observance');
+    const holiday = within(screen.getByRole('table')).getByRole('button', { name: 'Revolution Day, National holiday, October 20, 2026' });
+    await user.click(holiday);
+    const day = within(screen.getByRole('region', { name: 'October 20, 2026' }));
+    expect(day.getByRole('article', { name: 'Revolution Day' })).toBeInTheDocument();
+    expect(day.getByRole('link', { name: 'Community gathering' })).toHaveAttribute('href', '/events/3');
+    expect(day.getAllByRole('link')).toHaveLength(1);
+    expect(day.getByRole('article')).not.toHaveTextContent('linked visits');
+  });
+
+  it('filters holiday dates and allows hiding them while preserving user events', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await agenda().findByRole('link', { name: 'donut party' });
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-13' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-24' } });
+    expect(agenda().queryByRole('article', { name: 'Children’s Day' })).not.toBeInTheDocument();
+    expect(agenda().getByRole('article', { name: 'Revolution Day' })).toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Show Guatemalan holidays' }));
+    expect(agenda().queryByRole('article')).not.toBeInTheDocument();
+    expect(agenda().getAllByRole('link')).toHaveLength(2);
+    await user.click(screen.getByRole('checkbox', { name: 'Show Guatemalan holidays' }));
+    expect(agenda().getAllByRole('article')).toHaveLength(1);
+  });
+
+  it('searches holiday names in either language without requiring accents', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByRole('searchbox'), 'revolucion');
+    await waitFor(() => expect(agenda().getAllByRole('article')).toHaveLength(1));
+    expect(agenda().getByRole('article', { name: 'Revolution Day' })).toBeInTheDocument();
+    await waitFor(() => expect(agenda().queryByRole('link')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Clear event search' }));
+    expect(agenda().getAllByRole('article')).toHaveLength(2);
+  });
+
+  it('shows holidays in a new year and displays the correct Holy Week dates', async () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2027-01-01' } });
+    expect(agenda().getByRole('article', { name: 'New Year’s Day' })).toHaveTextContent('1/1/2027');
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2027-03-01' } });
+    expect(within(screen.getByRole('table')).getByRole('button', { name: 'Holy Thursday, National holiday, March 25, 2027' })).toBeInTheDocument();
+  });
+
+  it('keeps holiday references visible when event loading fails', async () => {
+    mockEventsApi.listEvents.mockRejectedValue(new Error('offline'));
+    renderPage();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load events.');
+    expect(agenda().getByRole('article', { name: 'Revolution Day' })).toBeInTheDocument();
   });
 });

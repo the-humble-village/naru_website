@@ -54,7 +54,7 @@ const nutrition: ProgramRead = {
 
 const midwives: ProgramRead = {
   id: 2,
-  name: 'Midwives',
+  name: 'Midwife Circle',
   kind: 'MIDWIFE',
   subjectType: 'PERSON',
   description: null,
@@ -99,8 +99,8 @@ describe('AdminProgramsPage', () => {
     renderPage();
 
     await screen.findByRole('table');
-    expect(within(rowFor('Nutrition Infant')).getByText('30 admin.program_days_short')).toBeInTheDocument();
-    expect(within(rowFor('Midwives')).getByText('admin.program_never_overdue')).toBeInTheDocument();
+    expect(within(rowFor('Nutrition Infant')).getByText('30 days')).toBeInTheDocument();
+    expect(within(rowFor('Midwife Circle')).getByText('Never overdue')).toBeInTheDocument();
     expect(programsApi.listPrograms).toHaveBeenCalledWith({});
   });
 
@@ -121,9 +121,9 @@ describe('AdminProgramsPage', () => {
     renderPage();
     await screen.findByRole('table');
 
-    await user.click(screen.getByRole('button', { name: /admin.program_add/ }));
+    await user.click(screen.getByRole('button', { name: /Add program/ }));
     await user.type(screen.getByLabelText(/Name/), 'Youth 2026');
-    await user.selectOptions(screen.getByLabelText(/admin.program_kind/), 'STUDENT');
+    await user.selectOptions(screen.getByLabelText(/Kind/), 'STUDENT');
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => {
@@ -141,9 +141,9 @@ describe('AdminProgramsPage', () => {
 
     await user.click(within(rowFor('Nutrition Infant')).getByRole('button', { name: 'Edit' }));
 
-    expect(screen.queryByRole('combobox', { name: /admin.program_kind/ })).not.toBeInTheDocument();
-    expect(screen.getByText('admin.program_kind_locked')).toBeInTheDocument();
-    expect(screen.getByText('admin.program_subject_locked')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /Kind/ })).not.toBeInTheDocument();
+    expect(screen.getByText('The kind cannot be changed once the program exists.')).toBeInTheDocument();
+    expect(screen.getByText('The subject is set by the kind.')).toBeInTheDocument();
   });
 
   it('omits kind and subject type from the update payload', async () => {
@@ -172,7 +172,7 @@ describe('AdminProgramsPage', () => {
     await screen.findByRole('table');
 
     await user.click(
-      within(rowFor('Nutrition Infant')).getByRole('button', { name: 'admin.program_deactivate' })
+      within(rowFor('Nutrition Infant')).getByRole('button', { name: 'Deactivate' })
     );
 
     await waitFor(() => {
@@ -199,7 +199,7 @@ describe('AdminProgramsPage', () => {
 
     await user.click(
       within(screen.getByRole('dialog')).getByRole('button', {
-        name: 'admin.program_deactivate_instead',
+        name: 'Deactivate instead',
       })
     );
 

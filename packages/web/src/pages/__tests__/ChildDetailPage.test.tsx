@@ -249,7 +249,7 @@ describe('ChildDetailPage', () => {
   it('renders the nutrition weight trend from persisted visit values', async () => {
     renderPage();
 
-    const chart = await screen.findByRole('img', { name: 'profile.weight_trend' });
+    const chart = await screen.findByRole('img', { name: 'Weight trend' });
     const trend = chart.closest('div')?.parentElement as HTMLElement;
 
     expect(within(trend).getByText('5.4 kg')).toBeInTheDocument();
@@ -287,8 +287,8 @@ describe('ChildDetailPage', () => {
 
     renderPage();
 
-    const search = await screen.findByLabelText('children.link_mother');
-    expect(screen.getByText(/children\.no_mother/)).toBeInTheDocument();
+    const search = await screen.findByLabelText('Link a mother');
+    expect(screen.getByText(/No mother on file/)).toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: 'Ana' } });
 
@@ -303,7 +303,7 @@ describe('ChildDetailPage', () => {
 
     await waitFor(() => expect(screen.getByText('José Ramírez')).toBeInTheDocument());
 
-    const visitLinks = await screen.findAllByRole('link', { name: /enrollment\.add_visit/ });
+    const visitLinks = await screen.findAllByRole('link', { name: /Add visit/ });
     expect(visitLinks).toHaveLength(1);
     expect(visitLinks[0]).toHaveAttribute('href', '/enrollments/44/visits/new');
   });

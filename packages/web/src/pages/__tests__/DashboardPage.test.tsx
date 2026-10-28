@@ -308,16 +308,16 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('dash.stat_enrolled')).toBeInTheDocument();
+      expect(screen.getByText('Enrolled')).toBeInTheDocument();
     });
 
     await waitFor(() => {
-      expect(statValue('dash.stat_new_this_month')).toContain('18');
+      expect(statValue('New this month')).toContain('18');
     });
 
-    expect(statValue('dash.stat_enrolled')).toContain('127');
-    expect(statValue('dash.stat_graduated')).toContain('9');
-    expect(statValue('dash.stat_overdue')).toContain('1');
+    expect(statValue('Enrolled')).toContain('127');
+    expect(statValue('Graduated')).toContain('9');
+    expect(statValue('Overdue')).toContain('1');
   });
 
   it('lists overdue visits, deteriorating status and the unenrolled backlog under needs attention', async () => {
@@ -331,7 +331,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Ana Morales').closest('a')).toHaveAttribute('href', '/enrollments/11');
 
     await waitFor(() => {
-      expect(screen.getByText(/visit\.worsening/)).toBeInTheDocument();
+      expect(screen.getByText(/Worsening/)).toBeInTheDocument();
     });
 
     const backlog = screen.getByText('38 people not enrolled in any program');

@@ -260,7 +260,7 @@ describe('MotherDetailPage', () => {
 
     const card = await screen.findByRole('link', { name: /Expectant Mother/ });
     expect(card).toHaveAttribute('href', '/enrollments/77');
-    expect(screen.getByRole('link', { name: /enrollment.add_visit/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Add visit/ })).toHaveAttribute(
       'href',
       '/enrollments/77/visits/new'
     );
@@ -304,6 +304,6 @@ describe('MotherDetailPage', () => {
   it('shows an error when the mother fails to load', async () => {
     vi.mocked(fetchMother).mockRejectedValue(new Error('boom'));
     renderPage();
-    await waitFor(() => expect(screen.getByText('mothers.load_failed')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Could not load mothers.')).toBeInTheDocument());
   });
 });

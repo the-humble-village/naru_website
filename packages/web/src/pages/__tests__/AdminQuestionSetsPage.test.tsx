@@ -147,7 +147,7 @@ describe('AdminQuestionSetsPage', () => {
     await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
     expect(within(setsTable()).getByText('Nutrition Infant')).toBeInTheDocument();
     const sharedRow = within(setsTable()).getByText('Household basics').closest('tr') as HTMLElement;
-    expect(within(sharedRow).getByText('admin.qs_all_programs')).toBeInTheDocument();
+    expect(within(sharedRow).getByText('All programs')).toBeInTheDocument();
   });
 
   it('asks the API for an exact program match, without shared sets', async () => {
@@ -155,7 +155,7 @@ describe('AdminQuestionSetsPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
 
-    await user.selectOptions(screen.getByLabelText('admin.qs_filter_program'), '3');
+    await user.selectOptions(screen.getByLabelText('Filter by program'), '3');
 
     await waitFor(() => {
       expect(questionSetsApi.listQuestionSets).toHaveBeenCalledWith({ programId: 3 });
@@ -185,7 +185,7 @@ describe('AdminQuestionSetsPage', () => {
     const row = within(setsTable()).getByText('Monthly nutrition').closest('tr') as HTMLElement;
     await user.click(within(row).getByRole('button', { name: 'Edit' }));
 
-    await user.click(screen.getAllByRole('button', { name: 'admin.qs_move_up' })[1] as HTMLElement);
+    await user.click(screen.getAllByRole('button', { name: 'Move up' })[1] as HTMLElement);
     await user.click(screen.getByRole('button', { name: 'Update Set' }));
 
     await waitFor(() => {
@@ -248,13 +248,13 @@ describe('AdminQuestionSetsPage', () => {
     await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
 
     await user.click(screen.getByRole('button', { name: '+ Add Question' }));
-    expect(screen.queryByLabelText('admin.question_choice 1')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Choice 1')).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/Title/), 'Water source');
-    await user.selectOptions(screen.getByLabelText('admin.question_answer_type'), 'CHOICE');
-    expect(screen.getByLabelText('admin.question_choice 1')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Answer type'), 'CHOICE');
+    expect(screen.getByLabelText('Choice 1')).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('admin.question_choice 1'), 'Well');
+    await user.type(screen.getByLabelText('Choice 1'), 'Well');
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => {
@@ -275,11 +275,11 @@ describe('AdminQuestionSetsPage', () => {
     await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
 
     const row = within(questionsTable()).getByText('Water source').closest('tr') as HTMLElement;
-    await user.click(within(row).getByRole('button', { name: 'admin.question_retire' }));
+    await user.click(within(row).getByRole('button', { name: 'Retire' }));
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('admin.question_retire_title')).toBeInTheDocument();
-    expect(within(dialog).getByText('admin.question_retire_warning')).toBeInTheDocument();
+    expect(within(dialog).getByText('Retire question')).toBeInTheDocument();
+    expect(within(dialog).getByText('The question stops appearing on new visit forms. Answers already recorded are kept and stay readable.')).toBeInTheDocument();
     expect(questionsApi.deleteQuestion).not.toHaveBeenCalled();
   });
 });

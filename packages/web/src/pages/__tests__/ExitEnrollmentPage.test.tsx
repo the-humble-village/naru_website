@@ -172,32 +172,32 @@ describe('ExitEnrollmentPage', () => {
   it('renders the header context and the summary block', async () => {
     renderPage();
 
-    expect(await screen.findByText(/exit.enrolled/)).toBeInTheDocument();
+    expect(await screen.findByText(/Enrolled/)).toBeInTheDocument();
     expect(await screen.findByText('2026-05-02')).toBeInTheDocument();
     expect(screen.getByText(/18/)).toBeInTheDocument();
     expect(screen.getByTestId('exit-summary')).toBeInTheDocument();
-    expect(screen.getByText('nutritional_status.moderate')).toBeInTheDocument();
+    expect(screen.getByText('Moderate')).toBeInTheDocument();
   });
 
   it('requires a reason and refuses to submit without one', async () => {
     renderPage();
 
-    await screen.findByLabelText(/exit.exit_date/);
-    fireEvent.click(screen.getByRole('button', { name: 'exit.submit' }));
+    await screen.findByLabelText(/Exit date/);
+    fireEvent.click(screen.getByRole('button', { name: 'Record exit' }));
 
-    expect(await screen.findByText('exit.reason_required')).toBeInTheDocument();
+    expect(await screen.findByText('A reason is required.')).toBeInTheDocument();
     expect(mockExitEnrollment).not.toHaveBeenCalled();
   });
 
   it('refuses an exit date earlier than the admission date', async () => {
     renderPage();
 
-    const dateInput = await screen.findByLabelText(/exit.exit_date/);
+    const dateInput = await screen.findByLabelText(/Exit date/);
     fireEvent.change(dateInput, { target: { value: '2026-04-01' } });
-    fireEvent.change(screen.getByLabelText(/exit.reason/), { target: { value: 'GRADUATED' } });
-    fireEvent.click(screen.getByRole('button', { name: 'exit.submit' }));
+    fireEvent.change(screen.getByLabelText(/Reason/), { target: { value: 'GRADUATED' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Record exit' }));
 
-    expect(await screen.findByText('exit.date_before_admission')).toBeInTheDocument();
+    expect(await screen.findByText('The exit date cannot be before the admission date.')).toBeInTheDocument();
     expect(mockExitEnrollment).not.toHaveBeenCalled();
   });
 
@@ -205,12 +205,12 @@ describe('ExitEnrollmentPage', () => {
     mockExitEnrollment.mockResolvedValue({ ...enrollment, exitedAt: '2026-09-20' });
     renderPage();
 
-    const dateInput = await screen.findByLabelText(/exit.exit_date/);
+    const dateInput = await screen.findByLabelText(/Exit date/);
     fireEvent.change(dateInput, { target: { value: '2026-09-20' } });
-    fireEvent.change(screen.getByLabelText(/exit.reason/), { target: { value: 'GRADUATED' } });
-    fireEvent.change(screen.getByLabelText('exit.exit_weight_kg'), { target: { value: '6.4' } });
+    fireEvent.change(screen.getByLabelText(/Reason/), { target: { value: 'GRADUATED' } });
+    fireEvent.change(screen.getByLabelText('Exit weight (kg)'), { target: { value: '6.4' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'exit.submit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record exit' }));
 
     await waitFor(() => expect(mockExitEnrollment).toHaveBeenCalledTimes(1));
     expect(mockExitEnrollment.mock.calls[0]![0]).toBe(42);
@@ -220,22 +220,22 @@ describe('ExitEnrollmentPage', () => {
       exitWeight: 6.4,
     });
 
-    expect(await screen.findByText('exit.success_undo_hint')).toBeInTheDocument();
+    expect(await screen.findByText('A supervisor can reopen this enrollment if it was ended by mistake.')).toBeInTheDocument();
   });
 
   it('asks for confirmation before recording a death', async () => {
     mockExitEnrollment.mockResolvedValue({ ...enrollment, exitedAt: '2026-09-20' });
     renderPage();
 
-    const dateInput = await screen.findByLabelText(/exit.exit_date/);
+    const dateInput = await screen.findByLabelText(/Exit date/);
     fireEvent.change(dateInput, { target: { value: '2026-09-20' } });
-    fireEvent.change(screen.getByLabelText(/exit.reason/), { target: { value: 'DIED' } });
-    fireEvent.click(screen.getByRole('button', { name: 'exit.submit' }));
+    fireEvent.change(screen.getByLabelText(/Reason/), { target: { value: 'DIED' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Record exit' }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(mockExitEnrollment).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'exit.confirm_died_button' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, record the death' }));
 
     await waitFor(() => expect(mockExitEnrollment).toHaveBeenCalledTimes(1));
     expect(mockExitEnrollment.mock.calls[0]![1]).toMatchObject({ exitReason: 'DIED' });

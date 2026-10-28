@@ -206,12 +206,12 @@ describe('EnrollmentDetailPage', () => {
     expect(await screen.findByRole('heading', { name: 'Nutrition Infant' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'Ana Lopez' })).toBeInTheDocument();
     expect(screen.getByText('2026-05-02')).toBeInTheDocument();
-    expect(screen.getByText('enrollment.active')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
 
     expect(await screen.findByText('2026-06-01')).toBeInTheDocument();
-    const addVisit = screen.getAllByRole('link', { name: 'enrollment.add_visit' })[0];
+    const addVisit = screen.getAllByRole('link', { name: 'Add visit' })[0];
     expect(addVisit).toHaveAttribute('href', '/enrollments/42/visits/new');
-    expect(screen.getByRole('link', { name: 'enrollment.exit' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Exit' })).toHaveAttribute(
       'href',
       '/enrollments/42/exit'
     );
@@ -223,9 +223,9 @@ describe('EnrollmentDetailPage', () => {
     await screen.findByRole('heading', { name: 'Nutrition Infant' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
-    expect(await screen.findByLabelText(/enroll.admission_date/)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/enroll.program/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/enroll.subject/)).not.toBeInTheDocument();
+    expect(await screen.findByLabelText(/Admission date/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Program/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Subject/)).not.toBeInTheDocument();
   });
 
   it('saves edited admission fields through updateEnrollment', async () => {
@@ -235,7 +235,7 @@ describe('EnrollmentDetailPage', () => {
     await screen.findByRole('heading', { name: 'Nutrition Infant' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
-    const weight = await screen.findByLabelText('enroll.entry_weight_kg');
+    const weight = await screen.findByLabelText('Entry weight (kg)');
     fireEvent.change(weight, { target: { value: '3.4' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -258,10 +258,10 @@ describe('EnrollmentDetailPage', () => {
 
     renderPage();
 
-    expect((await screen.findAllByText('exit_reason.graduated'))[0]).toBeInTheDocument();
+    expect((await screen.findAllByText('Graduated'))[0]).toBeInTheDocument();
     expect(screen.getByText('2026-09-20')).toBeInTheDocument();
     expect(screen.getByText('Discharged well')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'enrollment.reopen' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'enrollment.exit' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reopen' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Exit' })).not.toBeInTheDocument();
   });
 });

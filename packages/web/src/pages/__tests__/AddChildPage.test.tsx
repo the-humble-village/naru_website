@@ -109,10 +109,10 @@ describe('AddChildPage', () => {
   it('offers community, mother and family as optional fields', async () => {
     renderPage();
 
-    expect(await screen.findByLabelText(/form\.name/)).toBeInTheDocument();
-    expect(screen.getByLabelText('form.community')).toBeInTheDocument();
-    expect(screen.getByLabelText('form.family')).toBeInTheDocument();
-    expect(screen.getByLabelText('form.mother')).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Name/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Community')).toBeInTheDocument();
+    expect(screen.getByLabelText('Family')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mother')).toBeInTheDocument();
   });
 
   it('admits a child with no mother and no family', async () => {
@@ -121,8 +121,8 @@ describe('AddChildPage', () => {
 
     renderPage();
 
-    await user.type(await screen.findByLabelText(/form\.name/), 'Jose Ramirez');
-    await user.type(screen.getByLabelText(/form\.birth_date/), '2026-05-01');
+    await user.type(await screen.findByLabelText(/Name/), 'Jose Ramirez');
+    await user.type(screen.getByLabelText(/Date of birth/), '2026-05-01');
     await user.click(screen.getByRole('button', { name: 'Add Child' }));
 
     await waitFor(() => {

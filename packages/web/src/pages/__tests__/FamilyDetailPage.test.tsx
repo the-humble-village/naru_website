@@ -254,7 +254,7 @@ describe('FamilyDetailPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('families.no_members')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('No members are linked to this family yet.')).toBeInTheDocument());
   });
 
   it('renders the PAF enrollment card with its own visit action', async () => {
@@ -264,7 +264,7 @@ describe('FamilyDetailPage', () => {
       'href',
       '/enrollments/33'
     );
-    expect(screen.getByRole('link', { name: /enrollment\.add_visit/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Add visit/ })).toHaveAttribute(
       'href',
       '/enrollments/33/visits/new'
     );
@@ -305,6 +305,6 @@ describe('FamilyDetailPage', () => {
   it('shows an error when the family fails to load', async () => {
     vi.mocked(fetchFamily).mockRejectedValue(new Error('boom'));
     renderPage();
-    await waitFor(() => expect(screen.getByText('families.load_failed')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Could not load the family.')).toBeInTheDocument());
   });
 });

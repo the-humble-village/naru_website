@@ -283,8 +283,8 @@ describe('AdminLookupsPage', () => {
 
       const table = await screen.findByRole('table');
       expect(within(rowFor('Community 1')).getByText('Clinic Alpha')).toBeInTheDocument();
-      expect(within(table).getAllByText('admin.community_no_site').length).toBeGreaterThan(0);
-      expect(screen.getByText('admin.communities_missing_site')).toBeInTheDocument();
+      expect(within(table).getAllByText('No site').length).toBeGreaterThan(0);
+      expect(screen.getByText(/communities have no site/)).toBeInTheDocument();
     });
 
     it('hides the banner once every community has a site', async () => {
@@ -296,7 +296,7 @@ describe('AdminLookupsPage', () => {
       renderWithProviders(<AdminLookupsPage />);
       await screen.findByRole('table');
 
-      expect(screen.queryByText('admin.communities_missing_site')).not.toBeInTheDocument();
+      expect(screen.queryByText(/communities have no site/)).not.toBeInTheDocument();
     });
 
     it('sends the selected site when creating a community', async () => {
@@ -342,7 +342,7 @@ describe('AdminLookupsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /Add/ }));
       await user.type(screen.getByLabelText(/Title/), 'Seeds');
-      await user.type(screen.getByLabelText('admin.resource_default_unit'), 'kg');
+      await user.type(screen.getByLabelText('Default unit'), 'kg');
       await user.click(screen.getByRole('button', { name: 'Create' }));
 
       await waitFor(() => {

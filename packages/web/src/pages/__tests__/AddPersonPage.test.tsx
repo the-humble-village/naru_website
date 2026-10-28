@@ -63,8 +63,8 @@ describe('AddPersonPage', () => {
   it('renders the form', async () => {
     renderPage();
 
-    expect(await screen.findByLabelText(/form\.name/)).toBeInTheDocument();
-    expect(screen.getByLabelText('form.sex')).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Name/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Sex')).toBeInTheDocument();
   });
 
   it('creates a person with only a name', async () => {
@@ -84,8 +84,8 @@ describe('AddPersonPage', () => {
 
     renderPage();
 
-    await user.type(await screen.findByLabelText(/form\.name/), 'Carmen Say');
-    await user.click(screen.getByRole('button', { name: 'people.add' }));
+    await user.type(await screen.findByLabelText(/Name/), 'Carmen Say');
+    await user.click(screen.getByRole('button', { name: 'Add person' }));
 
     await waitFor(() => {
       expect(peopleApi.createPerson).toHaveBeenCalledWith(

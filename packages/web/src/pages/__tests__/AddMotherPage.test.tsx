@@ -107,9 +107,9 @@ describe('AddMotherPage', () => {
   it('renders the form with name as the only required field', async () => {
     renderPage();
 
-    expect(await screen.findByLabelText(/form\.name/)).toBeInTheDocument();
-    expect(screen.getByLabelText('form.birth_date')).not.toBeRequired();
-    expect(screen.getByLabelText('form.community')).not.toBeRequired();
+    expect(await screen.findByLabelText(/Name/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Date of birth')).not.toBeRequired();
+    expect(screen.getByLabelText('Community')).not.toBeRequired();
   });
 
   it('creates a mother with only a name', async () => {
@@ -134,8 +134,8 @@ describe('AddMotherPage', () => {
 
     renderPage();
 
-    await user.type(await screen.findByLabelText(/form\.name/), 'Ana Perez');
-    await user.click(screen.getByRole('button', { name: 'mothers.add' }));
+    await user.type(await screen.findByLabelText(/Name/), 'Ana Perez');
+    await user.click(screen.getByRole('button', { name: 'Add mother' }));
 
     await waitFor(() => {
       expect(mothersApi.createMother).toHaveBeenCalledWith(
@@ -148,8 +148,8 @@ describe('AddMotherPage', () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByLabelText(/form\.name/);
-    await user.click(screen.getByRole('button', { name: 'mothers.add' }));
+    await screen.findByLabelText(/Name/);
+    await user.click(screen.getByRole('button', { name: 'Add mother' }));
 
     await waitFor(() => {
       expect(mothersApi.createMother).not.toHaveBeenCalled();

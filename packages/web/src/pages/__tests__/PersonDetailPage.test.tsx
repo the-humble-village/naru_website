@@ -238,6 +238,6 @@ describe('PersonDetailPage', () => {
   it('shows an error when the person fails to load', async () => {
     vi.mocked(fetchPerson).mockRejectedValue(new Error('boom'));
     renderPage();
-    await waitFor(() => expect(screen.getByText('people.load_failed')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Could not load people.')).toBeInTheDocument());
   });
 });

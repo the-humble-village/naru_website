@@ -132,39 +132,39 @@ describe('EnrollPage', () => {
   it('opens on step 1 with the subject picker when no subject is in the query string', async () => {
     renderPage('/programs/1/enroll');
 
-    expect(await screen.findByText(/enroll.step_1_of_2/)).toBeInTheDocument();
-    expect(screen.getByLabelText('subject_picker.search')).toBeInTheDocument();
+    expect(await screen.findByText(/Step 1 of 2/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(mockFetchChild).not.toHaveBeenCalled();
   });
 
   it('skips step 1 and opens on step 2 when the subject arrives in the query string', async () => {
     renderPage('/programs/1/enroll?childId=5');
 
-    expect(await screen.findByText(/enroll.step_2_of_2/)).toBeInTheDocument();
+    expect(await screen.findByText(/Step 2 of 2/)).toBeInTheDocument();
     expect(await screen.findByText('Ana Lopez')).toBeInTheDocument();
-    expect(screen.getByLabelText(/enroll.admission_date/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Admission date/)).toBeInTheDocument();
     expect(mockFetchChild).toHaveBeenCalledWith(5);
   });
 
   it('ignores a subject param whose key does not match the program subject type', async () => {
     renderPage('/programs/1/enroll?motherId=9');
 
-    expect(await screen.findByText(/enroll.step_1_of_2/)).toBeInTheDocument();
-    expect(screen.getByLabelText('subject_picker.search')).toBeInTheDocument();
+    expect(await screen.findByText(/Step 1 of 2/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
   });
 
   it('renders the nutrition block and computes the status live', async () => {
     renderPage('/programs/1/enroll?childId=5');
 
-    const admissionDate = await screen.findByLabelText(/enroll.admission_date/);
+    const admissionDate = await screen.findByLabelText(/Admission date/);
     fireEvent.change(admissionDate, { target: { value: '2026-09-01' } });
 
-    fireEvent.change(screen.getByLabelText('enroll.entry_weight_kg'), {
+    fireEvent.change(screen.getByLabelText('Entry weight (kg)'), {
       target: { value: '3.1' },
     });
 
-    expect(screen.getByLabelText('enroll.length_mm')).toBeInTheDocument();
-    expect(screen.getByLabelText('enrollment.caretaker')).toBeInTheDocument();
+    expect(screen.getByLabelText('Length at admission (mm)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Caretaker')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByTestId('live-nutritional-status')).toBeInTheDocument();
@@ -175,16 +175,16 @@ describe('EnrollPage', () => {
     mockCreateEnrollment.mockResolvedValue({ id: 42 });
     renderPage('/programs/1/enroll?childId=5');
 
-    const admissionDate = await screen.findByLabelText(/enroll.admission_date/);
+    const admissionDate = await screen.findByLabelText(/Admission date/);
     fireEvent.change(admissionDate, { target: { value: '2026-09-01' } });
-    fireEvent.change(screen.getByLabelText('enroll.entry_weight_kg'), {
+    fireEvent.change(screen.getByLabelText('Entry weight (kg)'), {
       target: { value: '3.1' },
     });
-    fireEvent.change(screen.getByLabelText('enrollment.caretaker'), {
+    fireEvent.change(screen.getByLabelText('Caretaker'), {
       target: { value: 'Juana' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'enroll.submit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enroll' }));
 
     await waitFor(() => expect(mockCreateEnrollment).toHaveBeenCalledTimes(1));
 

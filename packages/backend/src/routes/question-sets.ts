@@ -1,72 +1,71 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { QuestionSetCreateSchema, QuestionSetUpdateSchema, type UserRead, type TokenPayload } from '@naru/shared';
+import {
+  QuestionSetCreateSchema,
+  QuestionSetUpdateSchema,
+  type UserRead,
+  type TokenPayload,
+} from '@naru/shared';
 import { auth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/role.js';
 import * as questionSetService from '../services/question-set.service.js';
 
 type Variables = { user: UserRead; tokenPayload: TokenPayload };
-
 const app = new Hono<{ Variables: Variables }>();
 
-const visitTypeSchema = z.object({
-  visitType: z.enum(['child', 'parent', 'family']),
+const IdParamSchema = z.object({ id: z.string().transform(Number) });
+
+const ListQuerySchema = z.object({
+  programId: z.string().optional(),
+  includeShared: z.enum(['true', 'false']).optional(),
 });
 
-const visitTypeIdSchema = visitTypeSchema.extend({
-  id: z.string().transform((v) => parseInt(v, 10)),
+function toInt(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? undefined : parsed;
+}
+
+/**
+ * GET /question-sets?programId=3&includeShared=true
+ * The visit form passes includeShared; the admin screen does not.
+ */
+app.get('/', auth, zValidator('query', ListQuerySchema), async (c) => {
+  const query = c.req.valid('query');
+
+  return c.json(
+    await questionSetService.listQuestionSets({
+      programId: toInt(query.programId),
+      includeShared: query.includeShared === 'true',
+    })
+  );
 });
 
-/** GET /question-sets/:visitType — list all sets */
-app.get('/:visitType', auth, zValidator('param', visitTypeSchema), async (c) => {
-  const { visitType } = c.req.valid('param');
-  const sets = await questionSetService.listQuestionSets(visitType);
-  return c.json(sets);
+app.get('/:id', auth, zValidator('param', IdParamSchema), async (c) => {
+  return c.json(await questionSetService.getQuestionSet(c.req.valid('param').id));
 });
 
-/** GET /question-sets/:visitType/:id — get one set */
-app.get('/:visitType/:id', auth, zValidator('param', visitTypeIdSchema), async (c) => {
-  const { visitType, id } = c.req.valid('param');
-  const set = await questionSetService.getQuestionSet(visitType, id);
-  return c.json(set);
+app.post('/', auth, requireAdmin, zValidator('json', QuestionSetCreateSchema), async (c) => {
+  return c.json(await questionSetService.createQuestionSet(c.req.valid('json')), 201);
 });
 
-/** POST /question-sets/:visitType — create a set */
-app.post(
-  '/:visitType',
-  auth,
-  requireAdmin,
-  zValidator('param', visitTypeSchema),
-  zValidator('json', QuestionSetCreateSchema),
-  async (c) => {
-    const { visitType } = c.req.valid('param');
-    const data = c.req.valid('json');
-    const set = await questionSetService.createQuestionSet(visitType, data);
-    return c.json(set, 201);
-  }
-);
-
-/** PUT /question-sets/:visitType/:id — update a set */
 app.put(
-  '/:visitType/:id',
+  '/:id',
   auth,
   requireAdmin,
-  zValidator('param', visitTypeIdSchema),
+  zValidator('param', IdParamSchema),
   zValidator('json', QuestionSetUpdateSchema),
   async (c) => {
-    const { visitType, id } = c.req.valid('param');
-    const data = c.req.valid('json');
-    const set = await questionSetService.updateQuestionSet(visitType, id, data);
-    return c.json(set);
+    return c.json(
+      await questionSetService.updateQuestionSet(c.req.valid('param').id, c.req.valid('json'))
+    );
   }
 );
 
-/** DELETE /question-sets/:visitType/:id — soft delete */
-app.delete('/:visitType/:id', auth, requireAdmin, zValidator('param', visitTypeIdSchema), async (c) => {
-  const { visitType, id } = c.req.valid('param');
-  await questionSetService.deleteQuestionSet(visitType, id);
-  return c.json({ message: 'Deleted' });
+app.delete('/:id', auth, requireAdmin, zValidator('param', IdParamSchema), async (c) => {
+  await questionSetService.deleteQuestionSet(c.req.valid('param').id);
+  return c.json({ message: 'Question set deleted successfully' });
 });
 
 export default app;

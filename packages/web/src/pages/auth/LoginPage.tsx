@@ -70,7 +70,14 @@ export const LoginPage: React.FC = () => {
       navigate('/');
     } catch (error: any) {
       console.error('Login error:', error);
-      const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
+      // app.ts's onError responds with `{ error }`; `message` is only produced by
+      // test harnesses that build their own handler. Reading `message` alone meant
+      // every failure fell through to the generic text below — which is roughly
+      // right for a 401 but actively misleading for the 429 the rate limiter
+      // returns, where the credentials may be fine and the user just has to wait.
+      const data = error.response?.data;
+      const message =
+        data?.error || data?.message || 'Login failed. Please check your credentials.';
       setApiError(message);
     } finally {
       setIsLoading(false);

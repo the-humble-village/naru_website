@@ -1,139 +1,204 @@
 import { HTTPException } from 'hono/http-exception';
-import { type QuestionSetCreate, type QuestionSetUpdate, type QuestionSetRead } from '@naru/shared';
+import {
+  type QuestionSetCreate,
+  type QuestionSetUpdate,
+  type QuestionSetRead,
+} from '@naru/shared';
 import prisma from '../db.js';
 
-type VisitType = 'child' | 'parent' | 'family';
+const SET_SELECT = {
+  id: true,
+  name: true,
+  programId: true,
+  createdAt: true,
+  updatedAt: true,
+  items: {
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      questionId: true,
+      sortOrder: true,
+      question: {
+        select: { title: true, answerType: true, choices: true, deletedAt: true },
+      },
+    },
+  },
+  // Explicitly exclude deletedAt
+} as const;
 
-// Returns { setModel, itemModel, questionModel } for the given visit type
-function getModels(visitType: VisitType) {
-  switch (visitType) {
-    case 'child':
-      return {
-        setModel: prisma.childVisitQuestionSet,
-        itemModel: prisma.childVisitQuestionSetItem,
-        questionModel: prisma.childVisitQuestion,
-      };
-    case 'parent':
-      return {
-        setModel: prisma.parentVisitQuestionSet,
-        itemModel: prisma.parentVisitQuestionSetItem,
-        questionModel: prisma.parentVisitQuestion,
-      };
-    case 'family':
-      return {
-        setModel: prisma.familyVisitQuestionSet,
-        itemModel: prisma.familyVisitQuestionSetItem,
-        questionModel: prisma.familyVisitQuestion,
-      };
-    default:
-      throw new HTTPException(400, { message: `Invalid visit type: ${visitType}` });
-  }
-}
-
-function formatSet(set: any): QuestionSetRead {
+/**
+ * A retired question stays in its sets so historical answers remain readable,
+ * but it must not be offered on a new visit form — so it is dropped here rather
+ * than at the call site. The soft-delete extension cannot do this: it only
+ * rewrites the top-level where, never a nested relation.
+ */
+function fmt(set: any): QuestionSetRead {
   return {
     id: set.id,
     name: set.name,
+    programId: set.programId,
     createdAt: set.createdAt.toISOString(),
     updatedAt: set.updatedAt.toISOString(),
-    items: (set.items ?? [])
-      .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+    items: set.items
+      .filter((item: any) => item.question.deletedAt === null)
       .map((item: any) => ({
         id: item.id,
         questionId: item.questionId,
-        questionTitle: item.question?.title ?? '',
+        questionTitle: item.question.title,
+        answerType: item.question.answerType,
+        choices: (item.question.choices as string[] | null) ?? null,
         sortOrder: item.sortOrder,
       })),
   };
 }
 
-// The soft-delete extension only filters top-level `where` clauses, so an item
-// pointing at a soft-deleted question would still be included (and render as a
-// blank row, since formatSet falls back to ''). Filter it out here.
-const WITH_ITEMS = {
-  items: {
-    where: { question: { deletedAt: null } },
-    include: { question: true },
-  },
-};
+/**
+ * List question sets.
+ *
+ * `includeShared` ORs in the sets with a null programId — those are available to
+ * every program, and it is what the visit form asks for. Without it the filter is
+ * an exact match, which is what the admin screen wants.
+ */
+export async function listQuestionSets(options: {
+  programId?: number;
+  includeShared?: boolean;
+} = {}): Promise<QuestionSetRead[]> {
+  const where: any = {};
 
-export async function listQuestionSets(visitType: VisitType): Promise<QuestionSetRead[]> {
-  const { setModel } = getModels(visitType);
-  const sets = await (setModel as any).findMany({
-    where: { deletedAt: null },
-    include: WITH_ITEMS,
-    orderBy: { name: 'asc' },
-  });
-  return sets.map(formatSet);
-}
-
-export async function getQuestionSet(visitType: VisitType, id: number): Promise<QuestionSetRead> {
-  const { setModel } = getModels(visitType);
-  const found = await (setModel as any).findFirst({
-    where: { id, deletedAt: null },
-    include: WITH_ITEMS,
-  });
-  if (!found) throw new HTTPException(404, { message: 'Question set not found' });
-  return formatSet(found);
-}
-
-async function validateQuestionIds(questionModel: any, ids: number[]): Promise<void> {
-  if (ids.length === 0) return;
-  const found = await (questionModel as any).findMany({
-    where: { id: { in: ids }, deletedAt: null },
-    select: { id: true },
-  });
-  if (found.length !== ids.length) {
-    throw new HTTPException(400, { message: 'One or more question IDs are invalid' });
+  if (options.programId !== undefined) {
+    where.OR = options.includeShared
+      ? [{ programId: options.programId }, { programId: null }]
+      : [{ programId: options.programId }];
   }
+
+  const sets = await prisma.questionSet.findMany({
+    where,
+    select: SET_SELECT,
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+  });
+
+  return sets.map(fmt);
 }
 
-export async function createQuestionSet(visitType: VisitType, data: QuestionSetCreate): Promise<QuestionSetRead> {
-  const { setModel, questionModel } = getModels(visitType);
-  await validateQuestionIds(questionModel, data.questionIds);
+export async function getQuestionSet(id: number): Promise<QuestionSetRead> {
+  const set = await prisma.questionSet.findUnique({ where: { id }, select: SET_SELECT });
+  if (!set) throw new HTTPException(404, { message: 'Question set not found' });
+  return fmt(set);
+}
 
-  const created = await (setModel as any).create({
+export async function createQuestionSet(data: QuestionSetCreate): Promise<QuestionSetRead> {
+  await assertProgramExists(data.programId);
+  await assertQuestionsExist(data.questionIds);
+
+  const set = await prisma.questionSet.create({
     data: {
       name: data.name,
-      items: {
-        create: data.questionIds.map((questionId, index) => ({ questionId, sortOrder: index })),
-      },
+      programId: data.programId ?? null,
+      items: { create: toItemRows(data.questionIds) },
     },
-    include: WITH_ITEMS,
+    select: SET_SELECT,
   });
 
-  return formatSet(created);
+  return fmt(set);
 }
 
-export async function updateQuestionSet(visitType: VisitType, id: number, data: QuestionSetUpdate): Promise<QuestionSetRead> {
-  const { setModel, itemModel, questionModel } = getModels(visitType);
-
-  const existing = await (setModel as any).findFirst({ where: { id, deletedAt: null } });
+/**
+ * Update a question set. An absent `questionIds` leaves the membership alone; a
+ * present one replaces it wholesale, with the array order becoming the order the
+ * questions are asked in.
+ *
+ * Retired questions are exempt from the replacement. `fmt` hides them, so a
+ * client round-tripping the set it was served would otherwise delete them —
+ * taking last year's answers out of their set along with them. A retired
+ * question can never appear in `questionIds` (assertQuestionsExist reads through
+ * the soft-delete filter and 404s), so keeping those rows cannot collide with
+ * the incoming list.
+ */
+export async function updateQuestionSet(
+  id: number,
+  data: QuestionSetUpdate
+): Promise<QuestionSetRead> {
+  const existing = await prisma.questionSet.findUnique({ where: { id }, select: { id: true } });
   if (!existing) throw new HTTPException(404, { message: 'Question set not found' });
 
-  if (data.questionIds !== undefined) {
-    await validateQuestionIds(questionModel, data.questionIds);
-  }
+  await assertProgramExists(data.programId);
+  if (data.questionIds !== undefined) await assertQuestionsExist(data.questionIds);
 
-  if (data.name !== undefined) {
-    await (setModel as any).update({ where: { id }, data: { name: data.name } });
-  }
+  const retiredQuestionIds =
+    data.questionIds === undefined ? [] : await findRetiredMemberIds(id);
 
-  if (data.questionIds !== undefined) {
-    await (itemModel as any).deleteMany({ where: { setId: id } });
-    if (data.questionIds.length > 0) {
-      await (itemModel as any).createMany({
-        data: data.questionIds.map((questionId, index) => ({ setId: id, questionId, sortOrder: index })),
-      });
-    }
-  }
+  const set = await prisma.questionSet.update({
+    where: { id },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.programId !== undefined && { programId: data.programId ?? null }),
+      ...(data.questionIds !== undefined && {
+        items: {
+          deleteMany: { questionId: { notIn: retiredQuestionIds } },
+          create: toItemRows(data.questionIds),
+        },
+      }),
+      updatedAt: new Date(),
+    },
+    select: SET_SELECT,
+  });
 
-  return getQuestionSet(visitType, id);
+  return fmt(set);
 }
 
-export async function deleteQuestionSet(visitType: VisitType, id: number): Promise<void> {
-  const { setModel } = getModels(visitType);
-  const existing = await (setModel as any).findFirst({ where: { id, deletedAt: null } });
+async function findRetiredMemberIds(setId: number): Promise<number[]> {
+  const items = await prisma.questionSetItem.findMany({
+    where: { setId, question: { deletedAt: { not: null } } },
+    select: { questionId: true },
+  });
+
+  return items.map((item: { questionId: number }) => item.questionId);
+}
+
+export async function deleteQuestionSet(id: number): Promise<void> {
+  const existing = await prisma.questionSet.findUnique({ where: { id }, select: { id: true } });
   if (!existing) throw new HTTPException(404, { message: 'Question set not found' });
-  await (setModel as any).update({ where: { id }, data: { deletedAt: new Date() } });
+  await prisma.questionSet.update({ where: { id }, data: { deletedAt: new Date() } });
+}
+
+// The array's order is the order the questions are asked in — the client reorders
+// by resending the list, not by computing sortOrder values.
+function toItemRows(questionIds: number[]) {
+  return questionIds.map((questionId, index) => ({ questionId, sortOrder: index }));
+}
+
+async function assertProgramExists(programId: number | null | undefined): Promise<void> {
+  if (!programId) return;
+
+  const program = await prisma.program.findFirst({
+    where: { id: programId },
+    select: { id: true },
+  });
+
+  if (!program) throw new HTTPException(404, { message: 'Program not found' });
+}
+
+async function assertQuestionsExist(questionIds: number[]): Promise<void> {
+  if (questionIds.length === 0) return;
+
+  const seen = new Set<number>();
+  const duplicate = questionIds.find((id) => (seen.has(id) ? true : (seen.add(id), false)));
+
+  if (duplicate !== undefined) {
+    throw new HTTPException(400, {
+      message: `Duplicate question id ${duplicate} — each question may appear only once in a set`,
+    });
+  }
+
+  const rows = await prisma.question.findMany({
+    where: { id: { in: questionIds } },
+    select: { id: true },
+  });
+
+  if (rows.length !== questionIds.length) {
+    const found = new Set(rows.map((row: { id: number }) => row.id));
+    const missing = questionIds.filter((id) => !found.has(id));
+
+    throw new HTTPException(404, { message: `Question not found: ${missing.join(', ')}` });
+  }
 }

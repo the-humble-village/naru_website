@@ -1,5 +1,5 @@
 import { HTTPException } from 'hono/http-exception';
-import { type LookupCreate, type LookupUpdate, type LookupRead, type LookupReorder } from '@naru/shared';
+import { type LookupRead, type LookupReorder } from '@naru/shared';
 import prisma from '../db.js';
 
 /**
@@ -10,14 +10,11 @@ export type LookupTableName =
   | 'sites'
   | 'resources'
   | 'training'
-  | 'child-visit-questions'
-  | 'parent-visit-questions'
-  | 'family-visit-questions';
+  | 'examination-types';
 
-const QUESTION_TABLES = new Set<LookupTableName>([
-  'child-visit-questions',
-  'parent-visit-questions',
-  'family-visit-questions',
+// Tables carrying a sortOrder column, which are the ones that support reorder.
+const SORTABLE_TABLES = new Set<LookupTableName>([
+  'examination-types',
 ]);
 
 /**
@@ -28,9 +25,7 @@ const TABLE_MODEL_MAP = {
   'sites': 'site',
   'resources': 'resource',
   'training': 'training',
-  'child-visit-questions': 'childVisitQuestion',
-  'parent-visit-questions': 'parentVisitQuestion',
-  'family-visit-questions': 'familyVisitQuestion',
+  'examination-types': 'examinationType',
 } as const;
 
 /**
@@ -48,6 +43,23 @@ function getPrismaModel(table: LookupTableName) {
   return (prisma as any)[modelName];
 }
 
+// Columns beyond `title` that a given lookup table accepts. Community carries
+// siteId because Site is a rollup of Community; Resource carries defaultUnit so
+// visit quantities are recorded in a consistent unit.
+type LookupPayload = { title?: string; siteId?: number | null; defaultUnit?: string | null };
+
+function extraColumns(table: LookupTableName, data: LookupPayload) {
+  if (table === 'communities' && data.siteId !== undefined) return { siteId: data.siteId };
+  if (table === 'resources' && data.defaultUnit !== undefined) return { defaultUnit: data.defaultUnit };
+  return {};
+}
+
+function extraSelect(table: LookupTableName) {
+  if (table === 'communities') return { siteId: true };
+  if (table === 'resources') return { defaultUnit: true };
+  return {};
+}
+
 /**
  * List all entries for a lookup table
  */
@@ -58,7 +70,7 @@ export async function listLookupEntries(table: string): Promise<LookupRead[]> {
 
   const model = getPrismaModel(table);
 
-  const isQuestion = QUESTION_TABLES.has(table);
+  const isSortable = SORTABLE_TABLES.has(table);
 
   const entries = await model.findMany({
     where: {
@@ -67,11 +79,13 @@ export async function listLookupEntries(table: string): Promise<LookupRead[]> {
     select: {
       id: true,
       title: true,
-      ...(isQuestion ? { sortOrder: true } : {}),
+      ...(isSortable ? { sortOrder: true } : {}),
+      ...(table === 'communities' ? { siteId: true } : {}),
+      ...(table === 'resources' ? { defaultUnit: true } : {}),
       createdAt: true,
       updatedAt: true,
     },
-    orderBy: isQuestion
+    orderBy: isSortable
       ? [{ sortOrder: 'asc' }, { id: 'asc' }]
       : { title: 'asc' },
   });
@@ -88,7 +102,7 @@ export async function listLookupEntries(table: string): Promise<LookupRead[]> {
 /**
  * Create a new lookup entry
  */
-export async function createLookupEntry(table: string, data: LookupCreate): Promise<LookupRead> {
+export async function createLookupEntry(table: string, data: LookupPayload): Promise<LookupRead> {
   if (!validateTableName(table)) {
     throw new HTTPException(400, { message: `Invalid table name: ${table}` });
   }
@@ -114,10 +128,12 @@ export async function createLookupEntry(table: string, data: LookupCreate): Prom
   const entry = await model.create({
     data: {
       title: data.title,
+      ...extraColumns(table, data),
     },
     select: {
       id: true,
       title: true,
+      ...extraSelect(table),
       createdAt: true,
       updatedAt: true,
       // Explicitly exclude deletedAt
@@ -137,7 +153,7 @@ export async function createLookupEntry(table: string, data: LookupCreate): Prom
 /**
  * Update a lookup entry by ID
  */
-export async function updateLookupEntry(table: string, id: number, data: LookupUpdate): Promise<LookupRead> {
+export async function updateLookupEntry(table: string, id: number, data: LookupPayload): Promise<LookupRead> {
   if (!validateTableName(table)) {
     throw new HTTPException(400, { message: `Invalid table name: ${table}` });
   }
@@ -179,11 +195,13 @@ export async function updateLookupEntry(table: string, id: number, data: LookupU
     where: { id },
     data: {
       title: data.title,
+      ...extraColumns(table, data),
       updatedAt: new Date(),
     },
     select: {
       id: true,
       title: true,
+      ...extraSelect(table),
       createdAt: true,
       updatedAt: true,
       // Explicitly exclude deletedAt
@@ -204,7 +222,7 @@ export async function updateLookupEntry(table: string, id: number, data: LookupU
  * Reorder question lookup entries by updating sortOrder for each id
  */
 export async function reorderLookupEntries(table: string, items: LookupReorder): Promise<void> {
-  if (!validateTableName(table) || !QUESTION_TABLES.has(table)) {
+  if (!validateTableName(table) || !SORTABLE_TABLES.has(table)) {
     throw new HTTPException(400, { message: `Reorder not supported for table: ${table}` });
   }
 

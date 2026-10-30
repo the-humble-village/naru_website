@@ -4,81 +4,112 @@ import {
   type ChildUpdate,
   type ChildRead,
   type UserRead,
-  ageInDays,
-  weightForAge,
-  armCircumferenceForAge,
-  classifyZScore,
 } from '@naru/shared';
 import prisma from '../db.js';
 
-/**
- * List children for a family
- */
-export async function listChildren(familyId: number, user: UserRead): Promise<ChildRead[]> {
-  // First check if the family exists
-  const family = await prisma.family.findUnique({
-    where: { id: familyId },
-    select: { id: true },
-  });
+const CHILD_SELECT = {
+  id: true,
+  localId: true,
+  name: true,
+  birthDate: true,
+  sex: true,
+  communityId: true,
+  motherId: true,
+  familyId: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+  // Explicitly exclude deletedAt
+} as const;
 
-  if (!family) {
-    throw new HTTPException(404, { message: 'Family not found' });
-  }
-
-  // TODO: When we implement user assignment/scoping, add access control here
-
-  const children = await prisma.child.findMany({
-    where: { familyId },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      name: true,
-      birthDate: true,
-      sex: true,
-      dateEntered: true,
-      photos: true,
-      weight: true,
-      nutritionalState: true,
-      reasonEnrollment: true,
-      observations: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
-    orderBy: {
-      name: 'asc',
-    },
-  });
-
-  // Transform dates to ISO strings
-  const childrenRead: ChildRead[] = children.map((child: any) => ({
+function toChildRead(child: any): ChildRead {
+  return {
     ...child,
-    photos: child.photos as number[],
     birthDate: child.birthDate.toISOString(),
-    dateEntered: child.dateEntered?.toISOString() || null,
     createdAt: child.createdAt.toISOString(),
     updatedAt: child.updatedAt.toISOString(),
-  }));
+  };
+}
 
-  return childrenRead;
+/**
+ * List children, optionally filtered by family, mother, community, or enrollment state
+ */
+export async function listChildren(options: {
+  familyId?: number;
+  motherId?: number;
+  communityId?: number;
+  siteId?: number;
+  unenrolled?: boolean;
+  search?: string;
+  skip?: number;
+  limit?: number;
+  user: UserRead;
+}): Promise<{ children: ChildRead[]; total: number }> {
+  const skip = Math.max(0, options.skip || 0);
+  const limit = Math.min(100, Math.max(1, options.limit || 50));
+
+  const where: any = {};
+
+  if (options.familyId !== undefined) where.familyId = options.familyId;
+  if (options.motherId !== undefined) where.motherId = options.motherId;
+  if (options.communityId !== undefined) where.communityId = options.communityId;
+
+  // Site is a rollup of Community — a subject stores only communityId, so a site
+  // filter has to go through the relation (SCHEMA_V2.md §6.7).
+  if (options.siteId !== undefined) where.community = { siteId: options.siteId };
+
+  if (options.search && options.search.trim()) {
+    where.name = { contains: options.search.trim(), mode: 'insensitive' };
+  }
+
+  // "Unenrolled" needs no schema support — it is zero active enrollment rows.
+  // This is the worklist that migrated profiles land on (SCHEMA_V2.md §9.4).
+  if (options.unenrolled) {
+    where.enrollments = {
+      none: { exitedAt: null, deletedAt: null },
+    };
+  }
+
+  const [children, total] = await Promise.all([
+    prisma.child.findMany({
+      where,
+      skip,
+      take: limit,
+      select: CHILD_SELECT,
+      orderBy: { name: 'asc' },
+    }),
+    prisma.child.count({ where }),
+  ]);
+
+  return { children: children.map(toChildRead), total };
 }
 
 /**
  * Create a new child
  */
 export async function createChild(data: ChildCreate): Promise<ChildRead> {
-  // First check if the family exists
-  const family = await prisma.family.findUnique({
-    where: { id: data.familyId },
-    select: { id: true },
-  });
+  if (data.familyId) {
+    const family = await prisma.family.findFirst({
+      where: { id: data.familyId, deletedAt: null },
+      select: { id: true },
+    });
 
-  if (!family) {
-    throw new HTTPException(404, { message: 'Family not found' });
+    if (!family) {
+      throw new HTTPException(404, { message: 'Family not found' });
+    }
   }
 
-  // If localId is provided, check for uniqueness
+  if (data.motherId) {
+    const mother = await prisma.mother.findFirst({
+      where: { id: data.motherId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!mother) {
+      throw new HTTPException(404, { message: 'Mother not found' });
+    }
+  }
+
   if (data.localId) {
     const existingChild = await prisma.child.findUnique({
       where: { localId: data.localId },
@@ -90,89 +121,30 @@ export async function createChild(data: ChildCreate): Promise<ChildRead> {
     }
   }
 
-  // Create child
   const child = await prisma.child.create({
     data: {
-      familyId: data.familyId,
       name: data.name,
       birthDate: new Date(data.birthDate),
       sex: data.sex,
-      dateEntered: data.dateEntered ? new Date(data.dateEntered) : null,
-      photos: data.photos ?? [],
-      weight: data.weight ?? 0,
-      nutritionalState: data.nutritionalState,
-      reasonEnrollment: data.reasonEnrollment,
-      observations: data.observations,
+      communityId: data.communityId,
+      motherId: data.motherId,
+      familyId: data.familyId,
+      notes: data.notes,
       localId: data.localId,
     },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      name: true,
-      birthDate: true,
-      sex: true,
-      dateEntered: true,
-      photos: true,
-      weight: true,
-      nutritionalState: true,
-      reasonEnrollment: true,
-      observations: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
+    select: CHILD_SELECT,
   });
 
-  // Transform dates to ISO strings
-  const childRead: ChildRead = {
-    ...child,
-    photos: child.photos as number[],
-    birthDate: child.birthDate.toISOString(),
-    dateEntered: child.dateEntered?.toISOString() || null,
-    createdAt: child.createdAt.toISOString(),
-    updatedAt: child.updatedAt.toISOString(),
-  };
-
-  return childRead;
+  return toChildRead(child);
 }
 
 /**
- * Get child by ID with z-scores calculated
+ * Get child by ID
  */
-export async function getChildById(familyId: number, childId: number, user: UserRead): Promise<ChildRead & { zScores?: any }> {
-  // First check if the family exists
-  const family = await prisma.family.findUnique({
-    where: { id: familyId },
-    select: { id: true },
-  });
-
-  if (!family) {
-    throw new HTTPException(404, { message: 'Family not found' });
-  }
-
-  const child = await prisma.child.findFirst({
-    where: {
-      id: childId,
-      familyId: familyId,
-    },
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      name: true,
-      birthDate: true,
-      sex: true,
-      dateEntered: true,
-      photos: true,
-      weight: true,
-      nutritionalState: true,
-      reasonEnrollment: true,
-      observations: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
+export async function getChildById(childId: number, user: UserRead): Promise<ChildRead> {
+  const child = await prisma.child.findUnique({
+    where: { id: childId },
+    select: CHILD_SELECT,
   });
 
   if (!child) {
@@ -181,62 +153,15 @@ export async function getChildById(familyId: number, childId: number, user: User
 
   // TODO: When we implement user assignment/scoping, add access control here
 
-  // Calculate z-scores if child has valid data
-  const ageDaysValue = ageInDays(child.birthDate, new Date());
-  let zScores = null;
-
-  if (ageDaysValue !== null) {
-    const weightKg = child.weight; // Weight is stored in kilograms
-
-    const weightForAgeZ = weightForAge(weightKg, ageDaysValue, child.sex);
-
-    // For arm circumference, we need to get the latest measurement from visits
-    // For now, we'll skip this since we don't have arm circumference data on the child record itself
-    // This would typically come from the most recent child visit
-
-    zScores = {
-      weightForAge: weightForAgeZ ? {
-        zScore: weightForAgeZ,
-        classification: classifyZScore(weightForAgeZ),
-      } : null,
-      ageInDays: ageDaysValue,
-    };
-  }
-
-  // Transform dates to ISO strings
-  const childRead: ChildRead & { zScores?: any } = {
-    ...child,
-    photos: child.photos as number[],
-    birthDate: child.birthDate.toISOString(),
-    dateEntered: child.dateEntered?.toISOString() || null,
-    createdAt: child.createdAt.toISOString(),
-    updatedAt: child.updatedAt.toISOString(),
-    zScores,
-  };
-
-  return childRead;
+  return toChildRead(child);
 }
 
 /**
  * Update child by ID
  */
-export async function updateChild(familyId: number, childId: number, data: ChildUpdate, user: UserRead): Promise<ChildRead> {
-  // First check if the family exists
-  const family = await prisma.family.findUnique({
-    where: { id: familyId },
-    select: { id: true },
-  });
-
-  if (!family) {
-    throw new HTTPException(404, { message: 'Family not found' });
-  }
-
-  // Check if child exists
-  const existingChild = await prisma.child.findFirst({
-    where: {
-      id: childId,
-      familyId: familyId,
-    },
+export async function updateChild(childId: number, data: ChildUpdate, user: UserRead): Promise<ChildRead> {
+  const existingChild = await prisma.child.findUnique({
+    where: { id: childId },
     select: { id: true, localId: true },
   });
 
@@ -244,9 +169,6 @@ export async function updateChild(familyId: number, childId: number, data: Child
     throw new HTTPException(404, { message: 'Child not found' });
   }
 
-  // TODO: When we implement user assignment/scoping, add access control here
-
-  // If updating localId, check for uniqueness
   if (data.localId && data.localId !== existingChild.localId) {
     const localIdExists = await prisma.child.findUnique({
       where: { localId: data.localId },
@@ -258,80 +180,33 @@ export async function updateChild(familyId: number, childId: number, data: Child
     }
   }
 
-  // Prepare update data
-  const updateData: any = {
-    updatedAt: new Date(),
-  };
+  const updateData: any = { updatedAt: new Date() };
 
-  // Only include fields that are provided in the update
   if (data.name !== undefined) updateData.name = data.name;
-  if (data.birthDate !== undefined) updateData.birthDate = data.birthDate ? new Date(data.birthDate) : null;
+  if (data.birthDate !== undefined) updateData.birthDate = new Date(data.birthDate);
   if (data.sex !== undefined) updateData.sex = data.sex;
-  if (data.dateEntered !== undefined) updateData.dateEntered = data.dateEntered ? new Date(data.dateEntered) : null;
-  if (data.photos !== undefined) updateData.photos = data.photos;
-  if (data.weight !== undefined) updateData.weight = data.weight;
-  if (data.nutritionalState !== undefined) updateData.nutritionalState = data.nutritionalState;
-  if (data.reasonEnrollment !== undefined) updateData.reasonEnrollment = data.reasonEnrollment;
-  if (data.observations !== undefined) updateData.observations = data.observations;
+  if (data.communityId !== undefined) updateData.communityId = data.communityId;
+  if (data.motherId !== undefined) updateData.motherId = data.motherId;
+  if (data.familyId !== undefined) updateData.familyId = data.familyId;
+  if (data.notes !== undefined) updateData.notes = data.notes;
   if (data.localId !== undefined) updateData.localId = data.localId;
 
-  // Update child
   const updatedChild = await prisma.child.update({
     where: { id: childId },
     data: updateData,
-    select: {
-      id: true,
-      localId: true,
-      familyId: true,
-      name: true,
-      birthDate: true,
-      sex: true,
-      dateEntered: true,
-      photos: true,
-      weight: true,
-      nutritionalState: true,
-      reasonEnrollment: true,
-      observations: true,
-      createdAt: true,
-      updatedAt: true,
-      // Explicitly exclude deletedAt
-    },
+    select: CHILD_SELECT,
   });
 
-  // Transform dates to ISO strings
-  const childRead: ChildRead = {
-    ...updatedChild,
-    photos: updatedChild.photos as number[],
-    birthDate: updatedChild.birthDate.toISOString(),
-    dateEntered: updatedChild.dateEntered?.toISOString() || null,
-    createdAt: updatedChild.createdAt.toISOString(),
-    updatedAt: updatedChild.updatedAt.toISOString(),
-  };
-
-  return childRead;
+  return toChildRead(updatedChild);
 }
 
 /**
  * Delete child by ID (soft delete)
  * Only supervisors and admins can delete children
  */
-export async function deleteChild(familyId: number, childId: number, user: UserRead): Promise<void> {
-  // First check if the family exists
-  const family = await prisma.family.findUnique({
-    where: { id: familyId },
-    select: { id: true },
-  });
-
-  if (!family) {
-    throw new HTTPException(404, { message: 'Family not found' });
-  }
-
-  // Check if child exists
-  const existingChild = await prisma.child.findFirst({
-    where: {
-      id: childId,
-      familyId: familyId,
-    },
+export async function deleteChild(childId: number, user: UserRead): Promise<void> {
+  const existingChild = await prisma.child.findUnique({
+    where: { id: childId },
     select: { id: true },
   });
 
@@ -339,9 +214,6 @@ export async function deleteChild(familyId: number, childId: number, user: UserR
     throw new HTTPException(404, { message: 'Child not found' });
   }
 
-  // TODO: When we implement user assignment/scoping, add access control here
-
-  // Soft delete the child
   await prisma.child.update({
     where: { id: childId },
     data: {

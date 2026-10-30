@@ -5,13 +5,18 @@ export const SearchQuerySchema = z.object({
   q: z.string().max(500).transform(val => val.trim()),
 });
 
-// Search result item schema
+// Search result item schema.
+//
+// familyId is nullable: a child or mother can exist with no family, and a person
+// never has one.
 export const SearchResultItemSchema = z.object({
   id: z.number().int().positive(),
-  type: z.enum(['family', 'parent', 'child']),
-  name: z.string().nullable(), // family name, parent name, or child name
-  familyId: z.number().int().positive(),
+  type: z.enum(['family', 'mother', 'child', 'person']),
+  name: z.string().nullable(),
+  familyId: z.number().int().positive().nullable(),
   familyName: z.string().nullable(),
+  communityId: z.number().int().positive().nullable(),
+  activeEnrollments: z.number().int().default(0),
   relevanceScore: z.number().min(0).max(1).optional(), // For future relevance ranking
 });
 

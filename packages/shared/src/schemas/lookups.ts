@@ -24,10 +24,16 @@ export const LookupReorderSchema = z.array(
 );
 export type LookupReorder = z.infer<typeof LookupReorderSchema>;
 
-// Specific schemas for each lookup table type
-export const CommunityCreateSchema = LookupCreateSchema;
-export const CommunityUpdateSchema = LookupUpdateSchema;
-export const CommunityReadSchema = LookupReadSchema;
+// Site is a rollup of Community: a community names its site, and a subject's
+// site is derived from its community. No subject carries an independent site
+// field, so the two can never contradict each other.
+export const CommunityCreateSchema = LookupCreateSchema.extend({
+  siteId: z.number().int().positive().nullable().optional(),
+});
+export const CommunityUpdateSchema = CommunityCreateSchema.partial();
+export const CommunityReadSchema = LookupReadSchema.extend({
+  siteId: z.number().int().nullable().optional(),
+});
 
 export const SiteCreateSchema = LookupCreateSchema.extend({
   lat: z.number().nullable().optional(),
@@ -41,25 +47,21 @@ export const SiteReadSchema = LookupReadSchema.extend({
   boundary: z.array(z.tuple([z.number(), z.number()])).nullable().optional(),
 });
 
-export const ResourceCreateSchema = LookupCreateSchema;
-export const ResourceUpdateSchema = LookupUpdateSchema;
-export const ResourceReadSchema = LookupReadSchema;
+export const ResourceCreateSchema = LookupCreateSchema.extend({
+  defaultUnit: z.string().max(32).nullable().optional(),
+});
+export const ResourceUpdateSchema = ResourceCreateSchema.partial();
+export const ResourceReadSchema = LookupReadSchema.extend({
+  defaultUnit: z.string().nullable().optional(),
+});
 
 export const TrainingCreateSchema = LookupCreateSchema;
 export const TrainingUpdateSchema = LookupUpdateSchema;
 export const TrainingReadSchema = LookupReadSchema;
 
-export const ChildVisitQuestionCreateSchema = LookupCreateSchema;
-export const ChildVisitQuestionUpdateSchema = LookupUpdateSchema;
-export const ChildVisitQuestionReadSchema = LookupReadSchema;
-
-export const ParentVisitQuestionCreateSchema = LookupCreateSchema;
-export const ParentVisitQuestionUpdateSchema = LookupUpdateSchema;
-export const ParentVisitQuestionReadSchema = LookupReadSchema;
-
-export const FamilyVisitQuestionCreateSchema = LookupCreateSchema;
-export const FamilyVisitQuestionUpdateSchema = LookupUpdateSchema;
-export const FamilyVisitQuestionReadSchema = LookupReadSchema;
+export const ExaminationTypeCreateSchema = LookupCreateSchema;
+export const ExaminationTypeUpdateSchema = LookupUpdateSchema;
+export const ExaminationTypeReadSchema = LookupReadSchema;
 
 // Inferred types for TypeScript
 export type LookupCreate = z.infer<typeof LookupCreateSchema>;
@@ -83,14 +85,6 @@ export type TrainingCreate = z.infer<typeof TrainingCreateSchema>;
 export type TrainingUpdate = z.infer<typeof TrainingUpdateSchema>;
 export type TrainingRead = z.infer<typeof TrainingReadSchema>;
 
-export type ChildVisitQuestionCreate = z.infer<typeof ChildVisitQuestionCreateSchema>;
-export type ChildVisitQuestionUpdate = z.infer<typeof ChildVisitQuestionUpdateSchema>;
-export type ChildVisitQuestionRead = z.infer<typeof ChildVisitQuestionReadSchema>;
-
-export type ParentVisitQuestionCreate = z.infer<typeof ParentVisitQuestionCreateSchema>;
-export type ParentVisitQuestionUpdate = z.infer<typeof ParentVisitQuestionUpdateSchema>;
-export type ParentVisitQuestionRead = z.infer<typeof ParentVisitQuestionReadSchema>;
-
-export type FamilyVisitQuestionCreate = z.infer<typeof FamilyVisitQuestionCreateSchema>;
-export type FamilyVisitQuestionUpdate = z.infer<typeof FamilyVisitQuestionUpdateSchema>;
-export type FamilyVisitQuestionRead = z.infer<typeof FamilyVisitQuestionReadSchema>;
+export type ExaminationTypeCreate = z.infer<typeof ExaminationTypeCreateSchema>;
+export type ExaminationTypeUpdate = z.infer<typeof ExaminationTypeUpdateSchema>;
+export type ExaminationTypeRead = z.infer<typeof ExaminationTypeReadSchema>;

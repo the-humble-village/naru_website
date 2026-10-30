@@ -40,7 +40,8 @@ vi.mock('../../hooks/useTranslation', () => ({
         'search.error': 'Search failed. Please try again.',
         'search.noResults': 'No results found.',
         'search.types.family': 'Family',
-        'search.types.parent': 'Parent',
+        'search.types.mother': 'Mother',
+        'search.types.person': 'Person',
         'search.types.child': 'Child',
         'search.familyLabel': 'Family',
         'search.showingResults': `Showing ${params?.shown || 0} of ${params?.total || 0} results`,
@@ -302,7 +303,7 @@ describe('SearchBar', () => {
         results: [
           {
             id: 1,
-            type: 'parent' as const,
+            type: 'mother' as const,
             name: 'John Garcia',
             familyId: 1,
             familyName: 'Garcia Family'
@@ -341,7 +342,7 @@ describe('SearchBar', () => {
           },
           {
             id: 2,
-            type: 'parent' as const,
+            type: 'mother' as const,
             name: 'John Garcia',
             familyId: 1,
             familyName: 'Garcia Family'
@@ -370,7 +371,7 @@ describe('SearchBar', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Family')).toBeInTheDocument();
-        expect(screen.getByText('Parent')).toBeInTheDocument();
+        expect(screen.getByText('Mother')).toBeInTheDocument();
         expect(screen.getByText('Child')).toBeInTheDocument();
       });
     });
@@ -445,13 +446,13 @@ describe('SearchBar', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/families/1');
     });
 
-    it('should navigate to parent page when parent result is clicked', async () => {
+    it('should navigate to mother page when a mother result is clicked', async () => {
       const user = userEvent.setup();
       const mockResults = {
         results: [
           {
             id: 2,
-            type: 'parent' as const,
+            type: 'mother' as const,
             name: 'John Garcia',
             familyId: 1,
             familyName: 'Garcia Family'
@@ -472,14 +473,14 @@ describe('SearchBar', () => {
       await user.type(input, 'john');
 
       await waitFor(() => {
-        const parentResult = screen.getByText('John Garcia');
-        expect(parentResult).toBeInTheDocument();
+        const motherResult = screen.getByText('John Garcia');
+        expect(motherResult).toBeInTheDocument();
       });
 
-      const parentButton = screen.getByRole('button');
-      await user.click(parentButton);
+      const motherButton = screen.getByRole('button');
+      await user.click(motherButton);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/families/1/parents/2');
+      expect(mockNavigate).toHaveBeenCalledWith('/mothers/2');
     });
 
     it('should navigate to child page when child result is clicked', async () => {
@@ -516,7 +517,7 @@ describe('SearchBar', () => {
       const childButton = screen.getByRole('button');
       await user.click(childButton);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/families/1/children/3');
+      expect(mockNavigate).toHaveBeenCalledWith('/children/3');
     });
   });
 

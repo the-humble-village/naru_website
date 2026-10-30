@@ -21,4 +21,14 @@ app.get('/', auth, async (c) => {
   return c.json(dashboardData);
 });
 
+/**
+ * GET /dashboard/unenrolled-count
+ * Subjects holding no active enrollment, broken down by subject table.
+ * Feeds the sidebar badge, so it stays cheap.
+ */
+app.get('/unenrolled-count', auth, async (c) => {
+  const counts = await dashboardService.getUnenrolledCount();
+  return c.json(counts);
+});
+
 export default app;

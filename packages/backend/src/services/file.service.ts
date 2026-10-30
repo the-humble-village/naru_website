@@ -17,30 +17,6 @@ function buildS3Key(extension: string): string {
   return `uploads/${yyyy}/${mm}/${dd}/${randomUUID()}.${extension}`;
 }
 
-/**
- * Every model that stores photo references. `photos` is an untyped Json array of
- * File ids with no FK, so detaching a deleted file means rewriting each array by
- * hand — there is no cascade to lean on.
- */
-const PHOTO_OWNER_MODELS = [
-  'family',
-  'parent',
-  'child',
-  'childVisit',
-  'familyVisit',
-  'parentVisit',
-] as const;
-
-/**
- * The slice of a Prisma model delegate this service needs. Declared structurally
- * so the six photo-owning delegates can be iterated over uniformly without `any`
- * (`src/db.ts` exports the extended client as `any`, so nothing is inferred here).
- */
-interface PhotoOwnerDelegate {
-  findMany(args: unknown): Promise<Array<{ id: number; photos: unknown }>>;
-  update(args: unknown): Promise<unknown>;
-}
-
 interface FileRow {
   id: number;
   hash: string | null;
@@ -53,12 +29,10 @@ interface FileRow {
 }
 
 /** The subset of the transaction client `deleteFile` touches. */
-type DeleteFileTx = Record<(typeof PHOTO_OWNER_MODELS)[number], PhotoOwnerDelegate> & {
+interface DeleteFileTx {
+  photoAttachment: { updateMany(args: unknown): Promise<unknown> };
+  enrollment: { updateMany(args: unknown): Promise<unknown> };
   file: { update(args: { where: { id: number }; data: { deletedAt: Date } }): Promise<FileRow> };
-};
-
-function toIdArray(photos: unknown): number[] {
-  return Array.isArray(photos) ? photos.filter((p): p is number => typeof p === 'number') : [];
 }
 
 function toFileRead(file: FileRow): FileRead {
@@ -176,8 +150,10 @@ export async function getFileById(id: number): Promise<FileRead> {
  * Soft-delete a file and detach it from every record that references it.
  *
  * Three things happen, in this order:
- *  1. The `photos` Json array of every Family/Parent/Child/*Visit that holds this
- *     id is rewritten without it, so no read view renders a dangling photo.
+ *  1. Every PhotoAttachment holding this file is soft-deleted, and the named
+ *     entry/exit photo slots on any Enrollment pointing at it are nulled. The
+ *     schema's onDelete rules only fire on a hard delete, so soft-deleting the
+ *     File would otherwise leave both kinds of reference dangling.
  *  2. The File row is stamped with `deletedAt` (never hard-deleted — see the
  *     soft-delete invariant). Steps 1 and 2 share one transaction.
  *  3. The underlying storage object is removed. This is best-effort: a storage
@@ -192,22 +168,20 @@ export async function deleteFile(id: number): Promise<FileRead> {
   }
 
   const deleted = await prisma.$transaction(async (tx: DeleteFileTx) => {
-    for (const model of PHOTO_OWNER_MODELS) {
-      const delegate = tx[model];
-      // Postgres jsonb containment: '[1,2,3]' @> '2'. There is no updateMany that
-      // can compute a per-row array, so read the referencing rows and rewrite each.
-      const owners = await delegate.findMany({
-        where: { photos: { array_contains: id } },
-        select: { id: true, photos: true },
-      });
+    await tx.photoAttachment.updateMany({
+      where: { fileId: id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
 
-      for (const owner of owners) {
-        await delegate.update({
-          where: { id: owner.id },
-          data: { photos: toIdArray(owner.photos).filter((photoId) => photoId !== id) },
-        });
-      }
-    }
+    await tx.enrollment.updateMany({
+      where: { entryPhotoId: id },
+      data: { entryPhotoId: null },
+    });
+
+    await tx.enrollment.updateMany({
+      where: { exitPhotoId: id },
+      data: { exitPhotoId: null },
+    });
 
     return tx.file.update({
       where: { id },

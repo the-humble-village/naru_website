@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { LookupCreateSchema, LookupUpdateSchema, LookupReorderSchema, type UserRead, type TokenPayload } from '@naru/shared';
+import { LookupCreateSchema, LookupReorderSchema, type UserRead, type TokenPayload } from '@naru/shared';
 import { auth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/role.js';
 import * as adminService from '../services/admin.service.js';
@@ -13,6 +13,14 @@ type Variables = {
 };
 
 const app = new Hono<{ Variables: Variables }>();
+
+// One generic payload covering every lookup table: the extra columns are
+// ignored for tables that do not have them (see admin.service extraColumns).
+const AdminLookupCreateSchema = LookupCreateSchema.extend({
+  siteId: z.number().int().positive().nullable().optional(),
+  defaultUnit: z.string().max(32).nullable().optional(),
+});
+const AdminLookupUpdateSchema = AdminLookupCreateSchema.partial();
 
 /**
  * GET /admin/:table
@@ -36,7 +44,7 @@ app.post('/:table', auth, requireAdmin,
   zValidator('param', z.object({
     table: z.string(),
   })),
-  zValidator('json', LookupCreateSchema),
+  zValidator('json', AdminLookupCreateSchema),
   async (c) => {
     const { table } = c.req.valid('param');
     const data = c.req.valid('json');
@@ -71,7 +79,7 @@ app.put('/:table/:id', auth, requireAdmin,
     table: z.string(),
     id: z.string().transform(val => parseInt(val, 10)),
   })),
-  zValidator('json', LookupUpdateSchema),
+  zValidator('json', AdminLookupUpdateSchema),
   async (c) => {
     const { table, id } = c.req.valid('param');
     const data = c.req.valid('json');

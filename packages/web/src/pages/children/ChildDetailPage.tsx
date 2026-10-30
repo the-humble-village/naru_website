@@ -1,574 +1,409 @@
-import React, { useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { EnrollmentListItem, VisitListItem } from '@naru/shared';
+import { fetchChild, updateChild, deleteChild } from '../../api/children';
+import { fetchMother, listMothers } from '../../api/mothers';
+import { fetchFamily } from '../../api/families';
+import { listEnrollments } from '../../api/enrollments';
+import { listVisits } from '../../api/visits';
+import { listPrograms } from '../../api/programs';
+import { fetchCommunities, fetchSites } from '../../api/admin';
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
-} from 'recharts';
-import { childrenApi } from '../../api/children';
-import { visitsApi } from '../../api/visits';
-import { ChildRead, ChildVisitRead, ChildUpdate, Sex } from '@naru/shared';
-import ZScoreBadge from '../../components/ZScoreBadge';
-import { PhotoGallery, PhotoUpload, ConfirmDialog, RoleGate } from '../../components';
-import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
-import { Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+  ConfirmDialog,
+  EmptyState,
+  EnrollmentCard,
+  LoadingState,
+  PageHeader,
+  RoleGate,
+  ZScoreBadge,
+  formatSubjectAge,
+} from '../../components';
+import { useTranslation } from '../../hooks';
 
-interface ChildEditForm {
-  name: string;
-  sex: Sex;
-  weight: number | '';
-  birthDate: string;
-  dateEntered: string;
-  nutritionalState: string;
-  reasonEnrollment: string;
-  observations: string;
-  photos: number[];
+const CARD = 'bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm';
+const FIELD =
+  'w-full px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+const SELECT =
+  'w-full sm:w-auto px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+const ACTION =
+  'bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors';
+const DANGER = 'bg-hv-crisis text-white px-4 py-2 rounded hover:bg-red-700 transition-colors';
+
+const byActiveThenDate = (a: EnrollmentListItem, b: EnrollmentListItem): number => {
+  if (!a.exitedAt !== !b.exitedAt) {
+    return a.exitedAt ? 1 : -1;
+  }
+  return b.enrolledAt.localeCompare(a.enrolledAt);
+};
+
+interface TrendPoint {
+  date: string;
+  weight: number;
+  zScore: number | null;
 }
 
-interface ChildWithZScores extends ChildRead {
-  zScores?: {
-    weightForAge?: { zScore: number; classification: string } | null;
-    ageInDays: number;
-  } | null;
-}
+const SPARK_WIDTH = 220;
+const SPARK_HEIGHT = 36;
 
-export const ChildDetailPage: React.FC = () => {
-  const { id: familyId, cid: childId } = useParams<{ id: string; cid: string }>();
-  const navigate = useNavigate();
+const Sparkline: React.FC<{ points: TrendPoint[]; label: string }> = ({ points, label }) => {
+  if (points.length < 2) {
+    return null;
+  }
+
+  const weights = points.map((point) => point.weight);
+  const min = Math.min(...weights);
+  const max = Math.max(...weights);
+  const span = max - min || 1;
+  const step = SPARK_WIDTH / (points.length - 1);
+
+  const coords = points.map((point, index) => ({
+    x: index * step,
+    y: SPARK_HEIGHT - ((point.weight - min) / span) * (SPARK_HEIGHT - 6) - 3,
+  }));
+
+  return (
+    <svg
+      role="img"
+      aria-label={label}
+      viewBox={`0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}`}
+      className="h-9 w-full max-w-[220px]"
+      preserveAspectRatio="none"
+    >
+      <polyline
+        fill="none"
+        stroke="#2f4f39"
+        strokeWidth={2}
+        points={coords.map((coord) => `${coord.x},${coord.y}`).join(' ')}
+      />
+      {coords.map((coord, index) => (
+        <circle key={points[index]?.date ?? index} cx={coord.x} cy={coord.y} r={2.5} fill="#637dff" />
+      ))}
+    </svg>
+  );
+};
+
+const NutritionTrend: React.FC<{ enrollmentId: number }> = ({ enrollmentId }) => {
   const { t } = useTranslation();
 
-  const familyIdNum = familyId ? parseInt(familyId, 10) : 0;
-  const childIdNum  = childId  ? parseInt(childId,  10) : 0;
-
-  const { data: child, isLoading, error } = useQuery<ChildWithZScores>({
-    queryKey: ['child', familyIdNum, childIdNum],
-    queryFn: () => childrenApi.fetchChild(familyIdNum, childIdNum) as Promise<ChildWithZScores>,
-    enabled: familyIdNum > 0 && childIdNum > 0,
+  const visitsQuery = useQuery({
+    queryKey: ['visits', { enrollmentId, limit: 100 }],
+    queryFn: () => listVisits({ enrollmentId, limit: 100 }),
   });
 
-  const { data: visitsResponse, isLoading: isLoadingVisits, error: visitsError } = useQuery<ChildVisitRead[]>({
-    queryKey: ['child-visits', familyIdNum, childIdNum],
-    queryFn: async () => {
-      const res = await visitsApi.listChildVisits(familyIdNum, childIdNum, { limit: 50 });
-      return res?.visits ?? [];
-    },
-    enabled: familyIdNum > 0 && childIdNum > 0,
-  });
+  const points: TrendPoint[] = (visitsQuery.data?.items ?? [])
+    .filter((visit: VisitListItem) => typeof visit.nutritionDetail?.weight === 'number')
+    .map((visit: VisitListItem) => ({
+      date: visit.visitDate,
+      weight: visit.nutritionDetail?.weight as number,
+      zScore: visit.nutritionDetail?.weightForAgeZ ?? null,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  const [expandedVisitId, setExpandedVisitId] = useState<number | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<ChildEditForm | null>(null);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  if (visitsQuery.isLoading || points.length === 0) {
+    return null;
+  }
 
+  const latest = points[points.length - 1];
+
+  return (
+    <div className="-mt-2 rounded-b-lg border border-t-0 border-hv-border bg-white px-4 py-3 sm:px-6">
+      <p className="text-sm font-medium text-hv-gray">{t('profile.weight_trend')}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Sparkline points={points} label={t('profile.weight_trend')} />
+        {latest && latest.zScore !== null && (
+          <ZScoreBadge zScore={latest.zScore} label={t('profile.weight_for_age')} />
+        )}
+      </div>
+      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-hv-gray">
+        {points.map((point) => (
+          <li key={point.date} className="tabular-nums">
+            <span className="text-hv-charcoal">{point.weight.toFixed(1)} kg</span> {point.date}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const MotherLinkPrompt: React.FC<{ childId: number }> = ({ childId }) => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
-  // Photo removals are staged until save so Cancel can undo them.
-  const photoDeletions = usePendingPhotoDeletions();
 
-  const updateChildMutation = useMutation({
-    mutationFn: (data: ChildUpdate) => childrenApi.updateChild(familyIdNum, childIdNum, data),
+  const [term, setTerm] = useState('');
+  const [debounced, setDebounced] = useState('');
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDebounced(term.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [term]);
+
+  const results = useQuery({
+    queryKey: ['mothers', { search: debounced, limit: 10 }],
+    queryFn: () => listMothers({ search: debounced, limit: 10 }),
+    enabled: debounced.length > 0,
+  });
+
+  const link = useMutation({
+    mutationFn: (motherId: number) => updateChild(childId, { motherId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['child', familyIdNum, childIdNum] });
-      queryClient.invalidateQueries({ queryKey: ['children', familyIdNum] });
-      setIsEditing(false);
-      setEditData(null);
-      // The record saved without these photos, so it is now safe to delete the
-      // files. Staged until here so cancelling the edit could undo the removal.
-      void photoDeletions.commit();
+      void queryClient.invalidateQueries({ queryKey: ['child', childId] });
+      void queryClient.invalidateQueries({ queryKey: ['children'] });
     },
   });
 
-  const deleteChildMutation = useMutation({
-    mutationFn: () => childrenApi.deleteChild(familyIdNum, childIdNum),
+  return (
+    <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+      <p className="font-medium text-amber-900">
+        <span aria-hidden="true">&#9888; </span>
+        {t('children.no_mother')}
+      </p>
+      <label htmlFor="link-mother" className="mt-3 block text-sm font-medium text-hv-gray">
+        {t('children.link_mother')}
+      </label>
+      <input
+        id="link-mother"
+        type="search"
+        value={term}
+        onChange={(event) => setTerm(event.target.value)}
+        placeholder={t('children.search_mothers')}
+        className={`${FIELD} mt-1`}
+      />
+      {results.isLoading && debounced.length > 0 && (
+        <p className="mt-2 text-sm text-hv-gray">{t('common.loading')}</p>
+      )}
+      {(results.data?.items ?? []).length > 0 && (
+        <ul className="mt-2 space-y-2">
+          {(results.data?.items ?? []).map((mother) => (
+            <li key={mother.id}>
+              <button
+                type="button"
+                onClick={() => link.mutate(mother.id)}
+                disabled={link.isPending}
+                className="w-full rounded border border-hv-border bg-white p-2 text-left text-hv-charcoal hover:border-hv-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {mother.name || t('common.unnamed')}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+export const ChildDetailPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const childId = id ? parseInt(id, 10) : 0;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const childQuery = useQuery({
+    queryKey: ['child', childId],
+    queryFn: () => fetchChild(childId),
+    enabled: childId > 0,
+  });
+
+  const enrollmentsQuery = useQuery({
+    queryKey: ['enrollments', { childId }],
+    queryFn: () => listEnrollments({ childId, limit: 100 }),
+    enabled: childId > 0,
+  });
+
+  const communitiesQuery = useQuery({ queryKey: ['communities'], queryFn: fetchCommunities });
+  const sitesQuery = useQuery({ queryKey: ['sites'], queryFn: fetchSites });
+  const programsQuery = useQuery({
+    queryKey: ['programs', { activeOnly: true }],
+    queryFn: () => listPrograms({ activeOnly: true }),
+  });
+
+  const child = childQuery.data;
+
+  const motherId = child?.motherId ?? 0;
+  const motherQuery = useQuery({
+    queryKey: ['mother', motherId],
+    queryFn: () => fetchMother(motherId),
+    enabled: motherId > 0,
+  });
+
+  const familyId = child?.familyId ?? 0;
+  const familyQuery = useQuery({
+    queryKey: ['family', familyId],
+    queryFn: () => fetchFamily(familyId),
+    enabled: familyId > 0,
+  });
+
+  const enrollments = useMemo(
+    () => [...(enrollmentsQuery.data?.items ?? [])].sort(byActiveThenDate),
+    [enrollmentsQuery.data]
+  );
+
+  const remove = useMutation({
+    mutationFn: () => deleteChild(childId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['children', familyIdNum] });
-      queryClient.invalidateQueries({ queryKey: ['family', familyIdNum] });
-      queryClient.invalidateQueries({ queryKey: ['child-visits', familyIdNum, childIdNum] });
-      queryClient.removeQueries({ queryKey: ['child', familyIdNum, childIdNum] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      setConfirmDeleteOpen(false);
-      navigate(`/families/${familyIdNum}`);
+      void queryClient.invalidateQueries({ queryKey: ['children'] });
+      queryClient.removeQueries({ queryKey: ['child', childId] });
+      setConfirmOpen(false);
+      navigate('/children');
     },
   });
 
-  const handleEdit = () => {
-    if (!child) return;
-    setEditData({
-      name: child.name || '',
-      sex: child.sex,
-      weight: child.weight ?? 0,
-      birthDate: child.birthDate?.split('T')[0] ?? '',
-      dateEntered: child.dateEntered?.split('T')[0] ?? '',
-      nutritionalState: child.nutritionalState || '',
-      reasonEnrollment: child.reasonEnrollment || '',
-      observations: child.observations || '',
-      photos: child.photos ?? [],
-    });
-    setIsEditing(true);
-  };
+  if (childQuery.isLoading) {
+    return <LoadingState message={t('common.loading')} />;
+  }
 
-  const handleCancel = () => {
-    photoDeletions.discard();
-    setIsEditing(false);
-    setEditData(null);
-  };
+  if (childQuery.isError || !child) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <p className="text-red-600">{t('child_detail.load_error')}</p>
+      </div>
+    );
+  }
 
-  const handleSave = () => {
-    if (!child || !editData) return;
-    const dataToSave: ChildUpdate = {};
-
-    if (editData.name !== (child.name || '')) dataToSave.name = editData.name;
-    if (editData.sex !== child.sex) dataToSave.sex = editData.sex;
-
-    const weightNum = editData.weight === '' ? 0 : Number(editData.weight);
-    if (weightNum !== child.weight) dataToSave.weight = weightNum;
-
-    // Calendar dates: store as UTC midnight so they round-trip without shifting.
-    const birthDateFormatted = editData.birthDate ? `${editData.birthDate}T00:00:00.000Z` : null;
-    if (birthDateFormatted && birthDateFormatted !== child.birthDate) dataToSave.birthDate = birthDateFormatted;
-
-    const dateEnteredFormatted = editData.dateEntered ? `${editData.dateEntered}T00:00:00.000Z` : null;
-    if (dateEnteredFormatted !== child.dateEntered) dataToSave.dateEntered = dateEnteredFormatted;
-
-    if (editData.nutritionalState !== (child.nutritionalState || '')) {
-      dataToSave.nutritionalState = editData.nutritionalState || null;
-    }
-    if (editData.reasonEnrollment !== (child.reasonEnrollment || '')) {
-      dataToSave.reasonEnrollment = editData.reasonEnrollment || null;
-    }
-    if (editData.observations !== (child.observations || '')) {
-      dataToSave.observations = editData.observations || null;
-    }
-
-    const currentPhotos = child.photos ?? [];
-    if (JSON.stringify(editData.photos) !== JSON.stringify(currentPhotos)) {
-      dataToSave.photos = editData.photos;
-    }
-
-    updateChildMutation.mutate(dataToSave);
-  };
-
-  if (isLoading) return <div className="text-hv-gray">Loading...</div>;
-  if (error || !child) return <div className="text-red-500">Child not found</div>;
-
-  const formatDate = (d: string) => new Date(d).toLocaleDateString();
-  // Calendar dates (birthDate, visitDate) are stored as UTC midnight, so render
-  // them in UTC to avoid the local-timezone shift that pushes them back a day.
-  const formatDateOnly = (d: string) => new Date(d).toLocaleDateString(undefined, { timeZone: 'UTC' });
-
-  const ageInMonths = (() => {
-    const birth = new Date(child.birthDate);
-    const now = new Date();
-    return (now.getUTCFullYear() - birth.getUTCFullYear()) * 12 + (now.getUTCMonth() - birth.getUTCMonth());
-  })();
-  const ageLabel = ageInMonths < 12
-    ? `${ageInMonths} mo`
-    : `${Math.floor(ageInMonths / 12)} yr${ageInMonths % 12 > 0 ? ` ${ageInMonths % 12} mo` : ''}`;
-
-  const zscore = child.zScores?.weightForAge;
-
-  // Build visit table (sorted newest-first)
-  const sortedVisits = visitsResponse
-    ? [...visitsResponse].sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime())
-    : [];
-
-  // Build chart data (oldest-first)
-  const chartData = visitsResponse && visitsResponse.length > 1
-    ? [...visitsResponse]
-        .sort((a, b) => new Date(a.visitDate).getTime() - new Date(b.visitDate).getTime())
-        .map(v => ({
-          date: new Date(v.visitDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
-          weight: parseFloat(v.weight.toFixed(2)),
-          muac:   v.armCircumference > 0 ? parseFloat((v.armCircumference / 10).toFixed(1)) : null,
-          height: v.height > 0          ? parseFloat((v.height / 10).toFixed(1))           : null,
-        }))
-    : null;
+  const community = communitiesQuery.data?.find((item) => item.id === child.communityId) ?? null;
+  const site = sitesQuery.data?.find((item) => item.id === community?.siteId) ?? null;
+  const enrollPrograms = (programsQuery.data?.items ?? []).filter(
+    (program) => program.subjectType === 'CHILD'
+  );
+  const age = formatSubjectAge(child.birthDate);
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <Link to={`/families/${familyId}`} className="text-xs text-hv-sage hover:text-hv-charcoal transition-colors">
-            ← Back to Family
-          </Link>
-          <div className="flex items-center gap-2 mt-1">
-            <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{child.name}</h1>
-            <span className="text-xs text-hv-sage">{child.sex === 'MALE' ? 'Male' : 'Female'} · {ageLabel}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          {!isEditing && (
-            <button
-              onClick={handleEdit}
-              className="px-3 py-1.5 text-sm bg-hv-green text-white rounded-md hover:bg-hv-green-hover transition-colors"
-            >
-              {t('admin.edit_entity_title')}
-            </button>
-          )}
-          <Link
-            to={`/families/${familyId}/children/${childId}/visits/new`}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-hv-terracotta text-white rounded-md hover:bg-hv-terracotta-hover transition-colors"
-          >
-            <Plus size={14} />
-            {t('common.add_visit')}
-          </Link>
-          <RoleGate requiredRole="SUPERVISOR">
-            <button
-              onClick={() => setConfirmDeleteOpen(true)}
-              disabled={deleteChildMutation.isPending}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-red-200 rounded-md text-hv-crisis hover:bg-red-50 transition-colors disabled:opacity-50"
-            >
-              <Trash2 size={13} />
-              Delete
-            </button>
-          </RoleGate>
-        </div>
-      </div>
-
-      <ConfirmDialog
-        open={confirmDeleteOpen}
-        title="Delete child"
-        message={`Delete ${child.name || 'this child'}? This also hides their visit history from the app.`}
-        warning={
-          sortedVisits.length > 0
-            ? `This child has ${sortedVisits.length} recorded visit${sortedVisits.length !== 1 ? 's' : ''}.`
-            : undefined
+      <PageHeader
+        title={child.name || t('common.unnamed')}
+        backTo="/children"
+        backLabel={t('nav.children')}
+        actions={
+          <>
+            <Link to={`/children/${childId}/edit`} className={ACTION}>
+              {t('common.edit')}
+            </Link>
+            <RoleGate requiredRole="SUPERVISOR">
+              <button type="button" onClick={() => setConfirmOpen(true)} className={DANGER}>
+                {t('common.delete')}
+              </button>
+            </RoleGate>
+          </>
         }
-        busy={deleteChildMutation.isPending}
-        onConfirm={() => deleteChildMutation.mutate()}
-        onCancel={() => setConfirmDeleteOpen(false)}
       />
 
-      {deleteChildMutation.isError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5">
-          <p className="text-hv-crisis text-sm">
-            Error deleting child: {deleteChildMutation.error instanceof Error ? deleteChildMutation.error.message : 'Unknown error'}
-          </p>
+      <div className={`${CARD} mb-6`}>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-hv-charcoal">
+          {age && <span className="tabular-nums">{age}</span>}
+          <span className="text-hv-gray">
+            {child.sex === 'MALE' ? t('subject.sex_male') : t('subject.sex_female')}
+          </span>
+          <span className="text-hv-gray">
+            {community?.title ?? t('form.none')}
+            {site ? ` (${t('form.site')}: ${site.title})` : ''}
+          </span>
         </div>
-      )}
 
-      {/* Edit form */}
-      {isEditing && editData ? (
-        <div className="bg-white rounded-xl border border-hv-border mb-5 p-5">
-          <h2 className="text-sm font-semibold text-hv-charcoal mb-4">Edit Child Information</h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-hv-charcoal mb-1">Name</label>
-                <input
-                  type="text"
-                  id="name"
-                  value={editData.name}
-                  onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-                  placeholder="Enter child name"
-                  maxLength={256}
-                />
-              </div>
-              <div>
-                <label htmlFor="sex" className="block text-sm font-medium text-hv-charcoal mb-1">Sex</label>
-                <select
-                  id="sex"
-                  value={editData.sex}
-                  onChange={(e) => setEditData({ ...editData, sex: e.target.value as Sex })}
-                  className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
+        <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+          <div>
+            <dt className="text-sm font-medium text-hv-gray">{t('subject.col_mother')}</dt>
+            <dd className="text-hv-charcoal">
+              {motherId > 0 ? (
+                <Link
+                  to={`/mothers/${motherId}`}
+                  className="text-hv-accent hover:text-hv-green transition-colors"
                 >
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="birthDate" className="block text-sm font-medium text-hv-charcoal mb-1">Birth Date</label>
-                <input
-                  type="date"
-                  id="birthDate"
-                  value={editData.birthDate}
-                  onChange={(e) => setEditData({ ...editData, birthDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-                />
-              </div>
-              <div>
-                <label htmlFor="dateEntered" className="block text-sm font-medium text-hv-charcoal mb-1">Date Entered</label>
-                <input
-                  type="date"
-                  id="dateEntered"
-                  value={editData.dateEntered}
-                  onChange={(e) => setEditData({ ...editData, dateEntered: e.target.value })}
-                  className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="weight" className="block text-sm font-medium text-hv-charcoal mb-1">Weight (kg)</label>
-              <input
-                type="number"
-                id="weight"
-                value={editData.weight}
-                onChange={(e) => setEditData({ ...editData, weight: e.target.value === '' ? '' : Number(e.target.value) })}
-                min="0"
-                step="0.1"
-                className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-                placeholder="Weight in kg"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="nutritionalState" className="block text-sm font-medium text-hv-charcoal mb-1">Nutritional State</label>
-              <input
-                type="text"
-                id="nutritionalState"
-                value={editData.nutritionalState}
-                onChange={(e) => setEditData({ ...editData, nutritionalState: e.target.value })}
-                className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-                placeholder="e.g. Normal, Malnourished"
-                maxLength={512}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="reasonEnrollment" className="block text-sm font-medium text-hv-charcoal mb-1">Reason for Enrollment</label>
-              <textarea
-                id="reasonEnrollment"
-                rows={3}
-                value={editData.reasonEnrollment}
-                onChange={(e) => setEditData({ ...editData, reasonEnrollment: e.target.value })}
-                className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-                placeholder="Enter reason for enrollment"
-                maxLength={4096}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="observations" className="block text-sm font-medium text-hv-charcoal mb-1">Observations</label>
-              <textarea
-                id="observations"
-                rows={4}
-                value={editData.observations}
-                onChange={(e) => setEditData({ ...editData, observations: e.target.value })}
-                className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
-                placeholder="Enter any observations"
-              />
-            </div>
-
-            <PhotoUpload
-              photos={editData.photos}
-              onChange={(photos) => setEditData({ ...editData, photos })}
-              pendingDeletions={photoDeletions}
-            />
-
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={handleSave}
-                disabled={updateChildMutation.isPending}
-                className="bg-hv-terracotta text-white px-4 py-2 rounded-md text-sm hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50"
-              >
-                {updateChildMutation.isPending ? t('common.saving') : t('common.save')}
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={updateChildMutation.isPending}
-                className="px-4 py-2 border border-hv-border rounded-md text-sm text-hv-charcoal hover:bg-hv-page transition-colors disabled:opacity-50"
-              >
-                {t('common.cancel')}
-              </button>
-            </div>
-
-            {updateChildMutation.isError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                <p className="text-hv-crisis text-sm">
-                  Error saving child: {updateChildMutation.error instanceof Error ? updateChildMutation.error.message : 'Unknown error'}
-                </p>
-              </div>
-            )}
+                  {motherQuery.data?.name ?? `#${motherId}`}
+                </Link>
+              ) : (
+                <span className="text-hv-gray">{t('form.none')}</span>
+              )}
+            </dd>
           </div>
-        </div>
-      ) : (
-      /* Info strip */
-      <div className="bg-white rounded-xl border border-hv-border mb-5">
-        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-hv-border">
-          <div className="px-4 py-3">
-            <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Birth Date</div>
-            <div className="text-sm font-medium text-hv-charcoal">{formatDateOnly(child.birthDate)}</div>
-          </div>
-          <div className="px-4 py-3">
-            <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Weight</div>
-            <div className="text-sm font-medium text-hv-charcoal">{child.weight.toFixed(2)} kg</div>
-          </div>
-          <div className="px-4 py-3">
-            <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Nutritional State</div>
-            <div className="text-sm font-medium text-hv-charcoal">{child.nutritionalState || '—'}</div>
-          </div>
-          <div className="px-4 py-3">
-            <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Date Entered</div>
-            <div className="text-sm font-medium text-hv-charcoal">{child.dateEntered ? formatDate(child.dateEntered) : '—'}</div>
-          </div>
-        </div>
 
-        {/* Z-score row */}
-        {zscore && (
-          <div className="px-4 py-3 border-t border-hv-border flex items-center gap-4">
-            <div className="text-xs text-hv-sage uppercase tracking-wide">Weight-for-Age Z-Score</div>
-            <ZScoreBadge zScore={zscore.zScore} label={t('view_child.zscore_wfa')} showValue={true} />
-            <span className="text-xs text-hv-sage">{child.zScores!.ageInDays} days old</span>
+          <div>
+            <dt className="text-sm font-medium text-hv-gray">{t('form.family')}</dt>
+            <dd className="text-hv-charcoal">
+              {familyId > 0 ? (
+                <Link
+                  to={`/families/${familyId}`}
+                  className="text-hv-accent hover:text-hv-green transition-colors"
+                >
+                  {familyQuery.data?.familyName ?? `#${familyId}`}
+                </Link>
+              ) : (
+                <span className="text-hv-gray">{t('form.none')}</span>
+              )}
+            </dd>
           </div>
-        )}
+        </dl>
 
-        {/* Notes / enrollment reason */}
-        {(child.reasonEnrollment || child.observations) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-hv-border border-t border-hv-border">
-            {child.reasonEnrollment && (
-              <div className="px-4 py-3">
-                <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Reason for Enrollment</div>
-                <div className="text-sm text-hv-charcoal">{child.reasonEnrollment}</div>
-              </div>
-            )}
-            {child.observations && (
-              <div className="px-4 py-3">
-                <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Observations</div>
-                <div className="text-sm text-hv-charcoal">{child.observations}</div>
-              </div>
-            )}
+        {child.notes && (
+          <div className="mt-4 border-t border-hv-border pt-3">
+            <p className="text-sm font-medium text-hv-gray">{t('form.notes')}</p>
+            <p className="whitespace-pre-wrap text-hv-charcoal">{child.notes}</p>
           </div>
         )}
       </div>
-      )}
 
-      {/* Photos (read-only; while editing they are managed by PhotoUpload above) */}
-      {!isEditing && child.photos && child.photos.length > 0 && (
-        <div className="bg-white rounded-xl border border-hv-border p-4 mb-5">
-          <PhotoGallery photos={child.photos} />
+      {motherId === 0 && (
+        <div className="mb-6">
+          <MotherLinkPrompt childId={childId} />
         </div>
       )}
 
-      {/* Visit History */}
-      <div className="bg-white rounded-xl border border-hv-border">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-hv-border">
-          <h2 className="text-sm font-semibold text-hv-charcoal">{t('family.visit_history')}</h2>
-          {sortedVisits.length > 0 && (
-            <span className="text-xs text-hv-sage">{sortedVisits.length} visit{sortedVisits.length !== 1 ? 's' : ''}</span>
+      <section>
+        <div className="flex flex-col gap-3 border-t border-hv-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold text-hv-green">{t('profile.enrollments')}</h2>
+          {enrollPrograms.length === 0 ? (
+            <p className="text-sm text-hv-gray">{t('profile.no_programs')}</p>
+          ) : (
+            <select
+              className={SELECT}
+              aria-label={t('profile.enroll')}
+              value=""
+              onChange={(event) => {
+                if (event.target.value) {
+                  navigate(`/programs/${event.target.value}/enroll?childId=${childId}`);
+                }
+              }}
+            >
+              <option value="">{t('profile.enroll')}</option>
+              {enrollPrograms.map((program) => (
+                <option key={program.id} value={program.id}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
           )}
         </div>
 
-        {isLoadingVisits ? (
-          <div className="px-4 py-6 text-center text-hv-gray text-sm">Loading visits...</div>
-        ) : visitsError ? (
-          <div className="px-4 py-4 text-hv-crisis text-sm">Error loading visits</div>
-        ) : sortedVisits.length === 0 ? (
-          <div className="px-4 py-6 text-center text-hv-gray text-sm">No visits recorded yet</div>
-        ) : (
-          <>
-            {/* Charts — only when 2+ visits */}
-            {chartData && (
-              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-hv-border border-b border-hv-border">
-                {([
-                  { key: 'weight', label: 'Weight (kg)',         color: '#2f4f39' },
-                  { key: 'muac',   label: 'Arm Circ. (cm)',      color: '#C27D5F', refLine: 11.5 },
-                  { key: 'height', label: 'Height (cm)',         color: '#637dff' },
-                ] as { key: string; label: string; color: string; refLine?: number }[]).map(({ key, label, color, refLine }) => (
-                  <div key={key} className="px-4 py-4">
-                    <div className="text-xs font-medium text-hv-sage uppercase tracking-wide mb-2">{label}</div>
-                    <ResponsiveContainer width="100%" height={110}>
-                      <LineChart data={chartData} margin={{ top: 4, right: 8, left: -28, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" vertical={false} />
-                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#7A8B76' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 9, fill: '#7A8B76' }} axisLine={false} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 11 }}
-                          formatter={(val) => [String(val), label]}
-                        />
-                        {refLine && (
-                          <ReferenceLine y={refLine} stroke="#c0392b" strokeDasharray="4 2"
-                            label={{ value: `${refLine}`, fontSize: 9, fill: '#c0392b' }} />
-                        )}
-                        <Line type="monotone" dataKey={key} stroke={color} strokeWidth={2}
-                          dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 4 }} connectNulls={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                ))}
+        <div className="mt-4 space-y-3">
+          {enrollmentsQuery.isLoading ? (
+            <LoadingState message={t('common.loading')} />
+          ) : enrollments.length === 0 ? (
+            <EmptyState message={t('profile.no_enrollments')} />
+          ) : (
+            enrollments.map((enrollment) => (
+              <div key={enrollment.id}>
+                <EnrollmentCard enrollment={enrollment} />
+                {enrollment.program.kind === 'NUTRITION' && !enrollment.exitedAt && (
+                  <NutritionTrend enrollmentId={enrollment.id} />
+                )}
               </div>
-            )}
+            ))
+          )}
+        </div>
+      </section>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-hv-page">
-                    <th className="w-8 px-3 py-2" />
-                    {['Date', 'Weight (kg)', 'MUAC (cm)', 'Height (cm)', 'Notes'].map(h => (
-                      <th key={h} className="text-left px-4 py-2 text-xs font-medium text-hv-sage uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-hv-border">
-                  {sortedVisits.map((visit: ChildVisitRead) => {
-                    const isOpen = expandedVisitId === visit.id;
-                    const extras: { label: string; value: React.ReactNode }[] = [
-                      { label: 'INCAP',             value: visit.incap            ? 'Yes' : 'No' },
-                      { label: 'Leche',             value: visit.leche            ? 'Yes' : 'No' },
-                      // bagsGiven / recvAnyMedicine / leftFromProg / passedAway are free-text
-                      // columns, not booleans — render the recorded text.
-                      { label: 'Bags Given',        value: visit.bagsGiven        || '—' },
-                      { label: 'Received Medicine', value: visit.recvAnyMedicine  || '—' },
-                      { label: 'Left Program',      value: visit.leftFromProg     || '—' },
-                      { label: 'Passed Away',       value: visit.passedAway       || '—' },
-                    ];
-                    return (
-                      <React.Fragment key={visit.id}>
-                        <tr
-                          className={`cursor-pointer transition-colors ${isOpen ? 'bg-hv-page' : 'hover:bg-hv-page'}`}
-                          onClick={() => setExpandedVisitId(isOpen ? null : visit.id)}
-                        >
-                          <td className="px-3 py-2.5 text-hv-sage">
-                            {isOpen
-                              ? <ChevronDown size={14} />
-                              : <ChevronRight size={14} />}
-                          </td>
-                          <td className="px-4 py-2.5 text-sm text-hv-charcoal">{formatDateOnly(visit.visitDate)}</td>
-                          <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.weight.toFixed(2)}</td>
-                          <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.armCircumference > 0 ? (visit.armCircumference / 10).toFixed(1) : '—'}</td>
-                          <td className="px-4 py-2.5 text-sm text-hv-charcoal">{visit.height > 0 ? (visit.height / 10).toFixed(1) : '—'}</td>
-                          <td className="px-4 py-2.5 text-sm text-hv-charcoal truncate max-w-xs">{visit.notes || '—'}</td>
-                        </tr>
-                        {isOpen && (
-                          <tr className="bg-hv-page">
-                            <td />
-                            <td colSpan={5} className="px-4 pb-4 pt-2">
-                              <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-6 gap-y-2 mb-3">
-                                {extras.map(({ label, value }) => (
-                                  <div key={label}>
-                                    <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">{label}</div>
-                                    <div className="text-sm font-medium text-hv-charcoal">{value}</div>
-                                  </div>
-                                ))}
-                              </div>
-                              {visit.notes && (
-                                <div className="mb-3">
-                                  <div className="text-xs text-hv-sage uppercase tracking-wide mb-0.5">Notes</div>
-                                  <div className="text-sm text-hv-charcoal">{visit.notes}</div>
-                                </div>
-                              )}
-                              <Link
-                                to={`/families/${familyId}/children/${childId}/visits/${visit.id}`}
-                                className="text-xs text-hv-terracotta hover:underline transition-colors"
-                              >
-                                Open visit →
-                              </Link>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title={t('child_detail.delete_title')}
+        message={t('child_detail.delete_message')}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        busy={remove.isPending}
+        onConfirm={() => remove.mutate()}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 };

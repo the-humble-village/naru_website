@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { LookupRead, LookupCreate, LookupUpdate, LookupReorder } from '@naru/shared';
+import { LookupRead, LookupCreate, LookupUpdate, LookupReorder, CommunityRead, ResourceRead } from '@naru/shared';
 
 /**
  * Valid lookup table names
@@ -9,15 +9,32 @@ export type LookupTableName =
   | 'sites'
   | 'resources'
   | 'training'
-  | 'child-visit-questions'
-  | 'parent-visit-questions'
-  | 'family-visit-questions';
+  | 'examination-types';
+
+/**
+ * A lookup row plus the extra columns a few tables carry: communities name a
+ * site, resources name a default unit. Every other table ignores them.
+ */
+export type LookupEntry = LookupRead & {
+  siteId?: number | null;
+  defaultUnit?: string | null;
+};
+
+export type LookupEntryCreate = LookupCreate & {
+  siteId?: number | null;
+  defaultUnit?: string | null;
+};
+
+export type LookupEntryUpdate = LookupUpdate & {
+  siteId?: number | null;
+  defaultUnit?: string | null;
+};
 
 /**
  * Fetch all entries from a lookup table
  */
-export const fetchLookupTable = async (table: LookupTableName): Promise<LookupRead[]> => {
-  const response = await apiClient.get<LookupRead[]>(`/admin/${table}`);
+export const fetchLookupTable = async (table: LookupTableName): Promise<LookupEntry[]> => {
+  const response = await apiClient.get<LookupEntry[]>(`/admin/${table}`);
   return response.data;
 };
 
@@ -26,9 +43,9 @@ export const fetchLookupTable = async (table: LookupTableName): Promise<LookupRe
  */
 export const createLookupEntry = async (
   table: LookupTableName,
-  data: LookupCreate
-): Promise<LookupRead> => {
-  const response = await apiClient.post<LookupRead>(`/admin/${table}`, data);
+  data: LookupEntryCreate
+): Promise<LookupEntry> => {
+  const response = await apiClient.post<LookupEntry>(`/admin/${table}`, data);
   return response.data;
 };
 
@@ -38,9 +55,9 @@ export const createLookupEntry = async (
 export const updateLookupEntry = async (
   table: LookupTableName,
   id: number,
-  data: LookupUpdate
-): Promise<LookupRead> => {
-  const response = await apiClient.put<LookupRead>(`/admin/${table}/${id}`, data);
+  data: LookupEntryUpdate
+): Promise<LookupEntry> => {
+  const response = await apiClient.put<LookupEntry>(`/admin/${table}/${id}`, data);
   return response.data;
 };
 
@@ -64,13 +81,19 @@ export const reorderLookupEntries = async (
 /**
  * Convenience functions for specific lookup tables
  */
-export const fetchCommunities = () => fetchLookupTable('communities');
+// Communities carry siteId and resources carry defaultUnit, so both are read
+// back as their specific type rather than the generic lookup row.
+export const fetchCommunities = async (): Promise<CommunityRead[]> => {
+  const response = await apiClient.get<CommunityRead[]>('/admin/communities');
+  return response.data;
+};
 export const fetchSites = () => fetchLookupTable('sites');
-export const fetchResources = () => fetchLookupTable('resources');
+export const fetchResources = async (): Promise<ResourceRead[]> => {
+  const response = await apiClient.get<ResourceRead[]>('/admin/resources');
+  return response.data;
+};
 export const fetchTraining = () => fetchLookupTable('training');
-export const fetchChildVisitQuestions = () => fetchLookupTable('child-visit-questions');
-export const fetchParentVisitQuestions = () => fetchLookupTable('parent-visit-questions');
-export const fetchFamilyVisitQuestions = () => fetchLookupTable('family-visit-questions');
+export const fetchExaminationTypes = () => fetchLookupTable('examination-types');
 
 export const adminApi = {
   fetchLookupTable,
@@ -82,7 +105,5 @@ export const adminApi = {
   fetchSites,
   fetchResources,
   fetchTraining,
-  fetchChildVisitQuestions,
-  fetchParentVisitQuestions,
-  fetchFamilyVisitQuestions,
+  fetchExaminationTypes,
 };

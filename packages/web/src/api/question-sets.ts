@@ -1,26 +1,51 @@
 import { apiClient } from './client';
-import { type QuestionSetCreate, type QuestionSetUpdate, type QuestionSetRead } from '@naru/shared';
+import { QuestionSetRead, QuestionSetCreate, QuestionSetUpdate } from '@naru/shared';
 
-type VisitType = 'child' | 'parent' | 'family';
+export interface ListQuestionSetsParams {
+  programId?: number;
+  includeShared?: boolean;
+}
+
+export const listQuestionSets = async (
+  params: ListQuestionSetsParams = {}
+): Promise<QuestionSetRead[]> => {
+  const searchParams = new URLSearchParams();
+
+  if (params.programId !== undefined) searchParams.set('programId', params.programId.toString());
+  if (params.includeShared !== undefined)
+    searchParams.set('includeShared', params.includeShared ? 'true' : 'false');
+
+  const url = `/question-sets${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  const response = await apiClient.get<QuestionSetRead[]>(url);
+  return response.data;
+};
+
+export const fetchQuestionSet = async (id: number): Promise<QuestionSetRead> => {
+  const response = await apiClient.get<QuestionSetRead>(`/question-sets/${id}`);
+  return response.data;
+};
+
+export const createQuestionSet = async (data: QuestionSetCreate): Promise<QuestionSetRead> => {
+  const response = await apiClient.post<QuestionSetRead>('/question-sets', data);
+  return response.data;
+};
+
+export const updateQuestionSet = async (
+  id: number,
+  data: QuestionSetUpdate
+): Promise<QuestionSetRead> => {
+  const response = await apiClient.put<QuestionSetRead>(`/question-sets/${id}`, data);
+  return response.data;
+};
+
+export const deleteQuestionSet = async (id: number): Promise<void> => {
+  await apiClient.delete(`/question-sets/${id}`);
+};
 
 export const questionSetsApi = {
-  list: async (visitType: VisitType): Promise<QuestionSetRead[]> => {
-    const res = await apiClient.get<QuestionSetRead[]>(`/question-sets/${visitType}`);
-    return res.data;
-  },
-  fetch: async (visitType: VisitType, id: number): Promise<QuestionSetRead> => {
-    const res = await apiClient.get<QuestionSetRead>(`/question-sets/${visitType}/${id}`);
-    return res.data;
-  },
-  create: async (visitType: VisitType, data: QuestionSetCreate): Promise<QuestionSetRead> => {
-    const res = await apiClient.post<QuestionSetRead>(`/question-sets/${visitType}`, data);
-    return res.data;
-  },
-  update: async (visitType: VisitType, id: number, data: QuestionSetUpdate): Promise<QuestionSetRead> => {
-    const res = await apiClient.put<QuestionSetRead>(`/question-sets/${visitType}/${id}`, data);
-    return res.data;
-  },
-  delete: async (visitType: VisitType, id: number): Promise<void> => {
-    await apiClient.delete(`/question-sets/${visitType}/${id}`);
-  },
+  listQuestionSets,
+  fetchQuestionSet,
+  createQuestionSet,
+  updateQuestionSet,
+  deleteQuestionSet,
 };

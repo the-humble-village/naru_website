@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { UserCreateSchema, ParentCreateSchema } from '@naru/shared';
+import { UserCreateSchema, ChildCreateSchema } from '@naru/shared';
 import { parseZodErrors } from '../useFieldErrors';
 
 describe('parseZodErrors', () => {
   it('schema passes for valid data', () => {
     const result = UserCreateSchema.safeParse({
       login: 'alice',
-      password: 'secret123',
+      password: 'secret123456',
       role: 'CASEWORKER',
     });
     expect(result.success).toBe(true);
@@ -15,7 +15,7 @@ describe('parseZodErrors', () => {
   it('maps a single field error to its field name', () => {
     const result = UserCreateSchema.safeParse({
       login: '', // fails min(1)
-      password: 'secret123',
+      password: 'secret123456',
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -28,7 +28,7 @@ describe('parseZodErrors', () => {
   it('maps multiple field errors simultaneously', () => {
     const result = UserCreateSchema.safeParse({
       login: '',      // fails min(1)
-      password: 'ab', // fails min(6)
+      password: 'ab', // fails min(12)
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -39,8 +39,8 @@ describe('parseZodErrors', () => {
   });
 
   it('all error values are strings', () => {
-    const result = ParentCreateSchema.safeParse({
-      firstName: '',
+    const result = ChildCreateSchema.safeParse({
+      name: '',
       familyId: -1,
     });
     expect(result.success).toBe(false);
@@ -55,7 +55,7 @@ describe('parseZodErrors', () => {
   it('only includes fields that actually have errors', () => {
     const result = UserCreateSchema.safeParse({
       login: 'alice',  // valid
-      password: 'ab',  // fails min(6)
+      password: 'ab',  // fails min(12)
     });
     expect(result.success).toBe(false);
     if (!result.success) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { DirectoryHeader } from '../../components/people/PeopleDirectory';
 import { useFamilyTable } from './useFamilyTable';
 import { FamiliesTable } from './FamiliesTable';
 import { useTranslation } from '../../hooks';
@@ -9,16 +9,9 @@ export const FamiliesPage: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{t('nav.families')}</h1>
-        <Link
-          to="/families/new"
-          className="bg-hv-terracotta text-white px-4 py-2 rounded-md hover:bg-hv-terracotta-hover transition-colors"
-        >
-          {t('add_family.title')}
-        </Link>
-      </div>
+    <div className="mx-auto max-w-screen-2xl py-1">
+      <DirectoryHeader title={t('nav.families')} description={t('directory.families_description')}
+        action={{ to: '/families/new', label: t('add_family.title') }} />
       <FamiliesTable table={table} />
     </div>
   );

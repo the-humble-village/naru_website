@@ -46,13 +46,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setQuery('');
     switch (result.type) {
       case 'family':
-        navigate(`/families/${result.familyId}`);
-        break;
-      case 'parent':
-        navigate(`/families/${result.familyId}/parents/${result.id}`);
+        navigate(`/families/${result.id}`);
         break;
       case 'child':
-        navigate(`/families/${result.familyId}/children/${result.id}`);
+        navigate(`/children/${result.id}`);
+        break;
+      case 'mother':
+        navigate(`/mothers/${result.id}`);
+        break;
+      case 'person':
+        navigate(`/people/${result.id}`);
         break;
     }
   };
@@ -78,7 +81,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     switch (type) {
       case 'family':
         return <Users className="w-4 h-4" />;
-      case 'parent':
+      case 'mother':
+      case 'person':
         return <User className="w-4 h-4" />;
       case 'child':
         return <Baby className="w-4 h-4" />;
@@ -91,8 +95,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     switch (type) {
       case 'family':
         return t('search.types.family');
-      case 'parent':
-        return t('search.types.parent');
+      case 'mother':
+        return t('search.types.mother');
+      case 'person':
+        return t('search.types.person');
       case 'child':
         return t('search.types.child');
       default:

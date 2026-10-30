@@ -193,6 +193,34 @@ describe('LoginPage', () => {
     });
   });
 
+  // The real backend responds with `{ error }`, not `{ message }` — see app.ts
+  // onError. Reading only `message` meant the rate limiter's 429 rendered as
+  // "check your credentials", which is the wrong advice when the fix is to wait.
+  it('shows the server message from the { error } response shape', async () => {
+    const errorMessage = 'Too many login attempts. Please wait a few minutes and try again.';
+    (authApi.authApi.login as any).mockRejectedValue({
+      response: { status: 429, data: { error: errorMessage } },
+    });
+
+    render(
+      <TestWrapper>
+        <LoginPage />
+      </TestWrapper>
+    );
+
+    fireEvent.change(screen.getByLabelText(en['login.hint_login']), {
+      target: { value: 'testuser' },
+    });
+    fireEvent.change(screen.getByLabelText(en['login.hint_password']), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: en['login.button'] }));
+
+    await waitFor(() => {
+      expect(screen.getByText(errorMessage)).toBeInTheDocument();
+    });
+  });
+
 
   it('shows loading state during form submission', async () => {
     let resolveLogin: any;

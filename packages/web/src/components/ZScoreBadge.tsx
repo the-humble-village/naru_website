@@ -1,5 +1,6 @@
 import React from 'react';
 import { classifyZScore } from '@naru/shared';
+import { NUTRITION_STATUS_STYLE } from '../utils/nutritionStatus';
 
 export interface ZScoreBadgeProps {
   zScore: number | null;
@@ -27,10 +28,10 @@ export const ZScoreBadge: React.FC<ZScoreBadgeProps> = ({
 
   // Color mapping based on classification
   const colorClasses = {
-    severe: 'bg-red-600 text-white',
-    moderate: 'bg-red-400 text-white',
-    mild: 'bg-yellow-500 text-white',
-    normal: 'bg-green-500 text-white',
+    severe: NUTRITION_STATUS_STYLE.SEVERE.badge,
+    moderate: NUTRITION_STATUS_STYLE.MODERATE.badge,
+    mild: NUTRITION_STATUS_STYLE.MILD.badge,
+    normal: NUTRITION_STATUS_STYLE.NORMAL.badge,
     above: 'bg-blue-500 text-white',
     high: 'bg-purple-500 text-white',
   };

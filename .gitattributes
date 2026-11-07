@@ -1,0 +1,2 @@
+# pnpm 12 lockfiles hold two YAML documents, and CRLF line endings make pnpm duplicate the first.
+pnpm-lock.yaml text eol=lf

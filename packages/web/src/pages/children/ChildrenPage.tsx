@@ -114,7 +114,7 @@ export const ChildrenPage: React.FC = () => {
     .replace('{total}', String(total));
 
   return (
-    <div className="mx-auto max-w-screen-2xl py-1">
+    <div className="mx-auto max-w-(--breakpoint-2xl) py-1">
       <DirectoryHeader title={t('nav.children')} description={t('directory.children_description')}
         action={{ to: '/children/new', label: t('common.add_child') }} />
       <DirectoryFilters search={search} searchLabel={t('directory.search_children')}

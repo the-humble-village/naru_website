@@ -116,7 +116,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder || t('search.placeholder')}
-          className="w-full px-4 py-2 pl-10 pr-4 text-sm text-hv-charcoal bg-white border border-hv-border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-hv-terracotta focus:border-transparent"
+          className="w-full px-4 py-2 pl-10 pr-4 text-sm text-hv-charcoal bg-white border border-hv-border-input rounded-xl focus:outline-hidden focus:ring-2 focus:ring-hv-terracotta focus:border-transparent"
         />
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="w-4 h-4 text-gray-500" />
@@ -150,7 +150,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 <button
                   key={`${result.type}-${result.id}`}
                   onClick={() => handleResultSelect(result)}
-                  className="w-full px-4 py-3 text-left hover:bg-hv-page focus:bg-hv-page focus:outline-none transition-colors border-b border-hv-border last:border-b-0"
+                  className="w-full px-4 py-3 text-left hover:bg-hv-page focus:bg-hv-page focus:outline-hidden transition-colors border-b border-hv-border last:border-b-0"
                 >
                   <div className="flex items-start space-x-3">
                     <span className="flex items-center text-hv-sage mt-0.5">{getResultIcon(result.type)}</span>

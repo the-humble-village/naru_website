@@ -29,8 +29,8 @@ const ROWS_PER_PAGE = 25;
 const FETCH_PAGE_SIZE = 100;
 const MAX_FETCH_PAGES = 20;
 const MS_PER_DAY = 86_400_000;
-const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
-const FIELD = 'min-h-11 w-full min-w-0 rounded-lg border border-hv-border bg-white px-3 py-2 text-sm text-hv-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green';
+const FOCUS = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
+const FIELD = 'min-h-11 w-full min-w-0 rounded-lg border border-hv-border bg-white px-3 py-2 text-sm text-hv-charcoal focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green';
 const LABEL = 'mb-1 block text-sm font-medium text-hv-gray';
 
 const STATUS_ORDER: NutritionalStatus[] = ['SEVERE', 'MODERATE', 'MILD', 'NORMAL'];
@@ -366,13 +366,13 @@ export const ProgramRosterPage: React.FC = () => {
     : t('roster.result_count').replace('{count}', String(filteredRows.length));
 
   return (
-    <div className="mx-auto max-w-screen-2xl py-1">
+    <div className="mx-auto max-w-(--breakpoint-2xl) py-1">
       <header className="mb-4 grid grid-cols-[1fr_auto] items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
-        <Link to="/programs" className={`inline-flex min-h-11 items-center gap-1.5 justify-self-start rounded text-sm font-medium text-hv-terracotta hover:text-hv-green ${FOCUS}`}>
+        <Link to="/programs" className={`inline-flex min-h-11 items-center gap-1.5 justify-self-start rounded-sm text-sm font-medium text-hv-terracotta hover:text-hv-green ${FOCUS}`}>
           <ArrowLeft aria-hidden="true" size={16} />{t('nav.all_programs')}
         </Link>
         <div className="order-3 col-span-2 text-center lg:order-2 lg:col-span-1">
-          <h1 className="break-words font-serif text-3xl font-bold tracking-tight text-hv-green">{program.name}</h1>
+          <h1 className="wrap-break-word font-serif text-3xl font-bold tracking-tight text-hv-green">{program.name}</h1>
           {program.description && <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-hv-gray">{program.description}</p>}
         </div>
         <Link to={`/programs/${program.id}/enroll`}
@@ -434,7 +434,7 @@ export const ProgramRosterPage: React.FC = () => {
           </div>
           <div className="mt-5 border-t border-hv-green/15 pt-3">
             <button type="button" onClick={clearFilters} disabled={!filtersActive}
-              className={`inline-flex min-h-11 items-center gap-2 rounded text-sm text-hv-terracotta hover:text-hv-green disabled:cursor-default disabled:text-hv-gray ${FOCUS}`}>
+              className={`inline-flex min-h-11 items-center gap-2 rounded-sm text-sm text-hv-terracotta hover:text-hv-green disabled:cursor-default disabled:text-hv-gray ${FOCUS}`}>
               <RotateCcw aria-hidden="true" size={16} />{t('roster.clear_filters')}
             </button>
           </div>
@@ -467,7 +467,7 @@ export const ProgramRosterPage: React.FC = () => {
             {hasRosterError ? (
               <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-hv-crisis">
                 <p>{t('roster.load_failed')}</p>
-                <button type="button" className={`mt-2 min-h-11 rounded px-2 underline ${FOCUS}`}
+                <button type="button" className={`mt-2 min-h-11 rounded-sm px-2 underline ${FOCUS}`}
                   onClick={() => { void enrollmentsQuery.refetch(); void subjectsQuery.refetch(); if (needsVisitDetail) void visitsQuery.refetch(); }}>
                   {t('roster.retry')}
                 </button>

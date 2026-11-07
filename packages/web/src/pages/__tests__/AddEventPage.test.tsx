@@ -74,7 +74,7 @@ describe('AddEventPage', () => {
     await waitFor(() => {
       expect(mockEventsApi.createEvent).not.toHaveBeenCalled();
     });
-    expect(screen.getByText(/String must contain at least 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Too small: expected string to have >=1 characters/)).toBeInTheDocument();
   });
 
   it('creates the event and navigates to its detail page', async () => {

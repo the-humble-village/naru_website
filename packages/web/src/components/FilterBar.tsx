@@ -30,7 +30,7 @@ export interface FilterBarProps {
 
 const LABEL = 'block text-sm font-medium text-hv-gray mb-1';
 const FIELD =
-  'w-full px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+  'w-full px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent';
 
 export const FilterBar: React.FC<FilterBarProps> = ({
   fields,
@@ -125,7 +125,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <button
               type="button"
               onClick={onApply}
-              className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors"
+              className="bg-hv-green text-white px-4 py-2 rounded-sm hover:bg-hv-green-hover transition-colors"
             >
               {t('filter.apply')}
             </button>

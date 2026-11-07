@@ -87,7 +87,7 @@ export const AdminPage: React.FC = () => {
                       to={card.to}
                       aria-labelledby={`admin-${id}-label`}
                       aria-describedby={`admin-${id}-description`}
-                      className="flex h-full min-h-[132px] flex-col items-center rounded-xl border border-hv-green/15 bg-white p-3 text-center transition-[border-color,box-shadow] hover:border-hv-green hover:shadow-[0_4px_12px_rgba(47,79,57,0.16)] focus-visible:border-hv-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-4 focus-visible:ring-offset-[#eaf0e9] motion-reduce:transition-none"
+                      className="flex h-full min-h-[132px] flex-col items-center rounded-xl border border-hv-green/15 bg-white p-3 text-center transition-[border-color,box-shadow] hover:border-hv-green hover:shadow-[0_4px_12px_rgba(47,79,57,0.16)] focus-visible:border-hv-green focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-4 focus-visible:ring-offset-[#eaf0e9] motion-reduce:transition-none"
                     >
                       <span aria-hidden="true" className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center text-hv-terracotta">
                         <i className={`${card.icon} text-3xl`} />
@@ -95,7 +95,7 @@ export const AdminPage: React.FC = () => {
                       <h3 id={`admin-${id}-label`} className="text-base font-medium leading-snug text-hv-charcoal">
                         {t(card.label)}
                       </h3>
-                      <p id={`admin-${id}-description`} className="mt-1 max-w-[15rem] text-sm leading-5 text-hv-gray">
+                      <p id={`admin-${id}-description`} className="mt-1 max-w-60 text-sm leading-5 text-hv-gray">
                         {t(card.description)}
                       </p>
                     </Link>

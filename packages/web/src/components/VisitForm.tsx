@@ -73,7 +73,7 @@ interface FormState {
 }
 
 const FIELD =
-  'w-full min-h-[44px] px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+  'w-full min-h-[44px] px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent';
 const LABEL = 'block text-sm font-medium text-hv-charcoal mb-1';
 const SECTION = 'text-lg font-semibold text-hv-green';
 
@@ -398,7 +398,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4">
+      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4">
         <h3 className={SECTION}>{isEdit ? t('visit.edit_visit') : t('visit.record_visit')}</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -460,7 +460,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
       </section>
 
       {detailKind === 'pregnancy' && (
-        <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4">
+        <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4">
           <h3 className={SECTION}>{t('visit.pregnancy')}</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -522,7 +522,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
       )}
 
       {detailKind === 'nutrition' && (
-        <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4">
+        <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4">
           <h3 className={SECTION}>{t('visit.nutrition')}</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -584,7 +584,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
         </section>
       )}
 
-      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4">
+      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4">
         <h3 className={SECTION}>{t('visit.trainings_given')}</h3>
         <TrainingPicker
           options={trainingOptions.map((option) => ({ id: option.id, title: option.title }))}
@@ -593,7 +593,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
         />
       </section>
 
-      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4">
+      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4">
         <h3 className={SECTION}>{t('visit.resources_given')}</h3>
 
         <div className="space-y-3">
@@ -632,12 +632,12 @@ export const VisitForm: React.FC<VisitFormProps> = ({
         </button>
       </section>
 
-      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4">
+      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4">
         <h3 className={SECTION}>{t('visit.questions')}</h3>
         <VisitQuestionsPanel programId={program.id} value={answers} onChange={setAnswers} />
       </section>
 
-      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4">
+      <section className="bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4">
         <h3 className={SECTION}>{t('visit.notes_and_photos')}</h3>
 
         <div>
@@ -668,7 +668,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-[44px] bg-hv-gray text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+            className="min-h-[44px] bg-hv-gray text-white px-4 py-2 rounded-sm hover:bg-gray-600 transition-colors"
           >
             {t('common.cancel')}
           </button>
@@ -676,7 +676,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
         <button
           type="submit"
           disabled={saveMutation.isPending}
-          className="min-h-[44px] bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="min-h-[44px] bg-hv-green text-white px-4 py-2 rounded-sm hover:bg-hv-green-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saveMutation.isPending ? t('common.saving') : t('visit.save_visit')}
         </button>

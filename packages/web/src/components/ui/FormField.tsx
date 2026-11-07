@@ -28,7 +28,7 @@ export const FormField: React.FC<FormFieldProps> = ({
   rows,
   maxLength,
 }) => {
-  const baseInputClass = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
+  const baseInputClass = `w-full px-3 py-2 border rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-terracotta ${
     error ? 'border-red-500' : 'border-hv-border-input'
   }`;
 

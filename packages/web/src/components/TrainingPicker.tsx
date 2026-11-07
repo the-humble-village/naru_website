@@ -50,7 +50,7 @@ export const TrainingPicker: React.FC<TrainingPickerProps> = ({
             type="checkbox"
             checked={selectedIds.includes(option.id)}
             onChange={() => toggle(option.id)}
-            className="rounded border-hv-border-input text-hv-accent focus:ring-hv-accent"
+            className="rounded-sm border-hv-border-input text-hv-accent focus:ring-hv-accent"
           />
           <span>{option.title}</span>
         </label>

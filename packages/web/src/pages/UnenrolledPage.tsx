@@ -244,7 +244,7 @@ export const UnenrolledPage: React.FC = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-screen-2xl py-1">
+    <div className="mx-auto max-w-(--breakpoint-2xl) py-1">
       <DirectoryHeader title={t('nav.unenrolled')} description={t('directory.unenrolled_description')} />
       <DirectoryFilters search={search} searchLabel={t('directory.search_unenrolled')}
         onSearchChange={value => { setSearch(value); setPage(0); }} value={filters}

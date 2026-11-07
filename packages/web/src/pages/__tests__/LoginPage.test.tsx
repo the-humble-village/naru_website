@@ -85,7 +85,7 @@ describe('LoginPage', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getAllByText('String must contain at least 1 character(s)')).toHaveLength(2); // username and password
+      expect(screen.getAllByText('Too small: expected string to have >=1 characters')).toHaveLength(2); // username and password
     });
   });
 

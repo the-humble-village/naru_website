@@ -10,7 +10,12 @@ export const BirthingAssistantCreateSchema = z.object({
 });
 
 // Birthing assistant update schema (partial fields for updates)
-export const BirthingAssistantUpdateSchema = BirthingAssistantCreateSchema.partial();
+// Zod 4 applies .default() inside .partial(), so defaulted fields are redeclared without one:
+// an absent key must leave the stored value alone, not reset it.
+export const BirthingAssistantUpdateSchema = BirthingAssistantCreateSchema.partial().extend({
+  communityIds: z.array(z.number().int().positive()).optional(),
+  trainingIds: z.array(z.number().int().positive()).optional(),
+});
 
 // Birthing assistant read schema (what's returned from API - never includes deletedAt)
 export const BirthingAssistantReadSchema = z.object({

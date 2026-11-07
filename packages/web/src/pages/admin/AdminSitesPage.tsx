@@ -52,7 +52,7 @@ const SiteForm: React.FC<SiteFormProps> = ({ initial, onSave, onCancel }) => {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Clinic Alpha"
-          className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+          className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
         />
       </div>
 
@@ -70,14 +70,14 @@ const SiteForm: React.FC<SiteFormProps> = ({ initial, onSave, onCancel }) => {
         <button
           type="submit"
           disabled={save.isPending}
-          className="bg-hv-green text-white px-5 py-2 rounded hover:bg-hv-green-hover disabled:opacity-50 transition-colors"
+          className="bg-hv-green text-white px-5 py-2 rounded-sm hover:bg-hv-green-hover disabled:opacity-50 transition-colors"
         >
           {save.isPending ? t('common.saving') : initial ? t('common.update_site') : t('common.create_site')}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="bg-hv-gray text-white px-5 py-2 rounded hover:bg-gray-600 transition-colors"
+          className="bg-hv-gray text-white px-5 py-2 rounded-sm hover:bg-gray-600 transition-colors"
         >
           {t('common.cancel')}
         </button>
@@ -124,7 +124,7 @@ export const AdminSitesPage: React.FC = () => {
           {!showForm && !editing && (
             <button
               onClick={() => setShowForm(true)}
-              className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors text-sm"
+              className="bg-hv-green text-white px-4 py-2 rounded-sm hover:bg-hv-green-hover transition-colors text-sm"
             >
               + {t('admin.site_add')}
             </button>

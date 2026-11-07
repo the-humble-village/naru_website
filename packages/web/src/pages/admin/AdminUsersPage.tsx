@@ -365,7 +365,7 @@ export const AdminUsersPage: React.FC = () => {
                       type="text"
                       value={formData.login}
                       onChange={(e) => setFormData({ ...formData, login: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                       required
                     />
                   </div>
@@ -378,7 +378,7 @@ export const AdminUsersPage: React.FC = () => {
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                     />
                   </div>
                   <div>
@@ -389,7 +389,7 @@ export const AdminUsersPage: React.FC = () => {
                       id="user-firstName"
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                     />
                   </div>
                   <div>
@@ -400,7 +400,7 @@ export const AdminUsersPage: React.FC = () => {
                       id="user-lastName"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                     />
                   </div>
                   <div>
@@ -412,7 +412,7 @@ export const AdminUsersPage: React.FC = () => {
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                       required={!editingUser}
                       minLength={12}
                       autoComplete="new-password"
@@ -436,7 +436,7 @@ export const AdminUsersPage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
                       disabled={roleLocked}
                       title={roleLocked ? selfRoleTitle : undefined}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="CASEWORKER">{t('role.caseworker')}</option>
                       <option value="SUPERVISOR">{t('role.supervisor')}</option>
@@ -454,7 +454,7 @@ export const AdminUsersPage: React.FC = () => {
                       id="user-language"
                       value={formData.lang}
                       onChange={(e) => setFormData({ ...formData, lang: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                     >
                       <option value="en">{t('lang.english')}</option>
                       <option value="es">{t('lang.spanish')}</option>

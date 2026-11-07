@@ -58,7 +58,7 @@ export const ReportColumnSchema = z.object({
 
 export const ReportCellSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
-export const ReportRowSchema = z.record(ReportCellSchema);
+export const ReportRowSchema = z.record(z.string(), ReportCellSchema);
 
 export const ReportResponseSchema = z.object({
   slug: ReportSlugEnum,

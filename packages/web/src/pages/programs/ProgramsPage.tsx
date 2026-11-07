@@ -114,21 +114,21 @@ export const ProgramsPage: React.FC = () => {
                           `${id}-enrollments`,
                           !program.active ? `${id}-inactive` : '',
                         ].filter(Boolean).join(' ')}
-                        className={`flex h-full min-h-[184px] flex-col rounded-xl border border-hv-green/15 bg-white transition-[border-color,box-shadow] hover:border-hv-green hover:shadow-[0_4px_12px_rgba(47,79,57,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2 focus-visible:ring-offset-[#eaf0e9] motion-reduce:transition-none ${program.active ? '' : 'border-dashed'}`}
+                        className={`flex h-full min-h-[184px] flex-col rounded-xl border border-hv-green/15 bg-white transition-[border-color,box-shadow] hover:border-hv-green hover:shadow-[0_4px_12px_rgba(47,79,57,0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2 focus-visible:ring-offset-[#eaf0e9] motion-reduce:transition-none ${program.active ? '' : 'border-dashed'}`}
                       >
                         <div className="flex flex-1 items-start gap-3 p-4">
                           <span aria-hidden="true" className="flex h-12 w-10 shrink-0 items-center justify-center text-hv-terracotta">
                             <i className={`fas ${icon} text-4xl`} />
                           </span>
                           <div className="min-w-0 flex-1">
-                            <h3 id={`${id}-name`} className="break-words text-base font-semibold leading-snug text-hv-green">
+                            <h3 id={`${id}-name`} className="wrap-break-word text-base font-semibold leading-snug text-hv-green">
                               {program.name}
                             </h3>
                             <p id={`${id}-details`} className="mt-1 text-xs leading-5 text-hv-gray">
                               {t(KIND_LABEL[program.kind])} &middot; {t(SUBJECT_LABEL[program.subjectType])}
                             </p>
                             {program.description && (
-                              <p id={`${id}-description`} className="mt-2 break-words text-sm leading-5 text-hv-gray">
+                              <p id={`${id}-description`} className="mt-2 wrap-break-word text-sm leading-5 text-hv-gray">
                                 {program.description}
                               </p>
                             )}

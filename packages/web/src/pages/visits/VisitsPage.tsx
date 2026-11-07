@@ -14,8 +14,8 @@ import { formatDateUTC } from '../../utils/datetime';
 const PAGE_SIZE = 25;
 const TH = 'px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-hv-green';
 const TD = 'px-3 py-4 text-sm text-hv-charcoal';
-const FIELD = 'min-h-11 w-full min-w-0 rounded-lg border border-hv-border bg-white px-3 py-2 text-sm text-hv-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green';
-const FOCUS = 'rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
+const FIELD = 'min-h-11 w-full min-w-0 rounded-lg border border-hv-border bg-white px-3 py-2 text-sm text-hv-charcoal focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green';
+const FOCUS = 'rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
 
 const LOCATION_KEY: Record<LocationType, TranslationKey> = {
   SITE: 'visit.location_site',
@@ -232,7 +232,7 @@ export const VisitsPage: React.FC = () => {
                               <div className="flex items-center gap-3">
                                 <Icon aria-hidden="true" size={22} className="shrink-0 text-hv-terracotta" />
                                 <div className="min-w-0">
-                                  <Link to={`/enrollments/${visit.enrollmentId}`} className={`break-words font-semibold hover:text-hv-green hover:underline ${FOCUS}`}>
+                                  <Link to={`/enrollments/${visit.enrollmentId}`} className={`wrap-break-word font-semibold hover:text-hv-green hover:underline ${FOCUS}`}>
                                     {visit.subjectName ?? t('common.unnamed')}
                                   </Link>
                                   <Link to={`/visits/${visit.id}`} className={`mt-1 block w-fit text-xs text-hv-gray hover:text-hv-green hover:underline ${FOCUS}`}>
@@ -241,12 +241,12 @@ export const VisitsPage: React.FC = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className={`${TD} break-words`}>{visit.program.name}</td>
-                            <td className={`${TD} break-words`}>
+                            <td className={`${TD} wrap-break-word`}>{visit.program.name}</td>
+                            <td className={`${TD} wrap-break-word`}>
                               <span className="block text-xs text-hv-gray">{t(LOCATION_KEY[visit.locationType])}</span>
                               {placeOf(visit)}
                             </td>
-                            <td className={`${TD} break-words text-hv-gray`}>{visit.recordedByName?.trim() || t('visit.not_recorded')}</td>
+                            <td className={`${TD} wrap-break-word text-hv-gray`}>{visit.recordedByName?.trim() || t('visit.not_recorded')}</td>
                             <td className={TD}>{measurementOf(visit)}</td>
                             <td className="pr-1">
                               <Link to={`/visits/${visit.id}`} aria-label={visitLabel(visit)}

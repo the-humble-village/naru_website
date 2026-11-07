@@ -55,7 +55,11 @@ export const VisitCreateSchema = z.object({
 });
 
 // enrollmentId is omitted: a visit cannot be moved to another enrollment.
-export const VisitUpdateSchema = VisitCreateSchema.omit({ enrollmentId: true, localId: true }).partial();
+export const VisitUpdateSchema = VisitCreateSchema.omit({ enrollmentId: true, localId: true }).partial().extend({
+  resources: z.array(VisitResourceSchema).optional(),
+  trainingIds: z.array(z.number().int().positive()).optional(),
+  answers: z.array(VisitAnswerSchema).optional(),
+});
 
 export const VisitReadSchema = z.object({
   id: z.number().int().positive(),

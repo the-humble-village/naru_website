@@ -17,12 +17,12 @@ import {
 } from '../../components';
 import { useTranslation } from '../../hooks';
 
-const CARD = 'bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm';
+const CARD = 'bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs';
 const SELECT =
-  'w-full sm:w-auto px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+  'w-full sm:w-auto px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent';
 const ACTION =
-  'bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors';
-const DANGER = 'bg-hv-crisis text-white px-4 py-2 rounded hover:bg-red-700 transition-colors';
+  'bg-hv-green text-white px-4 py-2 rounded-sm hover:bg-hv-green-hover transition-colors';
+const DANGER = 'bg-hv-crisis text-white px-4 py-2 rounded-sm hover:bg-red-700 transition-colors';
 
 const byActiveThenDate = (a: EnrollmentListItem, b: EnrollmentListItem): number => {
   if (!a.exitedAt !== !b.exitedAt) {
@@ -163,7 +163,7 @@ export const PersonDetailPage: React.FC = () => {
           ) : (
             <ul className="mt-3 space-y-2">
               {assigned.map((mother) => (
-                <li key={mother.id} className="border border-hv-border p-3 rounded">
+                <li key={mother.id} className="border border-hv-border p-3 rounded-sm">
                   <Link
                     to={`/mothers/${mother.id}`}
                     className="font-medium text-hv-green hover:text-hv-green-hover transition-colors"

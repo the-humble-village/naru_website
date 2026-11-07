@@ -55,7 +55,7 @@ const STATUS_LABEL: Record<NutritionalStatus, TranslationKey> = {
   NORMAL: 'nutritional_status.normal',
 };
 const DASH = '—';
-const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
+const FOCUS = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
 const VISIT_LINK = `inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hv-green/30 bg-white px-3 py-2 text-xs font-medium text-hv-green transition-colors hover:bg-[#eaf0e9] ${FOCUS}`;
 
 export const formatSubjectAge = (birthDate?: string | null): string | null => {
@@ -94,9 +94,9 @@ export const ProgramRosterTable: React.FC<ProgramRosterTableProps> = ({
     key: 'name',
     label: t(kind === 'FAMILY_PAF' ? 'roster.family_name' : 'roster.member'),
     render: row => (
-      <div className="min-w-[7rem]">
+      <div className="min-w-28">
         {row.subjectHref ? (
-          <Link to={row.subjectHref} className={`rounded font-semibold text-hv-green underline decoration-hv-green/30 underline-offset-2 hover:decoration-hv-green ${FOCUS}`}>
+          <Link to={row.subjectHref} className={`rounded-sm font-semibold text-hv-green underline decoration-hv-green/30 underline-offset-2 hover:decoration-hv-green ${FOCUS}`}>
             {row.subjectName ?? t('common.unnamed')}
           </Link>
         ) : (
@@ -214,7 +214,7 @@ export const ProgramRosterTable: React.FC<ProgramRosterTableProps> = ({
             {rows.map(row => (
               <tr key={row.enrollmentId} className="hover:bg-[#eaf0e9]/40">
                 {columns.map(column => (
-                  <td key={column.key} className={`px-3 py-2 text-sm text-hv-charcoal ${column.key === 'community' ? 'min-w-[8rem] max-w-[12rem]' : ''} ${['due', 'exitedAt', 'gestation'].includes(column.key) ? 'whitespace-nowrap' : ''}`}>
+                  <td key={column.key} className={`px-3 py-2 text-sm text-hv-charcoal ${column.key === 'community' ? 'min-w-32 max-w-48' : ''} ${['due', 'exitedAt', 'gestation'].includes(column.key) ? 'whitespace-nowrap' : ''}`}>
                     {column.render(row)}
                   </td>
                 ))}
@@ -240,7 +240,7 @@ export const ProgramRosterTable: React.FC<ProgramRosterTableProps> = ({
               {metaColumns(row).map(column => (
                 <div key={column.key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] items-baseline gap-3 text-sm">
                   <dt className="text-xs text-hv-gray">{column.label}{column.hint && <span className="block">{column.hint}</span>}</dt>
-                  <dd className="min-w-0 break-words text-hv-charcoal">{column.render(row)}</dd>
+                  <dd className="min-w-0 wrap-break-word text-hv-charcoal">{column.render(row)}</dd>
                 </div>
               ))}
             </dl>

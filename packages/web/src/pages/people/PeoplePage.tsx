@@ -115,7 +115,7 @@ export const PeoplePage: React.FC = () => {
     .replace('{total}', String(total));
 
   return (
-    <div className="mx-auto max-w-screen-2xl py-1">
+    <div className="mx-auto max-w-(--breakpoint-2xl) py-1">
       <DirectoryHeader title={t('nav.persons')} description={t('directory.persons_description')}
         action={{ to: '/people/new', label: t('people.add') }} />
       <DirectoryFilters search={search} searchLabel={t('directory.search_persons')}

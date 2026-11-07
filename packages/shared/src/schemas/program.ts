@@ -18,7 +18,10 @@ export const ProgramCreateSchema = z.object({
 export const ProgramUpdateSchema = ProgramCreateSchema.omit({
   kind: true,
   subjectType: true,
-}).partial();
+}).partial().extend({
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
 
 export const ProgramReadSchema = z.object({
   id: z.number().int().positive(),

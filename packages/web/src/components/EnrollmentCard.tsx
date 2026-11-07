@@ -85,7 +85,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
           type="button"
           onClick={toggle}
           aria-expanded={false}
-          className="flex w-full flex-wrap items-center gap-2 px-4 py-3 text-left text-sm text-hv-gray hover:bg-hv-page transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-hv-accent"
+          className="flex w-full flex-wrap items-center gap-2 px-4 py-3 text-left text-sm text-hv-gray hover:bg-hv-page transition-colors rounded-lg focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
         >
           <span aria-hidden="true">&#9654;</span>
           <span className="font-medium uppercase tracking-wider text-xs">
@@ -105,7 +105,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 
   return (
     <div
-      className={`rounded-lg border bg-white p-4 sm:p-6 shadow-sm ${
+      className={`rounded-lg border bg-white p-4 sm:p-6 shadow-xs ${
         isActive ? 'border-hv-accent' : 'border-hv-border'
       }${className ? ` ${className}` : ''}`}
     >
@@ -116,7 +116,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               type="button"
               onClick={toggle}
               aria-expanded={expanded}
-              className="text-hv-gray hover:text-hv-charcoal transition-colors focus:outline-none focus:ring-2 focus:ring-hv-accent rounded"
+              className="text-hv-gray hover:text-hv-charcoal transition-colors focus:outline-hidden focus:ring-2 focus:ring-hv-accent rounded-sm"
             >
               <span aria-hidden="true">{expanded ? '▼' : '▶'}</span>
               <span className="sr-only">
@@ -156,13 +156,13 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             <>
               <Link
                 to={`/enrollments/${enrollment.id}/visits/new`}
-                className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors"
+                className="bg-hv-green text-white px-4 py-2 rounded-sm hover:bg-hv-green-hover transition-colors"
               >
                 {t('enrollment.add_visit')}
               </Link>
               <Link
                 to={`/enrollments/${enrollment.id}/exit`}
-                className="bg-hv-gray text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                className="bg-hv-gray text-white px-4 py-2 rounded-sm hover:bg-gray-600 transition-colors"
               >
                 {t('enrollment.exit')}
               </Link>
@@ -173,7 +173,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 type="button"
                 onClick={() => reopen.mutate()}
                 disabled={reopen.isPending}
-                className="bg-hv-gray text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-hv-gray text-white px-4 py-2 rounded-sm hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {reopen.isPending ? t('common.saving') : t('enrollment.reopen')}
               </button>
@@ -253,7 +253,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                     <li key={visit.id}>
                       <Link
                         to={`/visits/${visit.id}`}
-                        className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded px-2 py-1 text-sm text-hv-charcoal hover:bg-hv-page transition-colors"
+                        className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-sm px-2 py-1 text-sm text-hv-charcoal hover:bg-hv-page transition-colors"
                       >
                         <span className="tabular-nums font-medium">{visit.visitDate}</span>
                         <span className="text-hv-gray">{t(LOCATION_LABEL[visit.locationType])}</span>

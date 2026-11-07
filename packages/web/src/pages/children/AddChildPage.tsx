@@ -137,7 +137,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
             value={values.name}
             onChange={handleInput}
             maxLength={256}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
+            className={`w-full px-3 py-2 border rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-terracotta ${
               errors.name ? 'border-red-500' : 'border-hv-border-input'
             }`}
           />
@@ -198,14 +198,14 @@ export const ChildForm: React.FC<ChildFormProps> = ({
             value={motherSearch}
             onChange={(event) => setMotherSearch(event.target.value)}
             placeholder={t('form.mother_search_placeholder')}
-            className="w-full px-3 py-2 mb-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
+            className="w-full px-3 py-2 mb-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-terracotta"
           />
           <select
             id="motherId"
             name="motherId"
             value={values.motherId}
             onChange={handleInput}
-            className="w-full px-3 py-2 border border-hv-border-input rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-hv-terracotta"
+            className="w-full px-3 py-2 border border-hv-border-input rounded-md bg-white focus:outline-hidden focus:ring-2 focus:ring-hv-terracotta"
           >
             <option value="">{t('form.none')}</option>
             {(mothers?.items ?? []).map((mother) => (

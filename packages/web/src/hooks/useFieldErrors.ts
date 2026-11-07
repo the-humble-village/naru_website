@@ -5,7 +5,7 @@ import { ZodError } from 'zod';
  */
 export function parseZodErrors(error: ZodError): Record<string, string> {
   const errors: Record<string, string> = {};
-  error.errors.forEach((err) => {
+  error.issues.forEach((err) => {
     if (err.path[0]) {
       errors[err.path[0] as string] = err.message;
     }

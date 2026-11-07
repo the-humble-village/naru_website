@@ -127,7 +127,7 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
             value={values.familyName}
             onChange={handleInput}
             maxLength={512}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
+            className={`w-full px-3 py-2 border rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-terracotta ${
               errors.familyName ? 'border-red-500' : 'border-hv-border-input'
             }`}
           />
@@ -177,7 +177,7 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
             value={values.caretaker2Name}
             onChange={handleInput}
             maxLength={256}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
+            className={`w-full px-3 py-2 border rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-terracotta ${
               errors.caretaker2Name ? 'border-red-500' : 'border-hv-border-input'
             }`}
           />
@@ -203,7 +203,7 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
           name="inCrisis"
           checked={values.inCrisis}
           onChange={(event) => set({ inCrisis: event.target.checked })}
-          className="h-4 w-4 rounded border-hv-border-input text-hv-terracotta focus:ring-hv-terracotta"
+          className="h-4 w-4 rounded-sm border-hv-border-input text-hv-terracotta focus:ring-hv-terracotta"
         />
         <label htmlFor="inCrisis" className="ml-2 text-sm font-medium text-hv-charcoal">
           {t('families.col_crisis')}

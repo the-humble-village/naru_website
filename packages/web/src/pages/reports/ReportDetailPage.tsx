@@ -187,7 +187,7 @@ export const ReportDetailPage: React.FC = () => {
               type="button"
               onClick={() => exportMutation.mutate()}
               disabled={exportMutation.isPending || rows.length === 0}
-              className="bg-hv-terracotta text-white px-4 py-2 rounded hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-hv-terracotta text-white px-4 py-2 rounded-sm hover:bg-hv-terracotta-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {exportMutation.isPending ? t('reports.exporting') : t('reports.export_csv')}
             </button>

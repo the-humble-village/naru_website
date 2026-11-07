@@ -122,6 +122,7 @@ DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrat
 - **All business logic lives in services**, not route handlers
 - **Use Prisma migrations** — never raw SQL or manual ALTER TABLE
 - **Validate all input with Zod** — schemas come from `@naru/shared`
+- **Never leave a `.default()` in an update schema** — Zod 4 applies defaults inside `.partial()`, so an omitted key would reset stored data. Redeclare the field as `.optional()`; `update-schemas.test.ts` enforces this
 - **No `any` types** — use Zod inference (`z.infer<typeof Schema>`)
 
 ### V2-specific invariants
@@ -274,7 +275,7 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 
 - Tailwind CSS only — no CSS modules or styled-components
 - Custom palette: `hv-green`, `hv-green-hover`, `hv-accent`, `hv-crisis`, `hv-gray`, `hv-border`, `hv-card`, `hv-page`
-- Defined in `tailwind.config.ts`
+- Defined in the `@theme` block of `packages/web/src/index.css`
 
 ### Test patterns (`src/pages/__tests__/*.test.tsx`)
 

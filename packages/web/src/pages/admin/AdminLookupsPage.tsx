@@ -384,7 +384,7 @@ export const AdminLookupsPage: React.FC = () => {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                    className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                     required
                     placeholder={t('admin.enter_entity_title').replace('{name}', t(config.singular).toLowerCase())}
                   />
@@ -399,7 +399,7 @@ export const AdminLookupsPage: React.FC = () => {
                       id="lookup-site"
                       value={formData.siteId}
                       onChange={(e) => setFormData({ ...formData, siteId: e.target.value })}
-                      className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md bg-white focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                     >
                       <option value="">{t('admin.community_no_site')}</option>
                       {sites.map((site) => (
@@ -423,7 +423,7 @@ export const AdminLookupsPage: React.FC = () => {
                       value={formData.defaultUnit}
                       onChange={(e) => setFormData({ ...formData, defaultUnit: e.target.value })}
                       maxLength={32}
-                      className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                       placeholder={t('admin.resource_default_unit_placeholder')}
                     />
                     <p className="text-xs text-hv-sage mt-1">{t(extra.hint)}</p>

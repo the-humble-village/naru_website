@@ -110,7 +110,7 @@ export const MothersPage: React.FC = () => {
     .replace('{total}', String(total));
 
   return (
-    <div className="mx-auto max-w-screen-2xl py-1">
+    <div className="mx-auto max-w-(--breakpoint-2xl) py-1">
       <DirectoryHeader title={t('nav.mothers')} description={t('directory.mothers_description')}
         action={{ to: '/mothers/new', label: t('mothers.add') }} />
       <DirectoryFilters search={search} searchLabel={t('directory.search_mothers')}

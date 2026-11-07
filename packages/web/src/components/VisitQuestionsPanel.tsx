@@ -14,7 +14,7 @@ export interface VisitQuestionsPanelProps {
 }
 
 const FIELD =
-  'w-full min-h-[44px] px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+  'w-full min-h-[44px] px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent';
 
 const EMPTY_ANSWER = (questionId: number): VisitAnswerEntry => ({
   questionId,

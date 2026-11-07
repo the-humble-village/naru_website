@@ -5,7 +5,7 @@ import { ageInDays, type TranslationKey } from '@naru/shared';
 import { useTranslation } from '../../hooks';
 import type { FilterOption, FilterValues } from '../FilterBar';
 
-export const DIRECTORY_FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
+export const DIRECTORY_FOCUS = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
 export const DIRECTORY_FIELD = `min-h-11 w-full min-w-0 rounded-lg border border-hv-border-input bg-white px-3 py-2 text-sm text-hv-charcoal ${DIRECTORY_FOCUS}`;
 const LABEL = 'mb-1.5 block text-sm font-medium text-hv-green';
 
@@ -101,7 +101,7 @@ export function DirectoryFilters({ search, searchLabel, searchPlaceholder, onSea
         </div>
         {extra}
         <button type="button" onClick={onClear} disabled={!hasFilters}
-          className={`inline-flex min-h-11 items-center justify-center gap-2 rounded px-3 text-sm font-medium text-hv-green transition-colors hover:bg-hv-green/5 disabled:cursor-default disabled:text-hv-gray ${DIRECTORY_FOCUS}`}>
+          className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-sm px-3 text-sm font-medium text-hv-green transition-colors hover:bg-hv-green/5 disabled:cursor-default disabled:text-hv-gray ${DIRECTORY_FOCUS}`}>
           <RotateCcw size={17} aria-hidden="true" />{t('roster.clear_filters')}
         </button>
       </div>
@@ -122,13 +122,13 @@ export function DirectoryPanel({ title, toolbar, children }: { title: string; to
 }
 
 export function DirectoryNameLink({ to, children }: { to: string; children: React.ReactNode }) {
-  return <Link to={to} className={`rounded font-semibold text-hv-green underline decoration-hv-green/30 underline-offset-2 hover:decoration-hv-green ${DIRECTORY_FOCUS}`}>{children}</Link>;
+  return <Link to={to} className={`rounded-sm font-semibold text-hv-green underline decoration-hv-green/30 underline-offset-2 hover:decoration-hv-green ${DIRECTORY_FOCUS}`}>{children}</Link>;
 }
 
 export function DirectoryEditLink({ to }: { to: string }) {
   const { t } = useTranslation();
   return (
-    <Link to={to} className={`inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded px-1 text-sm text-hv-terracotta hover:text-hv-green ${DIRECTORY_FOCUS}`}>
+    <Link to={to} className={`inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-sm px-1 text-sm text-hv-terracotta hover:text-hv-green ${DIRECTORY_FOCUS}`}>
       <Pencil size={15} aria-hidden="true" />{t('common.edit')}
     </Link>
   );
@@ -187,14 +187,14 @@ export function DirectoryTable<T>({ rows, columns, rowKey, rowTitle, label, onRo
         {rows.map(row => (
           <li key={rowKey(row)} className="min-w-0 rounded-lg border border-hv-green/15 p-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 break-words">{rowTitle(row)}</div>
+              <div className="min-w-0 wrap-break-word">{rowTitle(row)}</div>
               {action && !mobileActionBelow && <div className="shrink-0">{action.render(row)}</div>}
             </div>
             <dl className="mt-3 space-y-2 border-t border-hv-green/10 pt-3">
               {columns.filter(column => column.key !== 'name' && column.key !== 'actions').map(column => (
                 <div key={column.key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] gap-3 text-sm">
                   <dt className="text-hv-gray">{column.label}</dt>
-                  <dd className="min-w-0 break-words text-hv-charcoal">{column.render(row)}</dd>
+                  <dd className="min-w-0 wrap-break-word text-hv-charcoal">{column.render(row)}</dd>
                 </div>
               ))}
             </dl>
@@ -213,7 +213,7 @@ export function DirectoryPagination({ page, totalPages, onPageChange, resultText
   resultText: string;
 }) {
   const { t } = useTranslation();
-  const button = `inline-flex min-h-11 items-center gap-1 rounded px-2 text-sm text-hv-green hover:bg-[#eaf0e9] disabled:cursor-default disabled:text-hv-gray disabled:opacity-60 ${DIRECTORY_FOCUS}`;
+  const button = `inline-flex min-h-11 items-center gap-1 rounded-sm px-2 text-sm text-hv-green hover:bg-[#eaf0e9] disabled:cursor-default disabled:text-hv-gray disabled:opacity-60 ${DIRECTORY_FOCUS}`;
   return (
     <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-hv-border px-1 pt-3 text-sm text-hv-gray">
       <p role="status">{resultText}</p>

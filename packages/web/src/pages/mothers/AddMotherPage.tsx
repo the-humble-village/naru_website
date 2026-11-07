@@ -171,7 +171,7 @@ export const MotherForm: React.FC<MotherFormProps> = ({
             value={values.name}
             onChange={handleInput}
             maxLength={256}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
+            className={`w-full px-3 py-2 border rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-terracotta ${
               errors.name ? 'border-red-500' : 'border-hv-border-input'
             }`}
           />

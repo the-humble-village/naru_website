@@ -11,8 +11,8 @@ import { getGuatemalanHolidays, normalizeHolidaySearch, type GuatemalanHoliday }
 
 type CalendarEntry = (EventWithCount & { kind: 'event' }) | GuatemalanHoliday;
 
-const FIELD = 'min-h-11 w-full min-w-0 rounded-lg border border-hv-border bg-white px-3 py-2 text-sm text-hv-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green';
-const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
+const FIELD = 'min-h-11 w-full min-w-0 rounded-lg border border-hv-border bg-white px-3 py-2 text-sm text-hv-charcoal focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green';
+const FOCUS = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
 const PAGE_SIZE = 100;
 const dayKey = (date: Date) => date.toISOString().slice(0, 10);
 const monthOf = (value: string) => new Date(`${value.slice(0, 7)}-01T00:00:00Z`);
@@ -172,11 +172,11 @@ export const EventsPage: React.FC = () => {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-hv-green">
         <label className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg ${FOCUS}`}>
           <input type="checkbox" checked={showHolidays} onChange={event => setShowHolidays(event.target.checked)}
-            className="h-4 w-4 accent-hv-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2" />
+            className="h-4 w-4 accent-hv-green focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2" />
           {t('events.show_holidays')}
         </label>
         {showHolidays && <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-          <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="h-3 w-3 rounded bg-hv-sage" />{t('events.event_legend')}</span>
+          <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="h-3 w-3 rounded-sm bg-hv-sage" />{t('events.event_legend')}</span>
           <span className="inline-flex items-center gap-2"><Flag aria-hidden="true" size={14} className="text-hv-terracotta" />{t('events.holiday_legend')}</span>
         </div>}
       </div>
@@ -223,12 +223,12 @@ export const EventsPage: React.FC = () => {
                                     <button type="button" onClick={() => setSelectedDay(key)}
                                       title={`${event.name} · ${t(`holidays.${event.category}`)}`}
                                       aria-label={`${event.name}, ${t(`holidays.${event.category}`)}, ${fullDate(date)}`}
-                                      className={`flex w-full items-center gap-1 rounded bg-hv-terracotta/15 px-1.5 py-1 text-left text-[11px] leading-4 text-hv-green hover:bg-hv-terracotta/25 sm:text-xs ${FOCUS}`}>
+                                      className={`flex w-full items-center gap-1 rounded-sm bg-hv-terracotta/15 px-1.5 py-1 text-left text-[11px] leading-4 text-hv-green hover:bg-hv-terracotta/25 sm:text-xs ${FOCUS}`}>
                                       <Flag aria-hidden="true" size={12} className="hidden shrink-0 text-hv-terracotta sm:block" />
                                       <span className="truncate">{event.name}</span>
                                     </button>
                                   ) : <Link to={`/events/${event.id}`} title={event.name}
-                                    className={`block truncate rounded bg-[#eaf0e9] px-1.5 py-1 text-[11px] leading-4 text-hv-green hover:bg-hv-terracotta/15 sm:text-xs ${FOCUS}`}>
+                                    className={`block truncate rounded-sm bg-[#eaf0e9] px-1.5 py-1 text-[11px] leading-4 text-hv-green hover:bg-hv-terracotta/15 sm:text-xs ${FOCUS}`}>
                                     {event.name}
                                   </Link>}
                                 </li>
@@ -237,7 +237,7 @@ export const EventsPage: React.FC = () => {
                             {entries.length > 2 && (
                               <button type="button" onClick={() => setSelectedDay(key)}
                                 aria-label={t('events.show_day_events').replace('{date}', fullDate(date))}
-                                className={`mt-1 rounded px-1 py-1 text-xs font-medium text-hv-green underline ${FOCUS}`}>
+                                className={`mt-1 rounded-sm px-1 py-1 text-xs font-medium text-hv-green underline ${FOCUS}`}>
                                 {t('events.more_events').replace('{count}', String(entries.length - 2))}
                               </button>
                             )}
@@ -255,14 +255,14 @@ export const EventsPage: React.FC = () => {
         <section aria-labelledby="events-agenda-heading" className="min-w-0 rounded-xl border border-hv-border bg-white p-3 sm:p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 id="events-agenda-heading" className="font-serif text-xl font-bold text-hv-green sm:text-2xl">{agendaTitle}</h2>
-            {selectedDay && <button type="button" onClick={() => setSelectedDay(null)} className={`rounded px-2 py-1 text-sm text-hv-green underline ${FOCUS}`}>{t('events.all_dates')}</button>}
+            {selectedDay && <button type="button" onClick={() => setSelectedDay(null)} className={`rounded-sm px-2 py-1 text-sm text-hv-green underline ${FOCUS}`}>{t('events.all_dates')}</button>}
           </div>
           <p className="mb-3 text-sm text-hv-gray">{t('events.showing_month').replace('{month}', monthLabel)}</p>
           {isLoading && hasRange && <LoadingState message={t('common.loading')} />}
           {isError && hasRange && (
             <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-hv-crisis">
               <p>{t('events.load_error')}</p>
-              <button type="button" onClick={() => refetch()} className={`mt-2 rounded px-2 py-1 underline ${FOCUS}`}>{t('events.retry')}</button>
+              <button type="button" onClick={() => refetch()} className={`mt-2 rounded-sm px-2 py-1 underline ${FOCUS}`}>{t('events.retry')}</button>
             </div>
           )}
           {!invalidDates && (agenda.length > 0 || (!(isLoading && hasRange) && !(isError && hasRange))) && (
@@ -277,7 +277,7 @@ export const EventsPage: React.FC = () => {
                           <span className="mt-1 text-xs font-medium uppercase">{shortMonth(event.eventDate)}</span>
                         </span>
                         <div className="min-w-0 flex-1">
-                          <h3 className="break-words text-sm font-semibold text-hv-charcoal">{event.name}</h3>
+                          <h3 className="wrap-break-word text-sm font-semibold text-hv-charcoal">{event.name}</h3>
                           <p className="mt-1 flex items-center gap-1.5 text-xs text-hv-green">
                             <Flag aria-hidden="true" size={13} className="shrink-0 text-hv-terracotta" />
                             <span><span className="sr-only">{formatDateUTC(event.eventDate)}. </span>{t(`holidays.${event.category}`)}</span>
@@ -294,9 +294,9 @@ export const EventsPage: React.FC = () => {
                         <span className="mt-1 text-xs font-medium uppercase">{shortMonth(event.eventDate)}</span>
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span id={`agenda-event-${event.id}`} className="block break-words text-sm font-semibold text-hv-charcoal">{event.name}</span>
+                        <span id={`agenda-event-${event.id}`} className="block wrap-break-word text-sm font-semibold text-hv-charcoal">{event.name}</span>
                         <span id={`agenda-description-${event.id}`} className="mt-1 block text-sm text-hv-gray">
-                          <span className="sr-only">{formatDateUTC(event.eventDate)}. </span>{linkedVisits(event.visitCount)}
+                          <span className="sr-only">{formatDateUTC(event.eventDate)}.</span>{' '}{linkedVisits(event.visitCount)}
                         </span>
                       </span>
                       <ChevronRight aria-hidden="true" size={18} className="shrink-0 text-hv-green" />

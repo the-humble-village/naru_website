@@ -85,7 +85,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({ table }) => {
         <>
           {sortable ? (
             <button type="button" onClick={() => handleSort(column.key as SortColumn)}
-              className={`inline-flex items-center gap-1 rounded pr-2 text-left uppercase ${DIRECTORY_FOCUS}`}>
+              className={`inline-flex items-center gap-1 rounded-sm pr-2 text-left uppercase ${DIRECTORY_FOCUS}`}>
               {t(column.labelKey)}<span aria-hidden="true" className="text-hv-gray">{sorted ? (sortDirection === 'asc' ? '▲' : '▼') : '⇅'}</span>
             </button>
           ) : t(column.labelKey)}
@@ -116,7 +116,7 @@ export const FamiliesTable: React.FC<FamiliesTableProps> = ({ table }) => {
           <legend className="sr-only">{t('families.toggle_columns')}</legend>
           <p className="mb-2 text-xs font-semibold uppercase text-hv-green">{t('families.toggle_columns')}</p>
           {ALL_COLUMNS.map(column => (
-            <label key={column.key} className="flex min-h-10 cursor-pointer items-center gap-2 rounded px-2 text-sm text-hv-charcoal hover:bg-[#eaf0e9]">
+            <label key={column.key} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm text-hv-charcoal hover:bg-[#eaf0e9]">
               <input type="checkbox" checked={visibleColumns.includes(column.key)} onChange={() => toggleColumn(column.key)}
                 className={`h-4 w-4 accent-hv-green ${DIRECTORY_FOCUS}`} />{t(column.labelKey)}
             </label>

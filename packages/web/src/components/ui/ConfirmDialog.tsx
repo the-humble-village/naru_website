@@ -68,7 +68,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="bg-hv-card rounded-xl border border-hv-border shadow-xl w-full max-w-md mx-4 focus:outline-none"
+        className="bg-hv-card rounded-xl border border-hv-border shadow-xl w-full max-w-md mx-4 focus:outline-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 py-4 border-b border-hv-border">

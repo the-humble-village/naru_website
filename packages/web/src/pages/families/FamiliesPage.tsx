@@ -9,7 +9,7 @@ export const FamiliesPage: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <div className="mx-auto max-w-screen-2xl py-1">
+    <div className="mx-auto max-w-(--breakpoint-2xl) py-1">
       <DirectoryHeader title={t('nav.families')} description={t('directory.families_description')}
         action={{ to: '/families/new', label: t('add_family.title') }} />
       <FamiliesTable table={table} />

@@ -103,7 +103,7 @@ export const ReportsPage: React.FC = () => {
               value={search}
               onChange={event => setSearch(event.target.value)}
               placeholder={t('reports.search_placeholder')}
-              className="min-h-11 w-full rounded-xl border border-hv-border bg-white py-2.5 pl-10 pr-12 text-sm text-hv-charcoal placeholder:text-hv-gray focus-visible:border-hv-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green [&::-webkit-search-cancel-button]:appearance-none"
+              className="min-h-11 w-full rounded-xl border border-hv-border bg-white py-2.5 pl-10 pr-12 text-sm text-hv-charcoal placeholder:text-hv-gray focus-visible:border-hv-green focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green [&::-webkit-search-cancel-button]:appearance-none"
             />
             {search && (
               <button
@@ -113,7 +113,7 @@ export const ReportsPage: React.FC = () => {
                   setSearch('');
                   document.getElementById('report-search')?.focus();
                 }}
-                className="absolute right-0 top-0 flex h-full w-11 items-center justify-center rounded-r-xl text-hv-gray hover:text-hv-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green"
+                className="absolute right-0 top-0 flex h-full w-11 items-center justify-center rounded-r-xl text-hv-gray hover:text-hv-green focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green"
               >
                 <X aria-hidden="true" size={18} />
               </button>
@@ -162,7 +162,7 @@ export const ReportsPage: React.FC = () => {
                       to={`/reports/${report.slug}`}
                       aria-labelledby={`report-${report.slug}-name`}
                       aria-describedby={`report-${report.slug}-summary`}
-                      className="flex h-full min-h-[88px] items-center gap-3 rounded-xl border border-hv-green/15 bg-white p-3 transition-[border-color,box-shadow] hover:border-hv-green hover:shadow-[0_4px_12px_rgba(47,79,57,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2 focus-visible:ring-offset-[#eaf0e9] motion-reduce:transition-none"
+                      className="flex h-full min-h-[88px] items-center gap-3 rounded-xl border border-hv-green/15 bg-white p-3 transition-[border-color,box-shadow] hover:border-hv-green hover:shadow-[0_4px_12px_rgba(47,79,57,0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2 focus-visible:ring-offset-[#eaf0e9] motion-reduce:transition-none"
                     >
                       <span aria-hidden="true" className="flex w-8 shrink-0 items-center justify-center text-hv-terracotta">
                         <i className={`fas ${report.icon} text-3xl`} />

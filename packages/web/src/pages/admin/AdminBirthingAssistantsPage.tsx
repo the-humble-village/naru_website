@@ -341,7 +341,7 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
                     id="ba-name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                    className="w-full max-w-md px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent"
                     required
                     placeholder="Enter birthing assistant name"
                   />
@@ -359,7 +359,7 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
                           type="checkbox"
                           checked={formData.communityIds.includes(community.id)}
                           onChange={() => handleCommunityToggle(community.id)}
-                          className="rounded border-hv-border-input text-hv-accent focus:ring-hv-accent"
+                          className="rounded-sm border-hv-border-input text-hv-accent focus:ring-hv-accent"
                         />
                         <span className="text-sm text-hv-gray">{community.title}</span>
                       </label>
@@ -406,7 +406,7 @@ export const AdminBirthingAssistantsPage: React.FC = () => {
                           type="checkbox"
                           checked={formData.trainingIds.includes(training.id)}
                           onChange={() => handleTrainingToggle(training.id)}
-                          className="rounded border-hv-border-input text-hv-accent focus:ring-hv-accent"
+                          className="rounded-sm border-hv-border-input text-hv-accent focus:ring-hv-accent"
                         />
                         <span className="text-sm text-hv-gray">{training.title}</span>
                       </label>

@@ -71,13 +71,13 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, value, onChange, label, classN
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(tab.key)}
-            className={`-mb-px flex items-center gap-2 whitespace-nowrap rounded-t-md border-b-2 px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-hv-accent ${
+            className={`-mb-px flex items-center gap-2 whitespace-nowrap rounded-t-md border-b-2 px-4 py-3 text-sm font-medium transition-colors focus:outline-hidden focus:ring-2 focus:ring-hv-accent ${
               active
                 ? 'border-hv-green text-hv-green'
                 : 'border-transparent text-hv-gray hover:border-hv-border hover:text-hv-charcoal'
             }`}
           >
-            {tab.label}
+            {tab.label}{' '}
             {tab.count !== undefined && (
               <span
                 className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${

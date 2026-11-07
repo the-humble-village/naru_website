@@ -91,7 +91,7 @@ const formFor = (program: ProgramRead): ProgramFormState => ({
 });
 
 const inputClass =
-  'w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+  'w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent';
 const labelClass = 'block text-sm font-medium text-hv-charcoal mb-1';
 const hintClass = 'text-xs text-hv-sage mt-1';
 
@@ -417,7 +417,7 @@ export const AdminProgramsPage: React.FC = () => {
                       type="checkbox"
                       checked={form.active}
                       onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                      className="rounded border-hv-border-input text-hv-accent focus:ring-hv-accent"
+                      className="rounded-sm border-hv-border-input text-hv-accent focus:ring-hv-accent"
                     />
                     <span className="text-sm font-medium text-hv-charcoal">
                       {t('admin.program_active')}

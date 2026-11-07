@@ -38,7 +38,7 @@ interface SubjectResult {
 }
 
 const FIELD =
-  'w-full px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+  'w-full px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent';
 const LABEL = 'block text-sm font-medium text-hv-gray mb-1';
 
 const formatAge = (birthDate?: string | null): string | null => {
@@ -338,7 +338,7 @@ export const SubjectPicker: React.FC<SubjectPickerProps> = ({
                   aria-disabled={blocked}
                   disabled={blocked}
                   onClick={() => pick(item)}
-                  className={`flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded border p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-hv-accent ${
+                  className={`flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded border p-3 text-left transition-colors focus:outline-hidden focus:ring-2 focus:ring-hv-accent ${
                     blocked
                       ? 'border-hv-border bg-hv-page opacity-50 cursor-not-allowed'
                       : selected
@@ -376,7 +376,7 @@ export const SubjectPicker: React.FC<SubjectPickerProps> = ({
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors"
+            className="bg-hv-green text-white px-4 py-2 rounded-sm hover:bg-hv-green-hover transition-colors"
           >
             {t(createLabelKey)}
           </button>
@@ -444,7 +444,7 @@ export const SubjectPicker: React.FC<SubjectPickerProps> = ({
               <button
                 type="submit"
                 disabled={create.isPending}
-                className="bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-hv-green text-white px-4 py-2 rounded-sm hover:bg-hv-green-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {create.isPending ? t('common.saving') : t('common.save')}
               </button>
@@ -455,7 +455,7 @@ export const SubjectPicker: React.FC<SubjectPickerProps> = ({
                   setDraft(EMPTY_DRAFT);
                   setDraftError(null);
                 }}
-                className="bg-hv-gray text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                className="bg-hv-gray text-white px-4 py-2 rounded-sm hover:bg-gray-600 transition-colors"
               >
                 {t('common.cancel')}
               </button>

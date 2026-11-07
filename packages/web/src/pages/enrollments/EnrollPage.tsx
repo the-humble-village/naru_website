@@ -37,10 +37,10 @@ import { useTranslation } from '../../hooks';
 import { parseZodErrors } from '../../hooks/useFieldErrors';
 
 const FIELD =
-  'w-full min-h-[44px] px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
+  'w-full min-h-[44px] px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-hv-accent';
 const LABEL = 'block text-sm font-medium text-hv-charcoal mb-1';
 const SECTION = 'text-lg font-semibold text-hv-green';
-const CARD = 'bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4';
+const CARD = 'bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4';
 
 
 const STATUS_LABEL: Record<NutritionalStatus, TranslationKey> = {
@@ -718,14 +718,14 @@ export const EnrollPage: React.FC = () => {
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
             <Link
               to={`/programs/${program.id}`}
-              className="min-h-[44px] flex items-center justify-center bg-hv-gray text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+              className="min-h-[44px] flex items-center justify-center bg-hv-gray text-white px-4 py-2 rounded-sm hover:bg-gray-600 transition-colors"
             >
               {t('common.cancel')}
             </Link>
             <button
               type="submit"
               disabled={createMutation.isPending || !program.active}
-              className="min-h-[44px] bg-hv-green text-white px-4 py-2 rounded hover:bg-hv-green-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] bg-hv-green text-white px-4 py-2 rounded-sm hover:bg-hv-green-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {createMutation.isPending ? t('common.saving') : t('enroll.submit')}
             </button>

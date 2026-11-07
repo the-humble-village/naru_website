@@ -25,7 +25,7 @@ import { useTranslation } from '../../hooks';
 import { formatDateUTC } from '../../utils/datetime';
 import { useEnrollmentContext } from './RecordVisitPage';
 
-const SECTION = 'bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-sm space-y-4';
+const SECTION = 'bg-white p-4 sm:p-6 rounded-lg border border-hv-border shadow-xs space-y-4';
 const HEADING = 'text-lg font-semibold text-hv-green';
 
 const LOCATION_KEY: Record<LocationType, TranslationKey> = {

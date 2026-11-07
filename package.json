@@ -13,5 +13,5 @@
     "turbo": "^2.10.9",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@11.20.0"
+  "packageManager": "pnpm@12.18.0"
 }

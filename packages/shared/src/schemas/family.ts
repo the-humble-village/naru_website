@@ -13,7 +13,11 @@ export const FamilyCreateSchema = z.object({
   localId: z.string().uuid().optional(),
 });
 
-export const FamilyUpdateSchema = FamilyCreateSchema.partial();
+// Zod 4 applies .default() inside .partial(), so inCrisis is redeclared without one:
+// an update that omits it must not clear the flag.
+export const FamilyUpdateSchema = FamilyCreateSchema.partial().extend({
+  inCrisis: z.boolean().optional(),
+});
 
 export const FamilyReadSchema = z.object({
   id: z.number().int().positive(),

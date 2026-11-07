@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Login, LoginSchema } from '@naru/shared';
+import { parseZodErrors } from '../../hooks/useFieldErrors';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../../store/auth';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -34,20 +35,9 @@ export const LoginPage: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
-    try {
-      LoginSchema.parse(formData);
-      setErrors({});
-      return true;
-    } catch (error: any) {
-      const formErrors: Record<string, string> = {};
-      error.errors?.forEach((err: any) => {
-        if (err.path?.length > 0) {
-          formErrors[err.path[0]] = err.message;
-        }
-      });
-      setErrors(formErrors);
-      return false;
-    }
+    const result = LoginSchema.safeParse(formData);
+    setErrors(result.success ? {} : parseZodErrors(result.error));
+    return result.success;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,7 +103,7 @@ export const LoginPage: React.FC = () => {
                   type="text"
                   value={formData.login}
                   onChange={handleInputChange}
-                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-hv-accent focus:border-hv-accent ${
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-xs focus:outline-hidden focus:ring-hv-accent focus:border-hv-accent ${
                     errors.login
                       ? 'border-red-500 bg-red-50'
                       : 'border-hv-border-input bg-white'
@@ -135,7 +125,7 @@ export const LoginPage: React.FC = () => {
                   type="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-hv-accent focus:border-hv-accent ${
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-xs focus:outline-hidden focus:ring-hv-accent focus:border-hv-accent ${
                     errors.password
                       ? 'border-red-500 bg-red-50'
                       : 'border-hv-border-input bg-white'
@@ -152,7 +142,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-hv-terracotta hover:bg-hv-terracotta-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-hv-terracotta disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-xs text-sm font-medium text-white bg-hv-terracotta hover:bg-hv-terracotta-hover focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-hv-terracotta disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isLoading ? (
                   <div className="flex items-center">

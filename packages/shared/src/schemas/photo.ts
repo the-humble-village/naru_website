@@ -15,7 +15,9 @@ export const PhotoAttachmentCreateSchema = z.object({
 export const PhotoAttachmentUpdateSchema = PhotoAttachmentCreateSchema.pick({
   caption: true,
   sortOrder: true,
-}).partial();
+}).partial().extend({
+  sortOrder: z.number().int().optional(),
+});
 
 export const PhotoAttachmentReadSchema = z.object({
   id: z.number().int().positive(),

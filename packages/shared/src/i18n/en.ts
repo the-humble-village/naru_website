@@ -29,7 +29,7 @@ export const en = {
   'directory.unenrolled_load_failed': 'Could not load unenrolled records. Please try again.',
 
   // Navigation
-  'nav.brand': 'Humble Village',
+  'nav.brand': 'Naru',
   'nav.dashboard': 'Dashboard',
   'nav.families': 'Families',
   'nav.admin': 'Admin',

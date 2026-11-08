@@ -12,6 +12,10 @@ vi.mock('../../api/reports', () => ({
   reportsApi: { listReports: vi.fn() },
 }));
 
+vi.mock('../DashboardPage', () => ({
+  DashboardPage: () => null,
+}));
+
 const mockUseAuthStore = vi.fn();
 vi.mock('../../store/auth', () => ({
   useAuthStore: () => mockUseAuthStore(),

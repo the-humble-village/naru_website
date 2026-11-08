@@ -77,9 +77,9 @@ describe('Layout top nav', () => {
     mockUnenrolledCount.mockResolvedValue({ children: 0, mothers: 0, people: 0, families: 0, total: 0 });
   });
 
-  it('renders the brand as the dashboard link', async () => {
+  it('renders the brand as the programs link', async () => {
     renderLayout();
-    expect(screen.getByRole('link', { name: 'Humble Village' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Naru' })).toHaveAttribute('href', '/programs');
   });
 
   it('renders a link for every active program inside the Programs menu', async () => {

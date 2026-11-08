@@ -171,7 +171,7 @@ export const Layout: React.FC = () => {
     <div className="min-h-screen bg-hv-page flex flex-col">
       <header className="sticky top-0 z-40 bg-hv-green shadow-lg">
         <div className="flex items-center gap-2 h-16 px-4 sm:px-6">
-          <Link to="/" className="flex items-center shrink-0 pr-2">
+          <Link to="/programs" className="flex items-center shrink-0 pr-2">
             <span className="text-white text-xl font-serif font-bold tracking-wide leading-none">
               {t('nav.brand')}
             </span>

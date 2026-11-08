@@ -16,7 +16,6 @@ import { reportsApi } from '../api/reports';
 import { EmptyState, LoadingState, StatStrip } from '../components';
 import type { StatStripItem } from '../components';
 import { useTranslation } from '../hooks';
-import { useAuthStore } from '../store/auth';
 
 const MS_PER_DAY = 86_400_000;
 const FETCH_PAGE_SIZE = 100;
@@ -54,13 +53,6 @@ const isoDate = (date: Date): string =>
     date.getDate()
   ).padStart(2, '0')}`;
 
-const greetingKey = (): TranslationKey => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'dash.good_morning';
-  if (hour < 18) return 'dash.good_afternoon';
-  return 'dash.good_evening';
-};
-
 interface AttentionRow {
   key: string;
   to: string;
@@ -75,7 +67,6 @@ const SECTION_TITLE = 'text-sm font-semibold uppercase tracking-wider text-hv-gr
 
 export const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuthStore();
 
   const monthStart = useMemo(() => {
     const now = new Date();
@@ -249,12 +240,8 @@ export const DashboardPage: React.FC = () => {
     return bars.map((bar) => ({ ...bar, share: max > 0 ? (bar.active / max) * 100 : 0 }));
   }, [dashboard?.enrollmentsByProgram]);
 
-  const greeting = user?.firstName ? `${t(greetingKey())}, ${user.firstName}` : t(greetingKey());
-
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-serif font-bold text-hv-charcoal">{greeting}</h1>
-
       {dashboardQuery.isLoading && <LoadingState message={t('common.loading')} />}
 
       {dashboardQuery.isError && !dashboardQuery.isLoading && (

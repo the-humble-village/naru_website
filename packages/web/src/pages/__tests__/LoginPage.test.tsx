@@ -164,7 +164,7 @@ describe('LoginPage', () => {
         mockAuthResponse.accessToken,
         mockAuthResponse.refreshToken
       );
-      expect(mockNavigate).toHaveBeenCalledWith('/');
+      expect(mockNavigate).toHaveBeenCalledWith('/programs');
     });
   });
 

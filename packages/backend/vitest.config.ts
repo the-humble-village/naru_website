@@ -18,11 +18,8 @@ export default defineConfig({
     testTimeout: 30000,
     hookTimeout: 10000,
     pool: 'forks',  // Use forks instead of threads to avoid shared state
-    poolOptions: {
-      forks: {
-        singleFork: true  // Run tests sequentially to avoid race conditions
-      }
-    }
+    // Every test file TRUNCATEs the same database, so files running in parallel deadlock.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

@@ -6,9 +6,12 @@ export const RoleSchema = z.enum(['ADMIN', 'SUPERVISOR', 'CASEWORKER']);
 // User creation schema (admin create only — there is no self-service signup)
 export const UserCreateSchema = z.object({
   login: z.string().min(1).max(255),
-  email: z.string().email().optional().nullable(),
-  firstName: z.string().max(255).optional().nullable(),
-  lastName: z.string().max(255).optional().nullable(),
+  // Email and both names are required for new users. The columns stay nullable
+  // so accounts created before this rule keep working; UserUpdateSchema lets them
+  // add a value but not clear one.
+  email: z.string().email(),
+  firstName: z.string().trim().min(1).max(255),
+  lastName: z.string().trim().min(1).max(255),
   password: z.string().min(12), // Plain password for creation
   role: RoleSchema.default('CASEWORKER'),
   lang: z.string().max(5).default('en'),
@@ -20,9 +23,10 @@ export const UserCreateSchema = z.object({
 // hashed server-side and replaces passwordHash. It is never echoed back.
 export const UserUpdateSchema = z.object({
   login: z.string().min(1).max(255).optional(),
-  email: z.string().email().optional().nullable(),
-  firstName: z.string().max(255).optional().nullable(),
-  lastName: z.string().max(255).optional().nullable(),
+  // Not nullable: these can be changed, not removed.
+  email: z.string().email().optional(),
+  firstName: z.string().trim().min(1).max(255).optional(),
+  lastName: z.string().trim().min(1).max(255).optional(),
   role: RoleSchema.optional(),
   lang: z.string().max(5).optional(),
   password: z.string().min(12).optional(),

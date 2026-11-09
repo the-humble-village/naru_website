@@ -127,6 +127,7 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
             value={values.familyName}
             onChange={handleInput}
             maxLength={512}
+            placeholder={t('families.placeholder_name')}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
               errors.familyName ? 'border-red-500' : 'border-hv-border-input'
             }`}
@@ -158,10 +159,12 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
         <FormField
           label={t('form.phone')}
           name="phone"
+          type="tel"
           value={values.phone}
           onChange={handleInput}
           error={errors.phone}
           maxLength={64}
+          placeholder={t('form.placeholder_phone')}
         />
 
         <div>
@@ -177,6 +180,7 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
             value={values.caretaker2Name}
             onChange={handleInput}
             maxLength={256}
+            placeholder={t('families.placeholder_caretaker2')}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
               errors.caretaker2Name ? 'border-red-500' : 'border-hv-border-input'
             }`}
@@ -194,6 +198,7 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
         onChange={handleInput}
         error={errors.incomeSources}
         rows={3}
+        placeholder={t('families.placeholder_income_sources')}
       />
 
       <div className="flex items-center">
@@ -217,6 +222,7 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
         onChange={handleInput}
         error={errors.notes}
         rows={4}
+        placeholder={t('families.placeholder_notes')}
       />
 
       {errors.submit && (

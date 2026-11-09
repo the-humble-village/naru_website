@@ -111,6 +111,26 @@ describe('AddFamilyPage', () => {
     });
   });
 
+  it('shows placeholders on the text fields', async () => {
+    render(
+      <TestWrapper>
+        <AddFamilyPage />
+      </TestWrapper>
+    );
+
+    expect(await screen.findByLabelText('Family Name')).toHaveAttribute('placeholder', 'e.g. López García');
+    expect(screen.getByLabelText('Phone')).toHaveAttribute('placeholder', 'e.g. 5512-3344');
+    expect(screen.getByLabelText('Second caretaker')).toHaveAttribute('placeholder', 'e.g. José López');
+    expect(screen.getByLabelText('Income sources')).toHaveAttribute(
+      'placeholder',
+      'e.g. farming, weaving, day labour'
+    );
+    expect(screen.getByLabelText('Notes')).toHaveAttribute(
+      'placeholder',
+      'Anything the team should know about this family'
+    );
+  });
+
   it('loads and displays lookup data in selectors', async () => {
     render(
       <TestWrapper>

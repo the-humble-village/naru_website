@@ -160,9 +160,10 @@ describe('AdminUsersPage', () => {
     });
 
     // Check table headers
-    expect(screen.getByText('User')).toBeInTheDocument();
-    expect(screen.getByText('Login')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
     expect(screen.getByText('Email')).toBeInTheDocument();
+    // Username is on the edit form, not in the table.
+    expect(screen.queryByRole('columnheader', { name: 'Username' })).not.toBeInTheDocument();
     expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Language')).toBeInTheDocument();
     expect(screen.getByText('Created')).toBeInTheDocument();
@@ -170,12 +171,12 @@ describe('AdminUsersPage', () => {
 
     // Check user data
     expect(screen.getByText('Admin User')).toBeInTheDocument();
-    expect(screen.getByText('admin')).toBeInTheDocument();
+    expect(screen.queryByText('admin')).not.toBeInTheDocument();
     expect(screen.getByText('admin@test.com')).toBeInTheDocument();
     expect(screen.getByText('Jane Supervisor')).toBeInTheDocument();
-    expect(screen.getByText('supervisor1')).toBeInTheDocument();
-    // caseworker1 appears twice: once as display name (no first/last), once as login
-    expect(screen.getAllByText('caseworker1')).toHaveLength(2);
+    expect(screen.queryByText('supervisor1')).not.toBeInTheDocument();
+    // caseworker1 has no first/last name, so its username stands in as the name
+    expect(screen.getAllByText('caseworker1')).toHaveLength(1);
 
     // Check role badges
     expect(screen.getByText('Admin')).toBeInTheDocument();
@@ -207,7 +208,7 @@ describe('AdminUsersPage', () => {
     fireEvent.click(addButton);
 
     expect(screen.getByText('Create New User')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Login/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Username/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Email/)).toBeInTheDocument();
     expect(screen.getByLabelText(/First Name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Last Name/)).toBeInTheDocument();
@@ -231,7 +232,7 @@ describe('AdminUsersPage', () => {
     fireEvent.click(screen.getByText('Add User'));
 
     // Fill form
-    await user.type(screen.getByLabelText(/Login/), 'newuser');
+    await user.type(screen.getByLabelText(/Username/), 'newuser');
     await user.type(screen.getByLabelText(/Email/), 'new@test.com');
     await user.type(screen.getByLabelText(/First Name/), 'New');
     await user.type(screen.getByLabelText(/Last Name/), 'User');
@@ -256,7 +257,7 @@ describe('AdminUsersPage', () => {
     });
   });
 
-  it('should send blank optional fields as null when creating', async () => {
+  it('should trim email and names when creating', async () => {
     const user = userEvent.setup();
     vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
     vi.mocked(usersApi.createUser).mockResolvedValue(mockUsers[0]!);
@@ -268,7 +269,10 @@ describe('AdminUsersPage', () => {
     });
 
     fireEvent.click(screen.getByText('Add User'));
-    await user.type(screen.getByLabelText(/Login/), 'minimal');
+    await user.type(screen.getByLabelText(/Username/), 'minimal');
+    await user.type(screen.getByLabelText(/^Email/), '  minimal@test.com ');
+    await user.type(screen.getByLabelText(/First Name/), ' Mini ');
+    await user.type(screen.getByLabelText(/Last Name/), ' Mal ');
     await user.type(screen.getByLabelText(/Password/), 'password12345');
     fireEvent.click(screen.getByText('Create User'));
 
@@ -276,9 +280,9 @@ describe('AdminUsersPage', () => {
       expect(usersApi.createUser).toHaveBeenCalledWith(
         expect.objectContaining({
           login: 'minimal',
-          email: null,
-          firstName: null,
-          lastName: null,
+          email: 'minimal@test.com',
+          firstName: 'Mini',
+          lastName: 'Mal',
         }),
         expect.anything(),
       );
@@ -299,16 +303,317 @@ describe('AdminUsersPage', () => {
     });
 
     fireEvent.click(screen.getByText('Add User'));
-    await user.type(screen.getByLabelText(/Login/), 'shortpass');
+    await user.type(screen.getByLabelText(/Username/), 'shortpass');
+    await user.type(screen.getByLabelText(/^Email/), 'shortpass@test.com');
+    await user.type(screen.getByLabelText(/First Name/), 'Short');
+    await user.type(screen.getByLabelText(/Last Name/), 'Pass');
     await user.type(screen.getByLabelText(/Password/), 'eleven-char'); // 11
     fireEvent.click(screen.getByText('Create User'));
 
     // The static field hint also says "at least 12 characters", so match the
-    // error banner specifically.
+    // error banner specifically — a plain sentence, not "password: String must…".
     await waitFor(() => {
-      expect(screen.getByText(/Failed to create user/i)).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        "Couldn't create user. Password must be at least 12 characters"
+      );
     });
     expect(usersApi.createUser).not.toHaveBeenCalled();
+  });
+
+  describe('sorting', () => {
+    // A second caseworker, so sorting by role has a tie to break by name.
+    const sortUsers: UserRead[] = [
+      ...mockUsers,
+      { ...mockUsers[2], id: 4, login: 'azed', firstName: 'Ana', lastName: 'Zed' },
+    ];
+
+    const renderSorted = async () => {
+      vi.mocked(usersApi.fetchUsers).mockResolvedValue(sortUsers);
+      renderWithProviders(<AdminUsersPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Users (4)')).toBeInTheDocument();
+      });
+    };
+
+    /** Display names down the table, without the "(you)" marker. */
+    const rowNames = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) =>
+          (within(row).getAllByRole('cell')[0].textContent ?? '').replace(/\(.*\)/, '').trim()
+        );
+
+    it('keeps the server order until a header is clicked', async () => {
+      await renderSorted();
+      expect(rowNames()).toEqual(['Admin User', 'Jane Supervisor', 'caseworker1', 'Ana Zed']);
+      expect(screen.getByRole('columnheader', { name: 'Name' })).not.toHaveAttribute('aria-sort');
+    });
+
+    it('sorts by name, case-insensitively, and reverses on a second click', async () => {
+      await renderSorted();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Name' }));
+      expect(rowNames()).toEqual(['Admin User', 'Ana Zed', 'caseworker1', 'Jane Supervisor']);
+      expect(screen.getByRole('columnheader', { name: 'Name' })).toHaveAttribute(
+        'aria-sort',
+        'ascending'
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Name' }));
+      expect(rowNames()).toEqual(['Jane Supervisor', 'caseworker1', 'Ana Zed', 'Admin User']);
+      expect(screen.getByRole('columnheader', { name: 'Name' })).toHaveAttribute(
+        'aria-sort',
+        'descending'
+      );
+    });
+
+    it('sorts by role hierarchy, keeping names alphabetical within a role', async () => {
+      await renderSorted();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Role' }));
+      expect(rowNames()).toEqual(['Admin User', 'Jane Supervisor', 'Ana Zed', 'caseworker1']);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Role' }));
+      expect(rowNames()).toEqual(['Ana Zed', 'caseworker1', 'Jane Supervisor', 'Admin User']);
+    });
+
+    it('switching columns starts the new column ascending', async () => {
+      await renderSorted();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Name' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Name' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Role' }));
+
+      expect(screen.getByRole('columnheader', { name: 'Role' })).toHaveAttribute(
+        'aria-sort',
+        'ascending'
+      );
+      expect(screen.getByRole('columnheader', { name: 'Name' })).not.toHaveAttribute('aria-sort');
+    });
+  });
+
+  it('shows placeholders on the create form', async () => {
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+    renderWithProviders(<AdminUsersPage />);
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Add User'));
+
+    expect(screen.getByLabelText(/Username/)).toHaveAttribute('placeholder', 'e.g. mlopez');
+    expect(screen.getByLabelText(/^Email/)).toHaveAttribute('placeholder', 'name@example.com');
+    expect(screen.getByLabelText(/First Name/)).toHaveAttribute('placeholder', 'e.g. María');
+    expect(screen.getByLabelText(/Last Name/)).toHaveAttribute('placeholder', 'e.g. López');
+    expect(screen.getByLabelText(/Password/)).toHaveAttribute('placeholder', 'At least 12 characters');
+  });
+
+  describe('email validation', () => {
+    const openCreateForm = async () => {
+      vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+      renderWithProviders(<AdminUsersPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Users (3)')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Add User'));
+      return screen.getByLabelText(/^Email/);
+    };
+
+    const invalidMessage = /Enter a valid email address/;
+
+    it('stays quiet while the address is still being typed', async () => {
+      const user = userEvent.setup();
+      const email = await openCreateForm();
+
+      await user.type(email, 'not-an-email');
+
+      expect(screen.queryByText(invalidMessage)).not.toBeInTheDocument();
+      expect(email).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('flags a malformed address when the field is left', async () => {
+      const user = userEvent.setup();
+      const email = await openCreateForm();
+
+      await user.type(email, 'not-an-email');
+      await user.tab();
+
+      expect(screen.getByText(invalidMessage)).toBeInTheDocument();
+      expect(email).toHaveAttribute('aria-invalid', 'true');
+      expect(email).toHaveAttribute('aria-describedby', 'user-email-error');
+    });
+
+    it('clears the error as soon as the address is fixed', async () => {
+      const user = userEvent.setup();
+      const email = await openCreateForm();
+
+      await user.type(email, 'name');
+      await user.tab();
+      expect(screen.getByText(invalidMessage)).toBeInTheDocument();
+
+      await user.type(email, '@example.com');
+      expect(screen.queryByText(invalidMessage)).not.toBeInTheDocument();
+    });
+
+    const requiredMessage = 'Enter an email address';
+
+    it('marks email as required on the create form', async () => {
+      const email = await openCreateForm();
+      expect(email).toBeRequired();
+      expect(screen.getByText('Email', { selector: 'label' })).toHaveTextContent('Email *');
+    });
+
+    it('flags a blank email when the field is left', async () => {
+      const user = userEvent.setup();
+      const email = await openCreateForm();
+
+      await user.click(email);
+      await user.tab();
+
+      expect(screen.getByText(requiredMessage)).toBeInTheDocument();
+      expect(email).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('blocks create when email is left blank', async () => {
+      const user = userEvent.setup();
+      await openCreateForm();
+
+      await user.type(screen.getByLabelText(/Username/), 'newuser');
+      await user.type(screen.getByLabelText(/Password/), 'long-enough-password');
+      fireEvent.click(screen.getByText('Create User'));
+
+      expect(screen.getByText(requiredMessage)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Email/)).toHaveFocus();
+      expect(usersApi.createUser).not.toHaveBeenCalled();
+    });
+
+    it('treats a whitespace-only email as blank', async () => {
+      const user = userEvent.setup();
+      await openCreateForm();
+
+      await user.type(screen.getByLabelText(/Username/), 'newuser');
+      await user.type(screen.getByLabelText(/^Email/), '   ');
+      await user.type(screen.getByLabelText(/Password/), 'long-enough-password');
+      fireEvent.click(screen.getByText('Create User'));
+
+      expect(screen.getByText(requiredMessage)).toBeInTheDocument();
+      expect(usersApi.createUser).not.toHaveBeenCalled();
+    });
+
+    const openEditFor = async (index: number) => {
+      vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+      vi.mocked(usersApi.updateUser).mockResolvedValue(mockUsers[index]!);
+      renderWithProviders(<AdminUsersPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Users (3)')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getAllByText('Edit')[index]!);
+      return screen.getByLabelText(/^Email/);
+    };
+
+    it('will not let an existing email be cleared', async () => {
+      const user = userEvent.setup();
+      const email = await openEditFor(1); // supervisor@test.com
+
+      await user.clear(email);
+      fireEvent.click(screen.getByText('Update User'));
+
+      expect(screen.getByText(requiredMessage)).toBeInTheDocument();
+      expect(usersApi.updateUser).not.toHaveBeenCalled();
+    });
+
+    it('marks first and last name as required on the create form', async () => {
+      await openCreateForm();
+      expect(screen.getByLabelText(/First Name/)).toBeRequired();
+      expect(screen.getByLabelText(/Last Name/)).toBeRequired();
+    });
+
+    it('flags blank names and blocks create, focusing the first one', async () => {
+      const user = userEvent.setup();
+      await openCreateForm();
+
+      await user.type(screen.getByLabelText(/Username/), 'newuser');
+      await user.type(screen.getByLabelText(/^Email/), 'new@test.com');
+      await user.type(screen.getByLabelText(/Last Name/), '   ');
+      await user.type(screen.getByLabelText(/Password/), 'long-enough-password');
+      fireEvent.click(screen.getByText('Create User'));
+
+      expect(screen.getByText('Enter a first name')).toBeInTheDocument();
+      expect(screen.getByText('Enter a last name')).toBeInTheDocument();
+      expect(screen.getByLabelText(/First Name/)).toHaveFocus();
+      expect(usersApi.createUser).not.toHaveBeenCalled();
+    });
+
+    it('clears a name error as soon as the name is typed', async () => {
+      const user = userEvent.setup();
+      await openCreateForm();
+
+      await user.click(screen.getByLabelText(/First Name/));
+      await user.tab();
+      expect(screen.getByText('Enter a first name')).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/First Name/), 'Ana');
+      expect(screen.queryByText('Enter a first name')).not.toBeInTheDocument();
+    });
+
+    it('will not let an existing name be cleared', async () => {
+      const user = userEvent.setup();
+      await openEditFor(1); // Jane Supervisor
+
+      await user.clear(screen.getByLabelText(/Last Name/));
+      fireEvent.click(screen.getByText('Update User'));
+
+      expect(screen.getByText('Enter a last name')).toBeInTheDocument();
+      expect(usersApi.updateUser).not.toHaveBeenCalled();
+    });
+
+    it('still lets a user created without an email be edited', async () => {
+      const email = await openEditFor(2); // caseworker1: no email, no names
+      expect(email).not.toBeRequired();
+      expect(screen.getByLabelText(/First Name/)).not.toBeRequired();
+      expect(screen.getByLabelText(/Last Name/)).not.toBeRequired();
+
+      fireEvent.change(screen.getByLabelText(/Role/), { target: { value: 'SUPERVISOR' } });
+      fireEvent.click(screen.getByText('Update User'));
+
+      await waitFor(() => {
+        expect(usersApi.updateUser).toHaveBeenCalledWith(mockUsers[2]!.id, { role: 'SUPERVISOR' });
+      });
+      expect(screen.queryByText(requiredMessage)).not.toBeInTheDocument();
+    });
+
+    it('blocks create with an inline error instead of the banner', async () => {
+      const user = userEvent.setup();
+      await openCreateForm();
+
+      await user.type(screen.getByLabelText(/Username/), 'newuser');
+      await user.type(screen.getByLabelText(/^Email/), 'bad@');
+      await user.type(screen.getByLabelText(/Password/), 'long-enough-password');
+      fireEvent.click(screen.getByText('Create User'));
+
+      expect(screen.getByText(invalidMessage)).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/^Email/)).toHaveFocus();
+      expect(usersApi.createUser).not.toHaveBeenCalled();
+    });
+
+    it('blocks update when the email is edited into a bad one', async () => {
+      const user = userEvent.setup();
+      vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+      renderWithProviders(<AdminUsersPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Users (3)')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getAllByText('Edit')[1]);
+      const email = screen.getByLabelText(/^Email/);
+      await user.clear(email);
+      await user.type(email, 'supervisor@');
+      fireEvent.click(screen.getByText('Update User'));
+
+      expect(screen.getByText(invalidMessage)).toBeInTheDocument();
+      expect(usersApi.updateUser).not.toHaveBeenCalled();
+    });
   });
 
   it('should show edit form when edit button clicked', async () => {
@@ -326,7 +631,7 @@ describe('AdminUsersPage', () => {
     expect(screen.getByText('Edit User')).toBeInTheDocument();
     // Use getByLabelText to target form inputs specifically, avoiding
     // duplicates between form display values and role select option text
-    expect(screen.getByLabelText(/Login/)).toHaveValue('admin');
+    expect(screen.getByLabelText(/Username/)).toHaveValue('admin');
     expect(screen.getByLabelText(/Email/)).toHaveValue('admin@test.com');
     expect(screen.getByLabelText(/First Name/)).toHaveValue('Admin');
     expect(screen.getByLabelText(/Last Name/)).toHaveValue('User');
@@ -349,8 +654,8 @@ describe('AdminUsersPage', () => {
     // Edit the supervisor (not the signed-in user)
     fireEvent.click(screen.getAllByText('Edit')[1]!);
 
-    await user.clear(screen.getByLabelText(/Login/));
-    await user.type(screen.getByLabelText(/Login/), 'supervisor2');
+    await user.clear(screen.getByLabelText(/Username/));
+    await user.type(screen.getByLabelText(/Username/), 'supervisor2');
     await user.clear(screen.getByLabelText(/First Name/));
     await user.type(screen.getByLabelText(/First Name/), 'Janet');
     fireEvent.change(screen.getByLabelText(/Role/), { target: { value: 'ADMIN' } });
@@ -539,7 +844,7 @@ describe('AdminUsersPage', () => {
     const user = userEvent.setup();
     vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
     vi.mocked(usersApi.updateUser).mockRejectedValue(
-      apiError('A user with this login already exists')
+      apiError('A user with this username already exists')
     );
 
     renderWithProviders(<AdminUsersPage />);
@@ -549,13 +854,13 @@ describe('AdminUsersPage', () => {
     });
 
     fireEvent.click(screen.getAllByText('Edit')[1]!);
-    await user.clear(screen.getByLabelText(/Login/));
-    await user.type(screen.getByLabelText(/Login/), 'admin');
+    await user.clear(screen.getByLabelText(/Username/));
+    await user.type(screen.getByLabelText(/Username/), 'admin');
     fireEvent.click(screen.getByText('Update User'));
 
     await waitFor(() => {
       expect(
-        screen.getByText('Failed to update user: A user with this login already exists')
+        screen.getByText("Couldn't update user. A user with this username already exists")
       ).toBeInTheDocument();
     });
     // The form stays open on failure
@@ -601,8 +906,8 @@ describe('AdminUsersPage', () => {
       expect(screen.getByText('Admin User')).toBeInTheDocument();
       expect(screen.getByText('Jane Supervisor')).toBeInTheDocument();
 
-      // User with no names shows login as display name (also appears in Login column)
-      expect(screen.getAllByText('caseworker1')).toHaveLength(2);
+      // User with no names shows their username as the display name
+      expect(screen.getAllByText('caseworker1')).toHaveLength(1);
     });
   });
 });

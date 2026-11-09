@@ -476,6 +476,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
                 min="0"
                 value={form.weight}
                 onChange={(event) => set('weight', event.target.value)}
+                placeholder={t('visit.placeholder_pregnancy_weight')}
                 className={FIELD}
               />
             </div>
@@ -493,6 +494,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
                 max="11"
                 value={form.gestationMonths}
                 onChange={(event) => set('gestationMonths', event.target.value)}
+                placeholder={t('visit.placeholder_gestation')}
                 className={FIELD}
               />
             </div>

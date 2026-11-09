@@ -168,8 +168,8 @@ export async function updateUser(
     if (loginOwner && loginOwner.id !== id) {
       throw new HTTPException(400, {
         message: loginOwner.deletedAt
-          ? 'A deleted user already uses this login'
-          : 'User with this login already exists',
+          ? 'A deleted user already uses this username'
+          : 'A user with this username already exists',
       });
     }
   }
@@ -306,8 +306,8 @@ export async function createUser(data: UserCreate): Promise<UserRead> {
   if (loginOwner) {
     throw new HTTPException(400, {
       message: loginOwner.deletedAt
-        ? 'A deleted user already uses this login'
-        : 'User with this login already exists',
+        ? 'A deleted user already uses this username'
+        : 'A user with this username already exists',
     });
   }
 

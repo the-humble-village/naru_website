@@ -171,6 +171,7 @@ export const MotherForm: React.FC<MotherFormProps> = ({
             value={values.name}
             onChange={handleInput}
             maxLength={256}
+            placeholder={t('form.placeholder_name')}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
               errors.name ? 'border-red-500' : 'border-hv-border-input'
             }`}
@@ -211,10 +212,12 @@ export const MotherForm: React.FC<MotherFormProps> = ({
         <FormField
           label={t('form.phone')}
           name="phone"
+          type="tel"
           value={values.phone}
           onChange={handleInput}
           error={errors.phone}
           maxLength={64}
+          placeholder={t('form.placeholder_phone')}
         />
 
         <FormSelect
@@ -262,6 +265,7 @@ export const MotherForm: React.FC<MotherFormProps> = ({
             value={values.pregnancies}
             onChange={handleInput}
             error={errors.pregnancies}
+            placeholder={t('mothers.placeholder_pregnancies')}
           />
           <FormField
             label={t('mothers.children_count')}
@@ -270,6 +274,7 @@ export const MotherForm: React.FC<MotherFormProps> = ({
             value={values.childrenCount}
             onChange={handleInput}
             error={errors.childrenCount}
+            placeholder={t('mothers.placeholder_children_count')}
           />
           <FormField
             label={t('mothers.breastfed_count')}
@@ -278,6 +283,7 @@ export const MotherForm: React.FC<MotherFormProps> = ({
             value={values.breastfedCount}
             onChange={handleInput}
             error={errors.breastfedCount}
+            placeholder={t('mothers.placeholder_breastfed_count')}
           />
           <FormField
             label={t('mothers.malnutrition_deaths')}
@@ -286,6 +292,7 @@ export const MotherForm: React.FC<MotherFormProps> = ({
             value={values.malnutritionDeaths}
             onChange={handleInput}
             error={errors.malnutritionDeaths}
+            placeholder={t('mothers.placeholder_malnutrition_deaths')}
           />
         </div>
       </fieldset>
@@ -297,6 +304,7 @@ export const MotherForm: React.FC<MotherFormProps> = ({
         onChange={handleInput}
         error={errors.notes}
         rows={4}
+        placeholder={t('mothers.placeholder_notes')}
       />
 
       {errors.submit && (

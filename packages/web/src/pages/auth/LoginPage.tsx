@@ -66,8 +66,7 @@ export const LoginPage: React.FC = () => {
       // Store auth data in Zustand store
       login(response.user, response.accessToken, response.refreshToken);
 
-      // Navigate to dashboard
-      navigate('/');
+      navigate('/programs');
     } catch (error: any) {
       console.error('Login error:', error);
       // app.ts's onError responds with `{ error }`; `message` is only produced by

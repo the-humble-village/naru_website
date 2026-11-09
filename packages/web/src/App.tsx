@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout, ProtectedRoute, RoleGate, RedirectRoute } from './components';
 import {
   LoginPage,
-  DashboardPage,
   FamiliesPage,
   FamilyDetailPage,
   ChildDetailPage,
@@ -85,7 +84,7 @@ const router = createBrowserRouter([
     ),
     errorElement: <ErrorPage />,
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <RedirectRoute to="/programs" /> },
 
       // Programs
       { path: 'programs', element: <ProgramsPage /> },

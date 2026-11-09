@@ -112,6 +112,7 @@ export const PersonForm: React.FC<PersonFormProps> = ({
             value={values.name}
             onChange={handleInput}
             maxLength={256}
+            placeholder={t('form.placeholder_name')}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
               errors.name ? 'border-red-500' : 'border-hv-border-input'
             }`}
@@ -144,10 +145,12 @@ export const PersonForm: React.FC<PersonFormProps> = ({
         <FormField
           label={t('form.phone')}
           name="phone"
+          type="tel"
           value={values.phone}
           onChange={handleInput}
           error={errors.phone}
           maxLength={64}
+          placeholder={t('form.placeholder_phone')}
         />
 
         <div>
@@ -179,6 +182,7 @@ export const PersonForm: React.FC<PersonFormProps> = ({
         onChange={handleInput}
         error={errors.notes}
         rows={4}
+        placeholder={t('people.placeholder_notes')}
       />
 
       {errors.submit && (

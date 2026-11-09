@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -115,6 +115,39 @@ describe('AddChildPage', () => {
     expect(screen.getByLabelText('Mother')).toBeInTheDocument();
   });
 
+  it('shows placeholders on the text fields', async () => {
+    renderPage();
+
+    expect(await screen.findByLabelText(/Name/)).toHaveAttribute('placeholder', 'e.g. Sofía López');
+    expect(screen.getByLabelText('Notes')).toHaveAttribute(
+      'placeholder',
+      'Anything the team should know about this child'
+    );
+  });
+
+  it('starts on "Select…" with no sex chosen', async () => {
+    renderPage();
+
+    await screen.findByLabelText(/Name/);
+    const sex = screen.getByLabelText(/Sex/);
+    expect(sex).toHaveValue('');
+    expect(within(sex).getByRole('option', { name: 'Select…', selected: true })).toBeInTheDocument();
+  });
+
+  it('asks for the sex before saving rather than assuming one', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/Name/), 'Jose Ramirez');
+    await user.type(screen.getByLabelText(/Date of birth/), '2026-05-01');
+    await user.click(screen.getByRole('button', { name: 'Add Child' }));
+
+    // The required select blocks the submit with the browser's own prompt.
+    expect(screen.getByLabelText(/Sex/)).toBeRequired();
+    expect(screen.getByLabelText(/Sex/)).toBeInvalid();
+    expect(childrenApi.createChild).not.toHaveBeenCalled();
+  });
+
   it('admits a child with no mother and no family', async () => {
     const user = userEvent.setup();
     vi.mocked(childrenApi.createChild).mockResolvedValue(created);
@@ -123,6 +156,7 @@ describe('AddChildPage', () => {
 
     await user.type(await screen.findByLabelText(/Name/), 'Jose Ramirez');
     await user.type(screen.getByLabelText(/Date of birth/), '2026-05-01');
+    await user.selectOptions(screen.getByLabelText(/Sex/), 'MALE');
     await user.click(screen.getByRole('button', { name: 'Add Child' }));
 
     await waitFor(() => {

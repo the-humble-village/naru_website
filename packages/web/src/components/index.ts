@@ -43,6 +43,7 @@ export type { MapPickerValue } from './MapPicker';
 export { PageHeader } from './ui/PageHeader';
 export { FormField } from './ui/FormField';
 export { NameInput } from './ui/NameInput';
+export { PhoneInput } from './ui/PhoneInput';
 export { FormSelect } from './ui/FormSelect';
 export { LoadingState } from './ui/LoadingState';
 export { EmptyState } from './ui/EmptyState';

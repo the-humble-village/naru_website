@@ -5,6 +5,7 @@ import { ChevronRight, Lock, Search, X } from 'lucide-react';
 import type { ReportSlug, TranslationKey } from '@naru/shared';
 import { reportsApi } from '../../api/reports';
 import { EmptyState, LoadingState } from '../../components';
+import { DashboardPage } from '../DashboardPage';
 import { useReportText } from './ReportTable';
 
 type Category = 'enrollment' | 'nutrition' | 'visits' | 'other';
@@ -91,6 +92,10 @@ export const ReportsPage: React.FC = () => {
           {t('reports.subtitle')}
         </p>
       </header>
+
+      <div className="mb-8">
+        <DashboardPage />
+      </div>
 
       {items.length > 0 && (
         <div role="search" aria-label={t('reports.search_label')} className="mx-auto mb-4 max-w-md">

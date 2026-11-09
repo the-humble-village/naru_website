@@ -13,7 +13,10 @@ import { parseZodErrors, useTranslation } from '../../hooks';
 export interface ChildFormValues {
   name: string;
   birthDate: string;
-  sex: Sex;
+  // '' until chosen: the form starts on "None" so nobody is recorded as a boy by
+  // default. The select is `required` (the WHO z-score tables are split by sex),
+  // so the browser won't submit until one is picked.
+  sex: Sex | '';
   communityId: string;
   motherId: string;
   familyId: string;
@@ -23,7 +26,7 @@ export interface ChildFormValues {
 export const EMPTY_CHILD_FORM: ChildFormValues = {
   name: '',
   birthDate: '',
-  sex: 'MALE',
+  sex: '',
   communityId: '',
   motherId: '',
   familyId: '',
@@ -109,7 +112,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
   ) => {
     const { name, value } = event.target;
     if (name === 'sex') {
-      onChange({ ...values, sex: value === 'FEMALE' ? 'FEMALE' : 'MALE' });
+      onChange({ ...values, sex: value === 'FEMALE' || value === 'MALE' ? value : '' });
       return;
     }
     onChange({ ...values, [name]: value });
@@ -137,6 +140,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
             value={values.name}
             onChange={handleInput}
             maxLength={256}
+            placeholder={t('children.placeholder_name')}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-terracotta ${
               errors.name ? 'border-red-500' : 'border-hv-border-input'
             }`}
@@ -162,6 +166,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
           error={errors.sex}
           required
           options={[
+            { value: '', label: t('form.select') },
             { value: 'MALE', label: t('subject.sex_male') },
             { value: 'FEMALE', label: t('subject.sex_female') },
           ]}
@@ -240,6 +245,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
         onChange={handleInput}
         error={errors.notes}
         rows={4}
+        placeholder={t('children.placeholder_notes')}
       />
 
       {errors.submit && (

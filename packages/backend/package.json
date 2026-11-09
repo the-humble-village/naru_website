@@ -13,7 +13,7 @@
   "dependencies": {
     "@aws-sdk/client-rds": "^3.1048.0",
     "@aws-sdk/client-s3": "^3.1048.0",
-    "@aws-sdk/rds-signer": "^3.1048.0",
+    "@aws-sdk/rds-signer": "^3.1158.0",
     "@aws-sdk/s3-request-presigner": "^3.1048.0",
     "@hono/node-server": "^1.19.14",
     "@hono/swagger-ui": "^0.6.1",
@@ -22,10 +22,10 @@
     "@naru/shared": "workspace:*",
     "@prisma/client": "^6.19.3",
     "bcrypt": "^5.1.1",
-    "dotenv": "^16.5.0",
-    "hono": "^4.12.19",
+    "dotenv": "^18.0.9",
+    "hono": "^4.13.16",
     "jsonwebtoken": "^9.0.2",
-    "multer": ">=2.1.1",
+    "multer": "^2.5.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
@@ -35,8 +35,8 @@
     "@types/node": "^22.19.19",
     "prisma": "^6.19.3",
     "tsx": "^4.22.0",
-    "typescript": "^5.8.0",
-    "vitest": "^3.1.0"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

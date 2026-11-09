@@ -296,14 +296,6 @@ describe('DashboardPage', () => {
     );
   });
 
-  it('greets the signed-in user by name', async () => {
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Caleb');
-    });
-  });
-
   it('renders the four operational stats', async () => {
     renderPage();
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -11,6 +11,7 @@ import {
   UserCreateSchema,
   UserPasswordResetSchema,
   Role,
+  type TranslationKey,
 } from '@naru/shared';
 import { parseZodErrors } from '../../hooks/useFieldErrors';
 import { RoleGate } from '../../components/RoleGate';
@@ -58,8 +59,35 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
 };
 
 /**
+ * A plain sentence for each field the user form can get wrong. Zod's own
+ * messages ("String must contain at least 12 character(s)") aren't fit to show,
+ * and gluing the field name on front ("email: Invalid email") read worse.
+ */
+const FIELD_ERROR_KEYS: Partial<Record<string, TranslationKey>> = {
+  login: 'admin.invalid_login',
+  email: 'admin.invalid_email',
+  firstName: 'admin.first_name_required',
+  lastName: 'admin.last_name_required',
+  password: 'admin.invalid_password',
+};
+
+/** Fields checked inline, under the input, in the order they appear on the form. */
+type CheckedField = 'email' | 'firstName' | 'lastName';
+const CHECKED_FIELDS: CheckedField[] = ['email', 'firstName', 'lastName'];
+const NOTHING_TOUCHED: Record<CheckedField, boolean> = {
+  email: false,
+  firstName: false,
+  lastName: false,
+};
+const REQUIRED_KEYS: Record<CheckedField, TranslationKey> = {
+  email: 'admin.email_required',
+  firstName: 'admin.first_name_required',
+  lastName: 'admin.last_name_required',
+};
+
+/**
  * Validate against the shared schema before hitting the network, returning the
- * first problem as a display string, or null if the payload is good.
+ * name of the first field that fails, or null if the payload is good.
  *
  * The save button is an onClick, not a submit, so the `minLength` attributes on
  * these inputs never trigger browser validation — without this the first sign
@@ -69,13 +97,29 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
 const preflight = <T,>(schema: z.ZodType<T>, data: unknown): string | null => {
   const result = schema.safeParse(data);
   if (result.success) return null;
-
-  const first = Object.entries(parseZodErrors(result.error))[0];
-  if (!first) return 'Please check the form and try again';
-
-  const [field, message] = first;
-  return `${field}: ${message}`;
+  return Object.keys(parseZodErrors(result.error))[0] ?? '';
 };
+
+/**
+ * The shared schema's own email rule, so the inline check can't drift from the
+ * one the server enforces.
+ */
+const isValidEmail = (email: string): boolean =>
+  UserCreateSchema.shape.email.safeParse(email).success;
+
+const formatUserName = (user: UserRead) => {
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : user.login;
+};
+
+type SortColumn = 'name' | 'role';
+type SortDirection = 'asc' | 'desc';
+
+// Ascending role order runs down the hierarchy, Admin first.
+const ROLE_RANK: Record<Role, number> = { ADMIN: 0, SUPERVISOR: 1, CASEWORKER: 2 };
+
+const SORT_FOCUS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hv-green focus-visible:ring-offset-2';
 
 /**
  * AdminUsersPage - User management interface for admins
@@ -87,8 +131,15 @@ export const AdminUsersPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<UserRead | null>(null);
   const [formData, setFormData] = useState<UserFormData>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  // A field's error waits until it is first left (or the form is submitted), so
+  // it doesn't fire on every keystroke of a half-typed address. After that it
+  // updates live, clearing as soon as the value is fixed.
+  const [touched, setTouched] = useState(NOTHING_TOUCHED);
   const [deleteTarget, setDeleteTarget] = useState<UserRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Null keeps the server's order until a header is clicked.
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const queryClient = useQueryClient();
 
@@ -134,6 +185,73 @@ export const AdminUsersPage: React.FC = () => {
 
   const resetForm = () => {
     setFormData(EMPTY_FORM);
+    setTouched(NOTHING_TOUCHED);
+  };
+
+  const trimmed: Record<CheckedField, string> = {
+    email: formData.email.trim(),
+    firstName: formData.firstName.trim(),
+    lastName: formData.lastName.trim(),
+  };
+
+  // Required for a new user, and for an existing one who already has a value
+  // (it can be changed, not removed). Accounts created before these fields were
+  // required can still be edited without filling them in.
+  const isRequired = (field: CheckedField): boolean =>
+    editingUser === null || Boolean(editingUser[field]);
+
+  const fieldProblem = (field: CheckedField): TranslationKey | null => {
+    const value = trimmed[field];
+    if (value === '') return isRequired(field) ? REQUIRED_KEYS[field] : null;
+    if (field === 'email' && !isValidEmail(value)) return 'admin.invalid_email';
+    return null;
+  };
+
+  const fieldError = (field: CheckedField): string | null => {
+    const key = touched[field] ? fieldProblem(field) : null;
+    return key ? t(key) : null;
+  };
+
+  /** Props shared by the inline-checked inputs: blur tracking, a11y and the error border. */
+  const checkedInputProps = (field: CheckedField) => {
+    const error = fieldError(field);
+    return {
+      onBlur: () => setTouched((prev) => ({ ...prev, [field]: true })),
+      required: isRequired(field),
+      'aria-required': isRequired(field),
+      'aria-invalid': error ? true : undefined,
+      'aria-describedby': error ? `user-${field}-error` : undefined,
+      className: `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent ${
+        error ? 'border-red-500' : 'border-hv-border-input'
+      }`,
+    };
+  };
+
+  const renderFieldError = (field: CheckedField) => {
+    const error = fieldError(field);
+    return error ? (
+      <p id={`user-${field}-error`} className="text-red-500 text-sm mt-1">
+        {error}
+      </p>
+    ) : null;
+  };
+
+  const requiredMark = (field: CheckedField) =>
+    isRequired(field) ? <span className="text-red-500"> *</span> : null;
+
+  /** The sentence to show for a field that failed `preflight`. */
+  const fieldErrorMessage = (field: string): string => {
+    const key = FIELD_ERROR_KEYS[field];
+    return key ? t(key) : t('admin.invalid_form');
+  };
+
+  /** Flags every bad field under its input; returns false if submit should stop. */
+  const checkFields = (): boolean => {
+    setTouched({ email: true, firstName: true, lastName: true });
+    const firstBad = CHECKED_FIELDS.find((field) => fieldProblem(field) !== null);
+    if (!firstBad) return true;
+    document.getElementById(`user-${firstBad}`)?.focus();
+    return false;
   };
 
   const closeForm = () => {
@@ -145,20 +263,19 @@ export const AdminUsersPage: React.FC = () => {
 
   const handleCreate = async () => {
     setFormError(null);
-    // Blank optional strings must go over the wire as null: `email` is validated
-    // with z.string().email() and would reject ''.
+    if (!checkFields()) return;
     const createData: UserCreate = {
       login: formData.login,
-      email: formData.email || null,
-      firstName: formData.firstName || null,
-      lastName: formData.lastName || null,
+      email: trimmed.email,
+      firstName: trimmed.firstName,
+      lastName: trimmed.lastName,
       password: formData.password,
       role: formData.role,
       lang: formData.lang,
     };
     const invalid = preflight(UserCreateSchema, createData);
-    if (invalid) {
-      setFormError(invalid);
+    if (invalid !== null) {
+      setFormError(fieldErrorMessage(invalid));
       return;
     }
 
@@ -166,27 +283,27 @@ export const AdminUsersPage: React.FC = () => {
       await createUserMutation.mutateAsync(createData);
       closeForm();
     } catch (err) {
-      setFormError(getErrorMessage(err, 'Failed to create user'));
+      setFormError(getErrorMessage(err, t('admin.try_again')));
     }
   };
 
   const handleUpdate = async () => {
     if (!editingUser) return;
     setFormError(null);
+    if (!checkFields()) return;
 
     // Only send changed fields
     const dataToSave: UserUpdate = {};
     if (formData.login !== editingUser.login) {
       dataToSave.login = formData.login;
     }
-    if (formData.email !== (editingUser.email ?? '')) {
-      dataToSave.email = formData.email || null;
-    }
-    if (formData.firstName !== (editingUser.firstName ?? '')) {
-      dataToSave.firstName = formData.firstName || null;
-    }
-    if (formData.lastName !== (editingUser.lastName ?? '')) {
-      dataToSave.lastName = formData.lastName || null;
+    // Blank only gets past checkFields() for a user who never had that value, so
+    // there's nothing to send.
+    for (const field of CHECKED_FIELDS) {
+      const value = trimmed[field];
+      if (value !== '' && value !== (editingUser[field] ?? '')) {
+        dataToSave[field] = value;
+      }
     }
     if (formData.role !== editingUser.role) {
       dataToSave.role = formData.role;
@@ -199,8 +316,8 @@ export const AdminUsersPage: React.FC = () => {
     // other field edits already saved while the reset half fails.
     if (formData.password) {
       const invalid = preflight(UserPasswordResetSchema, { password: formData.password });
-      if (invalid) {
-        setFormError(invalid);
+      if (invalid !== null) {
+        setFormError(fieldErrorMessage(invalid));
         return;
       }
     }
@@ -217,12 +334,13 @@ export const AdminUsersPage: React.FC = () => {
       }
       closeForm();
     } catch (err) {
-      setFormError(getErrorMessage(err, 'Failed to update user'));
+      setFormError(getErrorMessage(err, t('admin.try_again')));
     }
   };
 
   const startEdit = (user: UserRead) => {
     setFormError(null);
+    setTouched(NOTHING_TOUCHED);
     setEditingUser(user);
     setFormData({
       login: user.login,
@@ -271,12 +389,55 @@ export const AdminUsersPage: React.FC = () => {
     }
   };
 
-  const formatUserName = (user: UserRead) => {
-    const parts = [user.firstName, user.lastName].filter(Boolean);
-    return parts.length > 0 ? parts.join(' ') : user.login;
+  const isCurrentUser = (user: UserRead) => currentUser?.id === user.id;
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
   };
 
-  const isCurrentUser = (user: UserRead) => currentUser?.id === user.id;
+  const sortedUsers = useMemo(() => {
+    if (!sortColumn) return users;
+    const byName = (a: UserRead, b: UserRead) =>
+      formatUserName(a).localeCompare(formatUserName(b), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      });
+    const sign = sortDirection === 'asc' ? 1 : -1;
+    return [...users].sort((a, b) => {
+      if (sortColumn === 'role') {
+        // Within a role, users stay alphabetical whichever way the roles run.
+        return sign * (ROLE_RANK[a.role] - ROLE_RANK[b.role]) || byName(a, b);
+      }
+      return sign * byName(a, b);
+    });
+  }, [users, sortColumn, sortDirection]);
+
+  const sortableHeader = (column: SortColumn, label: string) => {
+    const sorted = sortColumn === column;
+    return (
+      <th
+        scope="col"
+        aria-sort={sorted ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+        className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider"
+      >
+        <button
+          type="button"
+          onClick={() => handleSort(column)}
+          className={`inline-flex items-center gap-1 rounded uppercase tracking-wider hover:text-hv-charcoal ${SORT_FOCUS}`}
+        >
+          {label}
+          <span aria-hidden="true" className="text-hv-gray">
+            {sorted ? (sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
+          </span>
+        </button>
+      </th>
+    );
+  };
 
   // Mirrors the server guard: an admin may not demote themselves out of ADMIN.
   const roleLocked = editingUser !== null && isCurrentUser(editingUser) && editingUser.role === 'ADMIN';
@@ -362,6 +523,7 @@ export const AdminUsersPage: React.FC = () => {
                     </label>
                     <input
                       id="user-login"
+                      placeholder={t('admin.placeholder_login')}
                       type="text"
                       value={formData.login}
                       onChange={(e) => setFormData({ ...formData, login: e.target.value })}
@@ -372,36 +534,46 @@ export const AdminUsersPage: React.FC = () => {
                   <div>
                     <label htmlFor="user-email" className="block text-sm font-medium text-hv-charcoal mb-1">
                       {t('common.col_email')}
+                      {requiredMark('email')}
                     </label>
                     <input
                       id="user-email"
+                      placeholder={t('admin.placeholder_email')}
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      autoComplete="off"
+                      {...checkedInputProps('email')}
                     />
+                    {renderFieldError('email')}
                   </div>
                   <div>
                     <label htmlFor="user-firstName" className="block text-sm font-medium text-hv-charcoal mb-1">
                       {t('common.first_name')}
+                      {requiredMark('firstName')}
                     </label>
                     <NameInput
                       id="user-firstName"
+                      placeholder={t('admin.placeholder_first_name')}
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      {...checkedInputProps('firstName')}
                     />
+                    {renderFieldError('firstName')}
                   </div>
                   <div>
                     <label htmlFor="user-lastName" className="block text-sm font-medium text-hv-charcoal mb-1">
                       {t('common.last_name')}
+                      {requiredMark('lastName')}
                     </label>
                     <NameInput
                       id="user-lastName"
+                      placeholder={t('admin.placeholder_last_name')}
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      {...checkedInputProps('lastName')}
                     />
+                    {renderFieldError('lastName')}
                   </div>
                   <div>
                     <label htmlFor="user-password" className="block text-sm font-medium text-hv-charcoal mb-1">
@@ -416,7 +588,7 @@ export const AdminUsersPage: React.FC = () => {
                       required={!editingUser}
                       minLength={12}
                       autoComplete="new-password"
-                      placeholder={editingUser ? 'Leave blank to keep current password' : ''}
+                      placeholder={editingUser ? t('admin.placeholder_password_keep') : t('admin.placeholder_password')}
                     />
                     {/* The create case needs its own hint: the edit-only version below
                         meant a new user's first sign that 12 is required was a 400. */}
@@ -484,8 +656,9 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
                 {formError && (
                   <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <p className="text-hv-crisis text-sm">
-                      Failed to {editingUser ? 'update' : 'create'} user: {formError}
+                    <p className="text-hv-crisis text-sm" role="alert">
+                      {editingUser ? t('admin.update_user_failed') : t('admin.create_user_failed')}{' '}
+                      {formError}
                     </p>
                   </div>
                 )}
@@ -498,18 +671,11 @@ export const AdminUsersPage: React.FC = () => {
             <table className="w-full">
               <thead className="bg-hv-page">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    {t('common.col_user')}
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    {t('common.col_login')}
-                  </th>
+                  {sortableHeader('name', t('common.col_name'))}
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
                     {t('common.col_email')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
-                    {t('common.col_role')}
-                  </th>
+                  {sortableHeader('role', t('common.col_role'))}
                   <th className="px-6 py-3 text-left text-xs font-medium text-hv-sage uppercase tracking-wider">
                     {t('admin.language')}
                   </th>
@@ -522,7 +688,7 @@ export const AdminUsersPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-hv-border">
-                {users.map((user) => (
+                {sortedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-hv-page">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-hv-charcoal">
@@ -531,9 +697,6 @@ export const AdminUsersPage: React.FC = () => {
                           <span className="ml-2 text-xs font-normal text-hv-gray">({t('common.you')})</span>
                         )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
-                      {user.login}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-hv-sage">
                       {user.email || '—'}

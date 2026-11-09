@@ -67,6 +67,17 @@ describe('AddPersonPage', () => {
     expect(screen.getByLabelText('Sex')).toBeInTheDocument();
   });
 
+  it('shows placeholders on the text fields', async () => {
+    renderPage();
+
+    expect(await screen.findByLabelText(/Name/)).toHaveAttribute('placeholder', 'e.g. María López');
+    expect(screen.getByLabelText('Phone')).toHaveAttribute('placeholder', 'e.g. 5512-3344');
+    expect(screen.getByLabelText('Notes')).toHaveAttribute(
+      'placeholder',
+      'Anything the team should know about this person'
+    );
+  });
+
   it('creates a person with only a name', async () => {
     const user = userEvent.setup();
     vi.mocked(peopleApi.createPerson).mockResolvedValue({

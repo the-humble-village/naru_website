@@ -6,6 +6,9 @@ describe('parseZodErrors', () => {
   it('schema passes for valid data', () => {
     const result = UserCreateSchema.safeParse({
       login: 'alice',
+      email: 'alice@example.com',
+      firstName: 'Alice',
+      lastName: 'Ng',
       password: 'secret123456',
       role: 'CASEWORKER',
     });

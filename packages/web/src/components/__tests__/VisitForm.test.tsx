@@ -136,6 +136,19 @@ describe('VisitForm', () => {
       expect(screen.queryByLabelText('visit.arm_circumference_mm')).not.toBeInTheDocument();
     });
 
+    it('shows placeholders on the pregnancy weight and gestation', async () => {
+      renderForm({ program: program('PREGNANCY') });
+
+      expect(await screen.findByLabelText('visit.weight_kg')).toHaveAttribute(
+        'placeholder',
+        'visit.placeholder_pregnancy_weight'
+      );
+      expect(screen.getByLabelText('visit.gestation_months')).toHaveAttribute(
+        'placeholder',
+        'visit.placeholder_gestation'
+      );
+    });
+
     it('renders the nutrition block for a NUTRITION program', async () => {
       renderForm({ program: program('NUTRITION') });
 

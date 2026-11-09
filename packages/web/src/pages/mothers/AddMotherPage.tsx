@@ -211,6 +211,7 @@ export const MotherForm: React.FC<MotherFormProps> = ({
         <FormField
           label={t('form.phone')}
           name="phone"
+          type="tel"
           value={values.phone}
           onChange={handleInput}
           error={errors.phone}

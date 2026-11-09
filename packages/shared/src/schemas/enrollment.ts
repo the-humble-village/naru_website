@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PhoneSchema } from './phone.js';
 import { DateOnlySchema, ExitReasonEnum, NutritionalStatusEnum } from './enums.js';
 import { ProgramReadSchema } from './program.js';
 
@@ -11,7 +12,7 @@ export const PregnancyEnrollmentDetailSchema = z.object({
 export const NutritionEnrollmentDetailSchema = z.object({
   lengthAtAdmission: z.number().int().min(0).optional().nullable(), // millimetres
   caretakerName: z.string().max(256).optional().nullable(),
-  caretakerPhone: z.string().max(64).optional().nullable(),
+  caretakerPhone: PhoneSchema.optional().nullable(),
   nutritionalStatus: NutritionalStatusEnum.optional().nullable(),
 });
 

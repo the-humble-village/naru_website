@@ -394,6 +394,9 @@ describe('User Routes', () => {
     it('should return 400 if user already exists', async () => {
       const userData = {
         login: 'admin', // Already exists
+        email: 'dup@example.com',
+        firstName: 'Test',
+        lastName: 'User',
         password: 'password12345',
       };
 
@@ -410,9 +413,45 @@ describe('User Routes', () => {
       expect(response.status).toBe(400);
     });
 
+    it('should require an email', async () => {
+      const response = await testClient.post('/users', {
+        login: 'noemail',
+        firstName: 'No',
+        lastName: 'Email',
+        password: 'password12345',
+      }, adminToken);
+      expect(response.status).toBe(400);
+
+      const blank = await testClient.post('/users', {
+        login: 'noemail',
+        email: '',
+        firstName: 'No',
+        lastName: 'Email',
+        password: 'password12345',
+      }, adminToken);
+      expect(blank.status).toBe(400);
+
+      expect(await testDb.user.findUnique({ where: { login: 'noemail' } })).toBeNull();
+    });
+
+    it('should require a first and last name', async () => {
+      const base = { login: 'noname', email: 'noname@example.com', password: 'password12345' };
+
+      expect((await testClient.post('/users', { ...base, lastName: 'Name' }, adminToken)).status).toBe(400);
+      expect((await testClient.post('/users', { ...base, firstName: 'No' }, adminToken)).status).toBe(400);
+      expect(
+        (await testClient.post('/users', { ...base, firstName: '   ', lastName: 'Name' }, adminToken)).status
+      ).toBe(400);
+
+      expect(await testDb.user.findUnique({ where: { login: 'noname' } })).toBeNull();
+    });
+
     it('should validate password minimum length', async () => {
       const userData = {
         login: 'testuser',
+        email: 'testuser@example.com',
+        firstName: 'Test',
+        lastName: 'User',
         password: '123', // Too short
       };
 
@@ -423,6 +462,9 @@ describe('User Routes', () => {
     it('should use default values', async () => {
       const userData = {
         login: 'defaultuser',
+        email: 'defaultuser@example.com',
+        firstName: 'Test',
+        lastName: 'User',
         password: 'password12345',
       };
 
@@ -455,6 +497,9 @@ describe('User Routes', () => {
 
       const response = await testClient.post('/users', {
         login: 'caseworker',
+        email: 'caseworker2@example.com',
+        firstName: 'Test',
+        lastName: 'User',
         password: 'password12345',
       }, adminToken);
 
@@ -463,6 +508,22 @@ describe('User Routes', () => {
   });
 
   describe('PUT /users/:id — role editing and password reset', () => {
+    it('should not let a first or last name be cleared', async () => {
+      for (const body of [{ firstName: null }, { lastName: null }, { firstName: '' }]) {
+        const response = await testClient.put(`/users/${caseworkerUser.id}`, body, adminToken);
+        expect(response.status).toBe(400);
+      }
+    });
+
+    it('should not let an email be cleared', async () => {
+      const response = await testClient.put(
+        `/users/${caseworkerUser.id}`,
+        { email: null },
+        adminToken
+      );
+      expect(response.status).toBe(400);
+    });
+
     it('should let an admin edit every mutable field including role', async () => {
       const updateData = {
         login: 'promoted',

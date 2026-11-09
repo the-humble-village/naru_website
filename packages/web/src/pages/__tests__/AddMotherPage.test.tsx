@@ -112,6 +112,21 @@ describe('AddMotherPage', () => {
     expect(screen.getByLabelText('Community')).not.toBeRequired();
   });
 
+  it('shows placeholders on the text fields', async () => {
+    renderPage();
+
+    expect(await screen.findByLabelText(/Name/)).toHaveAttribute('placeholder', 'e.g. María López');
+    expect(screen.getByLabelText('Phone')).toHaveAttribute('placeholder', 'e.g. 5512-3344');
+    expect(screen.getByLabelText('Pregnancies')).toHaveAttribute('placeholder', 'e.g. 3');
+    expect(screen.getByLabelText('Children')).toHaveAttribute('placeholder', 'e.g. 2');
+    expect(screen.getByLabelText('Breastfed')).toHaveAttribute('placeholder', 'e.g. 2');
+    expect(screen.getByLabelText('Deaths from malnutrition')).toHaveAttribute('placeholder', 'e.g. 0');
+    expect(screen.getByLabelText('Notes')).toHaveAttribute(
+      'placeholder',
+      'Anything the team should know about this mother'
+    );
+  });
+
   it('creates a mother with only a name', async () => {
     const user = userEvent.setup();
     vi.mocked(mothersApi.createMother).mockResolvedValue({

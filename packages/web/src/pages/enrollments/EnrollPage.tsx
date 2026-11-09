@@ -31,6 +31,7 @@ import {
   SubjectPicker,
   SubjectTypeBadge,
   ZScoreBadge,
+  PhoneInput,
 } from '../../components';
 import type { PickedSubject } from '../../components';
 import { useTranslation } from '../../hooks';
@@ -616,9 +617,8 @@ export const EnrollPage: React.FC = () => {
                   <label htmlFor="caretakerPhone" className={LABEL}>
                     {t('enrollment.caretaker_phone')}
                   </label>
-                  <input
+                  <PhoneInput
                     id="caretakerPhone"
-                    type="tel"
                     value={form.caretakerPhone}
                     onChange={(event) => set('caretakerPhone', event.target.value)}
                     className={FIELD}

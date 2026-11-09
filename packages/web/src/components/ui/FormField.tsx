@@ -1,4 +1,5 @@
 import React from 'react';
+import { PhoneInput } from './PhoneInput';
 
 interface FormFieldProps {
   label: string;
@@ -15,6 +16,7 @@ interface FormFieldProps {
 
 /**
  * FormField - Reusable label + input (or textarea) + error message component.
+ * `type="tel"` renders a PhoneInput, which formats the number as it is typed.
  */
 export const FormField: React.FC<FormFieldProps> = ({
   label,
@@ -45,6 +47,17 @@ export const FormField: React.FC<FormFieldProps> = ({
           value={value}
           onChange={onChange}
           rows={rows}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          className={baseInputClass}
+        />
+      ) : type === 'tel' ? (
+        <PhoneInput
+          id={name}
+          name={name}
+          value={value}
+          onChange={onChange}
+          required={required}
           placeholder={placeholder}
           maxLength={maxLength}
           className={baseInputClass}

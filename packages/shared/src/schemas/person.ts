@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PhoneSchema } from './phone.js';
 import { SexEnum } from './enums.js';
 
 export const PersonCreateSchema = z.object({
@@ -6,7 +7,7 @@ export const PersonCreateSchema = z.object({
   birthDate: z.string().datetime().optional().nullable(),
   sex: SexEnum.optional().nullable(),
   communityId: z.number().int().positive().optional().nullable(),
-  phone: z.string().max(64).optional().nullable(),
+  phone: PhoneSchema.optional().nullable(),
   notes: z.string().optional().nullable(),
   localId: z.string().uuid().optional(),
 });

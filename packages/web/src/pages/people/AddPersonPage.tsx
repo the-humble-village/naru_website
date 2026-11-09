@@ -144,6 +144,7 @@ export const PersonForm: React.FC<PersonFormProps> = ({
         <FormField
           label={t('form.phone')}
           name="phone"
+          type="tel"
           value={values.phone}
           onChange={handleInput}
           error={errors.phone}

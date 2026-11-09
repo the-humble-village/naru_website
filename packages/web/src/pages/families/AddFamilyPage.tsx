@@ -158,6 +158,7 @@ export const FamilyForm: React.FC<FamilyFormProps> = ({
         <FormField
           label={t('form.phone')}
           name="phone"
+          type="tel"
           value={values.phone}
           onChange={handleInput}
           error={errors.phone}

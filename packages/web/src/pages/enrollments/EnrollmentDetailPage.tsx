@@ -23,6 +23,7 @@ import {
   RoleGate,
   SubjectTypeBadge,
   WeightDelta,
+  PhoneInput,
 } from '../../components';
 import { useTranslation } from '../../hooks';
 import { parseZodErrors } from '../../hooks/useFieldErrors';
@@ -569,9 +570,8 @@ export const EnrollmentDetailPage: React.FC = () => {
                     <label htmlFor="caretakerPhone" className={LABEL}>
                       {t('enrollment.caretaker_phone')}
                     </label>
-                    <input
+                    <PhoneInput
                       id="caretakerPhone"
-                      type="tel"
                       value={edit.caretakerPhone}
                       onChange={(event) => setField('caretakerPhone', event.target.value)}
                       className={FIELD}

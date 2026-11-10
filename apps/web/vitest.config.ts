@@ -8,6 +8,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // UTC so date formatting is the same on every machine and in CI.
+    env: { TZ: 'UTC' },
     pool: 'forks',
     poolOptions: {
       forks: {

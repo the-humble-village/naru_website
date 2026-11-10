@@ -53,6 +53,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The backend type-check imports @prisma/client, whose types only exist
+      # once the client is generated. No database is needed for this.
+      - name: Generate Prisma Client
+        run: |
+            cd apps/backend
+            npx prisma generate
+
+      # tsc --noEmit in every package. Vite strips types without checking
+      # them, so this is the only CI step that type-checks the web app.
       - name: Lint
         run: pnpm lint
 

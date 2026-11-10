@@ -474,7 +474,7 @@ describe('AdminUsersPage', () => {
     // A second caseworker, so sorting by role has a tie to break by name.
     const sortUsers: UserRead[] = [
       ...mockUsers,
-      { ...mockUsers[2], id: 4, login: 'azed', firstName: 'Ana', lastName: 'Zed' },
+      { ...mockUsers[2]!, id: 4, login: 'azed', firstName: 'Ana', lastName: 'Zed' },
     ];
 
     const renderSorted = async () => {
@@ -491,7 +491,7 @@ describe('AdminUsersPage', () => {
         .getAllByRole('row')
         .slice(1)
         .map((row) =>
-          (within(row).getAllByRole('cell')[0].textContent ?? '').replace(/\(.*\)/, '').trim()
+          (within(row).getAllByRole('cell')[0]?.textContent ?? '').replace(/\(.*\)/, '').trim()
         );
 
     it('keeps the server order until a header is clicked', async () => {
@@ -759,7 +759,7 @@ describe('AdminUsersPage', () => {
         expect(screen.getByText('Users (3)')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByText('Edit')[1]);
+      fireEvent.click(screen.getAllByText('Edit')[1]!);
       const email = screen.getByLabelText(/^Email/);
       await user.clear(email);
       await user.type(email, 'supervisor@');

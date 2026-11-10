@@ -25,10 +25,10 @@ build
 coverage/
 
 # Prisma
-packages/backend/prisma/*.db
+apps/backend/prisma/*.db
 
 # Local file storage (dev photo uploads — STORAGE_DRIVER=local)
-packages/backend/uploads/
+apps/backend/uploads/
 
 # OS
 .DS_Store

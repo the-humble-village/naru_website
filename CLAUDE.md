@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-NaruProject is a full-stack family health tracking system for community health workers ("Humble Village"). It's a pnpm + Turborepo monorepo with three packages: a shared validation/i18n library, a Hono REST API backend, and a React SPA frontend.
+NaruProject is a full-stack family health tracking system for community health workers ("Humble Village"). It's a pnpm + Turborepo monorepo with two apps under `apps/` — a Hono REST API backend and a React SPA frontend — and one library under `packages/`, a shared validation/i18n package both apps import.
 
 The data model is **program-centric**: people are *enrolled* in *programs*, and every visit is recorded against an enrollment. `Enrollment` is the spine — the only place that knows who is in what, when they joined, when they left, and what they weighed at each end. The full design, including rationale, is in `docs/SCHEMA_V2.md`; read it before changing the schema.
 
@@ -27,7 +27,7 @@ The data model is **program-centric**: people are *enrolled* in *programs*, and 
 ## Monorepo Structure
 
 ```
-packages/
+packages/                  # Libraries — imported, never run on their own
   shared/src/
     schemas/          # Zod schemas (one file per entity) + index.ts barrel
       enums.ts        # All V2 enums + DateOnlySchema + SUBJECT_FK / KIND_*_DETAIL maps
@@ -35,6 +35,7 @@ packages/
     i18n/             # en.ts, es.ts — t(key, lang) function
     index.ts          # Re-exports everything
 
+apps/                      # Deployables — each one runs or ships on its own
   backend/
     prisma/schema.prisma   # Single source of truth for DB schema
     prisma/seed.ts         # The six program rows (npx prisma db seed)
@@ -84,10 +85,10 @@ pnpm --filter @naru/web test     # web only
 pnpm --filter @naru/backend test # backend only
 
 # Run a single test file
-cd packages/web && npx vitest run src/pages/__tests__/SomePage.test.tsx
+cd apps/web && npx vitest run src/pages/__tests__/SomePage.test.tsx
 
 # Prisma
-cd packages/backend
+cd apps/backend
 npx prisma migrate dev           # create/apply migration
 npx prisma generate              # regenerate client after schema change
 npx prisma db seed               # (re)create the six program rows
@@ -163,12 +164,12 @@ Kinds with no detail table record visits purely on the shared `visit` spine (dat
 
 1. **Schema**: `packages/shared/src/schemas/[entity].ts` — define `*CreateSchema`, `*UpdateSchema`, `*ReadSchema` + inferred types. Export from `schemas/index.ts`.
 2. **Prisma model**: Add to `prisma/schema.prisma`. Run `npx prisma migrate dev`.
-3. **Service**: `packages/backend/src/services/[entity].service.ts` — all DB logic here.
-4. **Route**: `packages/backend/src/routes/[entity].ts` — HTTP layer only. Mount in `app.ts`.
-5. **Backend test**: `packages/backend/tests/[entity].test.ts`
-6. **API client**: `packages/web/src/api/[entity].ts` — export namespace object.
-7. **Page**: `packages/web/src/pages/[Name]Page.tsx` — add route in `App.tsx`.
-8. **Page test**: `packages/web/src/pages/__tests__/[Name]Page.test.tsx`
+3. **Service**: `apps/backend/src/services/[entity].service.ts` — all DB logic here.
+4. **Route**: `apps/backend/src/routes/[entity].ts` — HTTP layer only. Mount in `app.ts`.
+5. **Backend test**: `apps/backend/tests/[entity].test.ts`
+6. **API client**: `apps/web/src/api/[entity].ts` — export namespace object.
+7. **Page**: `apps/web/src/pages/[Name]Page.tsx` — add route in `App.tsx`.
+8. **Page test**: `apps/web/src/pages/__tests__/[Name]Page.test.tsx`
 
 ## Entity Relationships
 
@@ -205,7 +206,7 @@ Lookup tables: Community, Site, Resource, Training, ExaminationType
 User (standalone — auth only; referenced by visit.recordedById)
 ```
 
-Full schema: `packages/backend/prisma/schema.prisma`
+Full schema: `apps/backend/prisma/schema.prisma`
 
 ## Shared Package (`@naru/shared`)
 
@@ -328,7 +329,7 @@ Not answerable in V1: mobile clinics and communities per site — needs event at
 
 ## Environment Variables
 
-Backend requires (in `packages/backend/.env`):
+Backend requires (in `apps/backend/.env`):
 - `DATABASE_URL` — PostgreSQL connection string
 - `JWT_SECRET` — access token signing key
 - `JWT_REFRESH_SECRET` — refresh token signing key

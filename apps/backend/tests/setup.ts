@@ -10,7 +10,7 @@ import { assertTestDatabaseUrl } from './assert-test-database'
 // trusting that config: a wrong value destroys real data.
 assertTestDatabaseUrl(process.env.DATABASE_URL, 'the test environment')
 
-// Assigned unconditionally, not `||`-defaulted. Vitest loads packages/backend/.env
+// Assigned unconditionally, not `||`-defaulted. Vitest loads apps/backend/.env
 // into process.env, so a `||` here hands the suite whatever secret the developer
 // happens to have locally — different on every machine, and different again in CI.
 // Same hazard as DATABASE_URL above, minus the data loss.
@@ -57,7 +57,7 @@ beforeAll(async () => {
         ? 'Test database schema is out of date (a column is missing).'
         : 'Test database tables do not exist.'
       console.error(`❌ ${detail}`)
-      console.error('Bring it up to date by running, from packages/backend:')
+      console.error('Bring it up to date by running, from apps/backend:')
       console.error(`DATABASE_URL="${process.env.DATABASE_URL}" npx prisma migrate deploy`)
       throw new Error(`${detail} Run migrations first.`)
     }

@@ -103,14 +103,14 @@ jobs:
         id: cache-prisma
         uses: actions/cache@v6
         with:
-          path: packages/backend/node_modules/.prisma
-          key: prisma-${{ runner.os }}-${{ hashFiles('packages/backend/prisma/schema.prisma') }}
+          path: apps/backend/node_modules/.prisma
+          key: prisma-${{ runner.os }}-${{ hashFiles('apps/backend/prisma/schema.prisma') }}
 
       - name: Set up database and generate Prisma client
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/naru_test
         run: |
-          cd packages/backend
+          cd apps/backend
           npx prisma migrate deploy
           if [ "${{ steps.cache-prisma.outputs.cache-hit }}" != "true" ]; then
             npx prisma generate
@@ -154,12 +154,12 @@ jobs:
 
       # No cache gate. pnpm generates the client into
       # node_modules/.pnpm/@prisma+client@*/node_modules/.prisma, not
-      # packages/backend/node_modules/.prisma, so the cache never covered the
+      # apps/backend/node_modules/.prisma, so the cache never covered the
       # real output — and this job's build is now what ships, so gating on it
       # risks bundling a stale client.
       - name: Generate Prisma Client
         run: |
-            cd packages/backend
+            cd apps/backend
             npx prisma generate
 
       - name: Build monorepo
@@ -205,7 +205,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-dist
-          path: packages/web/dist
+          path: apps/web/dist
           if-no-files-found: error
           retention-days: 7
 
@@ -228,7 +228,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-dist
-          path: packages/web/dist
+          path: apps/web/dist
 
       - name: Download backend bundle
         uses: actions/download-artifact@v4
@@ -298,7 +298,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           port: 22
-          source: "packages/web/dist/**"
+          source: "apps/web/dist/**"
           target: "/var/www/web/releases/${{ env.RELEASE }}"
           strip_components: 3
 

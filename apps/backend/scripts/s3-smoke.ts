@@ -10,7 +10,7 @@
  * it does NOT test browser CORS — a green run here plus a failing in-browser
  * upload means your bucket CORS is the problem.
  *
- * Run:  cd packages/backend && npx tsx scripts/s3-smoke.ts
+ * Run:  cd apps/backend && npx tsx scripts/s3-smoke.ts
  * Needs in .env:  AWS_S3_BUCKET, AWS_S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
  */
 

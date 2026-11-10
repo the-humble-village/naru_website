@@ -5,7 +5,7 @@
  * birthing assistants and their junctions, files (with real image bytes written to the
  * local storage dir so photos actually render), and the family → parent/child → visit tree.
  *
- * Usage — from packages/backend:
+ * Usage — from apps/backend:
  *   npx tsx scripts/seed-dev-data.ts                 # add data to the DB in .env
  *   npx tsx scripts/seed-dev-data.ts --reset         # wipe seeded tables first (never users)
  *   npx tsx scripts/seed-dev-data.ts --families=40   # scale it up
@@ -73,7 +73,7 @@ function parseArgs(argv: string[]): Options {
 
   const databaseUrl = value('database-url') || process.env.DATABASE_URL || ''
   if (!databaseUrl) {
-    throw new Error('No database URL. Set DATABASE_URL in packages/backend/.env or pass --database-url=...')
+    throw new Error('No database URL. Set DATABASE_URL in apps/backend/.env or pass --database-url=...')
   }
 
   return {

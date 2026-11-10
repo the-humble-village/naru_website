@@ -613,8 +613,7 @@ Also still open from `SCHEMA_V2.md` §12 and relevant to the UI:
 
 ## 14. Build order
 
-**✅ All ten steps are built.** Every route in §3 resolves to a real page; nothing routes to
-`PlaceholderPage`.
+**✅ All ten steps are built.** Every route in §3 resolves to a real page.
 
 1. ✅ `Layout` sidebar shell + routing skeleton.
 2. ✅ `/admin/programs` + the six seeded program rows.

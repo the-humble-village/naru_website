@@ -62,5 +62,4 @@ export { default as EventDetailPage } from './events/EventDetailPage';
 export { default as UnenrolledPage } from './UnenrolledPage';
 export { default as DashboardPage } from './DashboardPage';
 export { default as LanguagePage } from './LanguagePage';
-export { default as PlaceholderPage } from './PlaceholderPage';
 export { default as ErrorPage } from './ErrorPage';

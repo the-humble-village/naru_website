@@ -5,6 +5,7 @@ import {
   UserCreateSchema,
   UserUpdateSchema,
   UserPasswordResetSchema,
+  LoginAvailabilityQuerySchema,
   type UserRead,
   type TokenPayload,
 } from '@naru/shared';
@@ -46,6 +47,19 @@ app.get('/me', auth, async (c) => {
   const user = c.get('user') as UserRead;
   return c.json(user);
 });
+
+/**
+ * GET /users/login-availability?login=x[&excludeId=n]
+ * Whether a username is free (admin only). Registered before /:id so it isn't
+ * swallowed by that route.
+ */
+app.get('/login-availability', auth, requireAdmin,
+  zValidator('query', LoginAvailabilityQuerySchema),
+  async (c) => {
+    const { login, excludeId } = c.req.valid('query');
+    return c.json(await userService.checkLoginAvailability(login, excludeId));
+  }
+);
 
 /**
  * GET /users/:id

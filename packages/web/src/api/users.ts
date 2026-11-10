@@ -1,5 +1,11 @@
 import { apiClient } from './client';
-import { UserRead, UserCreate, UserUpdate, UserPasswordReset } from '@naru/shared';
+import {
+  UserRead,
+  UserCreate,
+  UserUpdate,
+  UserPasswordReset,
+  LoginAvailability,
+} from '@naru/shared';
 
 /**
  * Fetch all users (admin only)
@@ -67,6 +73,19 @@ export const updateLanguage = async (lang: string): Promise<UserRead> => {
   return response.data;
 };
 
+/**
+ * Whether a username is free (admin only). `excludeId` is the user being edited.
+ */
+export const checkLoginAvailability = async (
+  login: string,
+  excludeId?: number
+): Promise<LoginAvailability> => {
+  const response = await apiClient.get<LoginAvailability>('/users/login-availability', {
+    params: { login, excludeId },
+  });
+  return response.data;
+};
+
 export const usersApi = {
   fetchUsers,
   fetchCurrentUser,
@@ -76,4 +95,5 @@ export const usersApi = {
   resetUserPassword,
   deleteUser,
   updateLanguage,
+  checkLoginAvailability,
 };

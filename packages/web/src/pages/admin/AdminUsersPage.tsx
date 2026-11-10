@@ -27,6 +27,7 @@ interface UserFormData {
   firstName: string;
   lastName: string;
   password: string;
+  confirmPassword: string;
   role: Role;
   lang: string;
 }
@@ -37,6 +38,7 @@ const EMPTY_FORM: UserFormData = {
   firstName: '',
   lastName: '',
   password: '',
+  confirmPassword: '',
   role: 'CASEWORKER',
   lang: 'en',
 };
@@ -107,6 +109,10 @@ const preflight = <T,>(schema: z.ZodType<T>, data: unknown): string | null => {
 const isValidEmail = (email: string): boolean =>
   UserCreateSchema.shape.email.safeParse(email).success;
 
+/** Likewise the server's password rule (length), checked as it is typed. */
+const isValidPassword = (password: string): boolean =>
+  UserCreateSchema.shape.password.safeParse(password).success;
+
 const formatUserName = (user: UserRead) => {
   const parts = [user.firstName, user.lastName].filter(Boolean);
   return parts.length > 0 ? parts.join(' ') : user.login;
@@ -135,6 +141,13 @@ export const AdminUsersPage: React.FC = () => {
   // it doesn't fire on every keystroke of a half-typed address. After that it
   // updates live, clearing as soon as the value is fixed.
   const [touched, setTouched] = useState(NOTHING_TOUCHED);
+  // Same rule for the password boxes: no "too short" or "don't match" while
+  // they're half typed.
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [loginTouched, setLoginTouched] = useState(false);
+  // The login last checked against the server, set when the field is left.
+  const [checkedLogin, setCheckedLogin] = useState('');
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   // Null keeps the server's order until a header is clicked.
@@ -175,6 +188,16 @@ export const AdminUsersPage: React.FC = () => {
     },
   });
 
+  // The loaded list can't see soft-deleted users, whose logins are still
+  // reserved, so the server has the final word. Asked once the field is left
+  // rather than per keystroke.
+  const editingId = editingUser?.id;
+  const { data: loginAvailability } = useQuery({
+    queryKey: ['users', 'login-availability', checkedLogin, editingId],
+    queryFn: () => usersApi.checkLoginAvailability(checkedLogin, editingId),
+    enabled: showCreateForm && checkedLogin !== '' && checkedLogin !== editingUser?.login,
+  });
+
   // Delete (soft) user mutation
   const deleteUserMutation = useMutation({
     mutationFn: (id: number) => usersApi.deleteUser(id),
@@ -186,6 +209,10 @@ export const AdminUsersPage: React.FC = () => {
   const resetForm = () => {
     setFormData(EMPTY_FORM);
     setTouched(NOTHING_TOUCHED);
+    setPasswordTouched(false);
+    setConfirmTouched(false);
+    setLoginTouched(false);
+    setCheckedLogin('');
   };
 
   const trimmed: Record<CheckedField, string> = {
@@ -245,13 +272,52 @@ export const AdminUsersPage: React.FC = () => {
     return key ? t(key) : t('admin.invalid_form');
   };
 
+  // The list check is instant and live; the server answer only applies while
+  // the field still holds the login it was asked about.
+  const loginProblem = ((): TranslationKey | null => {
+    const login = formData.login;
+    if (login === '') return 'admin.invalid_login';
+    if (users.some((u) => u.login === login && u.id !== editingId)) return 'admin.login_taken';
+    if (loginAvailability && checkedLogin === login && !loginAvailability.available) {
+      return loginAvailability.deleted ? 'admin.login_taken_deleted' : 'admin.login_taken';
+    }
+    return null;
+  })();
+  const loginError = loginTouched && loginProblem ? t(loginProblem) : null;
+
+  // A typo in a password nobody can see locks the user out, so it has to be
+  // typed twice. Both blank is fine on edit: that keeps the current password.
+  const passwordsMismatch = formData.password !== formData.confirmPassword;
+  const confirmError = confirmTouched && passwordsMismatch ? t('admin.passwords_mismatch') : null;
+  // Blank is only allowed on edit, where it means "keep the current password".
+  const passwordInvalid =
+    formData.password === '' ? editingUser === null : !isValidPassword(formData.password);
+  const passwordError = passwordTouched && passwordInvalid ? t('admin.invalid_password') : null;
+
   /** Flags every bad field under its input; returns false if submit should stop. */
   const checkFields = (): boolean => {
     setTouched({ email: true, firstName: true, lastName: true });
+    setLoginTouched(true);
+    setPasswordTouched(true);
+    setConfirmTouched(true);
+    if (loginProblem) {
+      document.getElementById('user-login')?.focus();
+      return false;
+    }
     const firstBad = CHECKED_FIELDS.find((field) => fieldProblem(field) !== null);
-    if (!firstBad) return true;
-    document.getElementById(`user-${firstBad}`)?.focus();
-    return false;
+    if (firstBad) {
+      document.getElementById(`user-${firstBad}`)?.focus();
+      return false;
+    }
+    if (passwordInvalid) {
+      document.getElementById('user-password')?.focus();
+      return false;
+    }
+    if (passwordsMismatch) {
+      document.getElementById('user-confirmPassword')?.focus();
+      return false;
+    }
+    return true;
   };
 
   const closeForm = () => {
@@ -341,6 +407,10 @@ export const AdminUsersPage: React.FC = () => {
   const startEdit = (user: UserRead) => {
     setFormError(null);
     setTouched(NOTHING_TOUCHED);
+    setPasswordTouched(false);
+    setConfirmTouched(false);
+    setLoginTouched(false);
+    setCheckedLogin('');
     setEditingUser(user);
     setFormData({
       login: user.login,
@@ -348,6 +418,7 @@ export const AdminUsersPage: React.FC = () => {
       firstName: user.firstName || '',
       lastName: user.lastName || '',
       password: '', // Blank means "keep the current password"
+      confirmPassword: '',
       role: user.role,
       lang: user.lang,
     });
@@ -527,9 +598,23 @@ export const AdminUsersPage: React.FC = () => {
                       type="text"
                       value={formData.login}
                       onChange={(e) => setFormData({ ...formData, login: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      onBlur={() => {
+                        setLoginTouched(true);
+                        setCheckedLogin(formData.login);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent ${
+                        loginError ? 'border-red-500' : 'border-hv-border-input'
+                      }`}
                       required
+                      aria-invalid={loginError ? true : undefined}
+                      aria-describedby={loginError ? 'user-login-error' : undefined}
+                      autoComplete="off"
                     />
+                    {loginError && (
+                      <p id="user-login-error" className="text-red-500 text-sm mt-1">
+                        {loginError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="user-email" className="block text-sm font-medium text-hv-charcoal mb-1">
@@ -584,12 +669,22 @@ export const AdminUsersPage: React.FC = () => {
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent"
+                      onBlur={() => setPasswordTouched(true)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent ${
+                        passwordError ? 'border-red-500' : 'border-hv-border-input'
+                      }`}
+                      aria-invalid={passwordError ? true : undefined}
+                      aria-describedby={passwordError ? 'user-password-error' : undefined}
                       required={!editingUser}
                       minLength={12}
                       autoComplete="new-password"
                       placeholder={editingUser ? t('admin.placeholder_password_keep') : t('admin.placeholder_password')}
                     />
+                    {passwordError && (
+                      <p id="user-password-error" className="text-red-500 text-sm mt-1">
+                        {passwordError}
+                      </p>
+                    )}
                     {/* The create case needs its own hint: the edit-only version below
                         meant a new user's first sign that 12 is required was a 400. */}
                     <p className="text-xs text-hv-gray mt-1">
@@ -597,6 +692,30 @@ export const AdminUsersPage: React.FC = () => {
                         ? 'Leave blank to keep the current password. At least 12 characters to reset it. Resetting a password signs the user out on all devices.'
                         : 'At least 12 characters.'}
                     </p>
+                  </div>
+                  <div>
+                    <label htmlFor="user-confirmPassword" className="block text-sm font-medium text-hv-charcoal mb-1">
+                      {editingUser ? t('common.confirm_new_password') : <>{t('common.confirm_password')} <span className="text-red-500">*</span></>}
+                    </label>
+                    <input
+                      id="user-confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      onBlur={() => setConfirmTouched(true)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent ${
+                        confirmError ? 'border-red-500' : 'border-hv-border-input'
+                      }`}
+                      required={!editingUser || formData.password !== ''}
+                      aria-invalid={confirmError ? true : undefined}
+                      aria-describedby={confirmError ? 'user-confirmPassword-error' : undefined}
+                      autoComplete="new-password"
+                    />
+                    {confirmError && (
+                      <p id="user-confirmPassword-error" className="text-red-500 text-sm mt-1">
+                        {confirmError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="user-role" className="block text-sm font-medium text-hv-charcoal mb-1">

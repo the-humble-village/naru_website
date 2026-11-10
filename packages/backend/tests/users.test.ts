@@ -208,6 +208,46 @@ describe('User Routes', () => {
     });
   });
 
+  describe('GET /users/login-availability', () => {
+    it('reports a free login as available', async () => {
+      const response = await testClient.get('/users/login-availability?login=newperson', adminToken);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ available: true, deleted: false });
+    });
+
+    it("reports an active user's login as taken", async () => {
+      const response = await testClient.get('/users/login-availability?login=caseworker', adminToken);
+      expect(await response.json()).toEqual({ available: false, deleted: false });
+    });
+
+    it("reports a soft-deleted user's login as taken and deleted", async () => {
+      await testDb.user.update({
+        where: { id: caseworkerUser.id },
+        data: { deletedAt: new Date() },
+      });
+      const response = await testClient.get('/users/login-availability?login=caseworker', adminToken);
+      expect(await response.json()).toEqual({ available: false, deleted: true });
+    });
+
+    it("treats the edited user's own login as available", async () => {
+      const response = await testClient.get(
+        `/users/login-availability?login=caseworker&excludeId=${caseworkerUser.id}`,
+        adminToken
+      );
+      expect(await response.json()).toEqual({ available: true, deleted: false });
+    });
+
+    it('rejects a missing login', async () => {
+      const response = await testClient.get('/users/login-availability', adminToken);
+      expect(response.status).toBe(400);
+    });
+
+    it('is admin only', async () => {
+      const response = await testClient.get('/users/login-availability?login=x', supervisorToken);
+      expect(response.status).toBe(403);
+    });
+  });
+
   describe('GET /users/me', () => {
     it('should return current user profile', async () => {
       const response = await testClient.get('/users/me', caseworkerToken);

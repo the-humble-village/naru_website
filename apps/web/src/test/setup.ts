@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
-// Set time zone to UTC for consistent date formatting across environments
-process.env.TZ = 'UTC';
+// The UTC time zone is set in vitest.config.ts (test.env), not here: this file is
+// type-checked against browser types, which have no `process`.

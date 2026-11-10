@@ -14,13 +14,13 @@ graph TD
         shared["@naru/shared<br/>Zod schemas · health utils · i18n"]
         backend["@naru/backend<br/>Hono REST API · Prisma ORM"]
         web["@naru/web<br/>React SPA · Vite · Tailwind"]
-        android["android/<br/>Kotlin + Jetpack Compose"]
+        android["apps/android<br/>Kotlin + Jetpack Compose<br/>(frozen)"]
     end
 
     shared -->|"imported by"| backend
     shared -->|"imported by"| web
     backend -->|"REST API (/api)"| web
-    backend -->|"REST API (/api/sync)"| android
+    backend -.->|"sync removed (frozen)"| android
 ```
 
 ---

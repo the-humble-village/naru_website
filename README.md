@@ -47,10 +47,10 @@ npx prisma generate
 HumbleVillageWebAppOpen/
 ├── apps/                # Deployables
 │   ├── backend/         # @naru/backend — Hono REST API + Prisma
-│   └── web/             # @naru/web — React SPA
+│   ├── web/             # @naru/web — React SPA
+│   └── android/         # Native Android app — placeholder, frozen
 ├── packages/            # Libraries the apps import
 │   └── shared/          # @naru/shared — schemas, health utils, i18n
-├── android/             # Native Android app (Kotlin + Jetpack Compose)
 ├── docs/                # Architecture, schema, web design, setup, deployment
 ├── README.md            # This file
 ├── pnpm-workspace.yaml
@@ -260,11 +260,11 @@ apps/web/src/
 
 ---
 
-## android/
+## apps/android
 
 Native Android application using Kotlin and Jetpack Compose. Separate Gradle build — not managed by pnpm/Turborepo.
 
-Communicates with the backend via `POST /api/sync` for offline-first data entry.
+**Frozen, and its code is not in this repo yet.** `/api/sync` has been removed; see `apps/android/README.md` and `docs/SCHEMA_V2.md` §11.
 
 ---
 

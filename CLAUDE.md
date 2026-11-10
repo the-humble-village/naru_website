@@ -66,7 +66,8 @@ apps/                      # Deployables — each one runs or ships on its own
     hooks/
     store/auth.ts          # Zustand: user, tokens, role, lang
 
-android/                   # Native Kotlin + Jetpack Compose (frozen — see §11)
+  android/                 # Native Kotlin + Jetpack Compose — placeholder, code not in repo (frozen, see §11)
+
 docs/                      # SCHEMA_V2, WEB_DESIGN_V2, ARCHITECTURE, GETTING_STARTED, DEPLOYMENT, INFRASTRUCTURE_PLAN
 ```
 

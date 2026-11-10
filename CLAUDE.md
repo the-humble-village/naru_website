@@ -4,11 +4,11 @@
 
 NaruProject is a full-stack family health tracking system for community health workers ("Humble Village"). It's a pnpm + Turborepo monorepo with three packages: a shared validation/i18n library, a Hono REST API backend, and a React SPA frontend.
 
-The data model is **program-centric**: people are *enrolled* in *programs*, and every visit is recorded against an enrollment. `Enrollment` is the spine — the only place that knows who is in what, when they joined, when they left, and what they weighed at each end. The full design, including rationale, is in `SCHEMA_V2.md` at the repo root; read it before changing the schema.
+The data model is **program-centric**: people are *enrolled* in *programs*, and every visit is recorded against an enrollment. `Enrollment` is the spine — the only place that knows who is in what, when they joined, when they left, and what they weighed at each end. The full design, including rationale, is in `docs/SCHEMA_V2.md`; read it before changing the schema.
 
 ## Rearchitecture status — READ THIS FIRST
 
-**The V2 rearchitecture is complete.** Every step of `SCHEMA_V2.md` §13 and `WEB_DESIGN_V2.md` §14 is built: schema, backend, all 14 components, every page in the §3 route map, and both i18n dictionaries. A subject can be enrolled and a visit recorded end to end through the UI.
+**The V2 rearchitecture is complete.** Every step of `SCHEMA_V2.md` §13 and `WEB_DESIGN_V2.md` §14 (both in `docs/`) is built: schema, backend, all 14 components, every page in the §3 route map, and both i18n dictionaries. A subject can be enrolled and a visit recorded end to end through the UI.
 
 **Backend:** Services, routes and tests for `program`, `enrollment`, `visit`, `question`, `question_set`, `mother`, `person`, `event`, `photo_attachment` and `report`, plus everything rewritten against V2 (auth, users, files, admin lookups, sites, birthing assistants, families, children, dashboard, search). All twelve answerable `SCHEMA_V2.md` §8 reports are implemented behind `/api/reports`, table + CSV from one query path.
 
@@ -66,6 +66,7 @@ packages/
     store/auth.ts          # Zustand: user, tokens, role, lang
 
 android/                   # Native Kotlin + Jetpack Compose (frozen — see §11)
+docs/                      # SCHEMA_V2, WEB_DESIGN_V2, ARCHITECTURE, GETTING_STARTED, DEPLOYMENT, INFRASTRUCTURE_PLAN
 ```
 
 ## Quick Commands

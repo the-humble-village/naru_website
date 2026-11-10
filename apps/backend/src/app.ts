@@ -52,7 +52,7 @@ app.use('*', cors({
 //
 // strictTransportSecurity MUST stay false. The middleware defaults it on
 // (max-age=15552000; includeSubDomains), but nginx serves a self-signed cert on
-// :443 (nginx/naru.conf). HSTS makes cert warnings non-bypassable, so emitting it
+// :443 (infra/nginx/naru.conf). HSTS makes cert warnings non-bypassable, so emitting it
 // would lock every browser out for 180 days — and because the state lives client
 // side, removing the header later would not undo it. Turn this on in the same
 // change that installs a real certificate, starting with a short max-age.

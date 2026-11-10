@@ -1,276 +1,50 @@
 # HumbleVillage (NaruProject)
 
-A full-stack family health tracking system for community health workers. Built as a pnpm + Turborepo monorepo.
+A family health tracking system for Humble Village's community health workers. People are **enrolled** in **programs** (pregnancy, nutrition, midwives, students, family support), and every visit is recorded against an enrollment.
 
-See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for system diagrams, and [docs/](./docs/README.md) for the rest of the project documentation.
+## Quick start
 
----
-
-## Quick Start
+Prerequisites: Node 24, pnpm, and PostgreSQL 16. First-time setup (databases, `.env`, migrations, seeding programs, creating your first admin) is in **[docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)**.
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Start all dev servers (backend :3000, web :5173)
-pnpm dev
-
-# Run all tests
+pnpm dev            # backend :3000, web :5173 (proxies /api to the backend)
 pnpm test
-
-# Build all packages
 pnpm build
 ```
 
-### Backend setup
-
-```bash
-# Create apps/backend/.env with:
-# (both JWT secrets must be >= 32 chars and different from each other —
-#  generate each with: openssl rand -base64 48)
-DATABASE_URL=postgresql://user:pass@localhost:5432/naru
-JWT_SECRET=<openssl rand -base64 48>
-JWT_REFRESH_SECRET=<a second, different openssl rand -base64 48>
-PORT=3000
-
-# Run migrations and generate Prisma client
-cd apps/backend
-npx prisma migrate dev
-npx prisma generate
-```
-
----
-
-## Repository Structure
+## Repository layout
 
 ```
-HumbleVillageWebAppOpen/
-├── apps/                # Deployables
-│   ├── backend/         # @naru/backend — Hono REST API + Prisma
-│   ├── web/             # @naru/web — React SPA
-│   └── android/         # Native Android app — placeholder, frozen
-├── packages/            # Libraries the apps import
-│   └── shared/          # @naru/shared — schemas, health utils, i18n
-├── docs/                # Architecture, schema, web design, setup, deployment
-├── README.md            # This file
-├── pnpm-workspace.yaml
-└── turbo.json
+apps/                # Deployables
+├── backend/         # @naru/backend — Hono REST API, Prisma, PostgreSQL
+├── web/             # @naru/web — React SPA (Vite, TanStack Query, Tailwind)
+└── android/         # Native Android app — placeholder, frozen
+packages/            # Libraries the apps import
+└── shared/          # @naru/shared — Zod schemas, WHO z-scores, i18n (en/es)
+docs/                # Design docs, setup and deployment guides
+deployment/, nginx/  # Server config shipped by CI
 ```
 
----
+- **`@naru/shared`** is the contract between backend and web. Every entity has `*CreateSchema`, `*UpdateSchema` and `*ReadSchema`, and both apps validate against them. Rebuild after editing: `pnpm --filter @naru/shared build`.
+- **`@naru/backend`** keeps HTTP handling in `src/routes/` and all queries and business logic in `src/services/`. `prisma/schema.prisma` is the single source of truth for the database.
+- **`@naru/web`** has one page per route under `src/pages/`, wired up in `App.tsx`, and one API client per resource under `src/api/`.
+- **Android** is frozen: `/api/sync` has been removed and its code isn't in this repo. See [apps/android](./apps/android/README.md).
 
-## packages/shared
+## Documentation
 
-Shared TypeScript library consumed by both backend and web. Must be built before dependent packages: `pnpm --filter @naru/shared build`.
+| Doc | Read it when |
+|---|---|
+| [GETTING_STARTED](./docs/GETTING_STARTED.md) | Setting up a machine |
+| [SCHEMA_V2](./docs/SCHEMA_V2.md) | **Before changing the schema.** The program-centric data model and why |
+| [WEB_DESIGN_V2](./docs/WEB_DESIGN_V2.md) | Adding or changing a page: route map, pages, components |
+| [ARCHITECTURE](./docs/ARCHITECTURE.md) | You want the system diagrams |
+| [DEPLOYMENT](./docs/DEPLOYMENT.md) | Deploying or touching the server |
+| [CLAUDE.md](./CLAUDE.md) | Conventions and invariants, written for AI assistants but just as useful for people |
 
-```
-packages/shared/src/
-├── index.ts                    # Root barrel — re-exports everything
-├── schemas/
-│   ├── index.ts                # Barrel for all schemas
-│   ├── user.ts                 # UserCreateSchema, UserUpdateSchema, UserReadSchema
-│   ├── family.ts               # FamilyCreateSchema, FamilyUpdateSchema, FamilyReadSchema
-│   ├── child.ts                # ChildCreateSchema, ChildUpdateSchema, ChildReadSchema
-│   ├── parent.ts               # ParentCreateSchema, ParentUpdateSchema, ParentReadSchema
-│   ├── child-visit.ts          # ChildVisitCreateSchema, ChildVisitUpdateSchema, ChildVisitReadSchema
-│   ├── family-visit.ts         # FamilyVisitCreateSchema, FamilyVisitUpdateSchema, FamilyVisitReadSchema
-│   ├── birthing-assistant.ts   # BirthingAssistantCreateSchema, ...ReadSchema
-│   ├── file.ts                 # FileReadSchema
-│   ├── lookups.ts              # Schemas for Community, Resource, Training, Site
-│   ├── dashboard.ts            # DashboardReadSchema (summary stats shape)
-│   ├── sync.ts                 # SyncRequestSchema, SyncResponseSchema
-│   ├── search.ts               # SearchResultSchema
-│   ├── health.ts               # Health classification input/output schemas
-│   └── question-sets.ts        # QuestionSet schemas for child/parent/family visits
-├── health/
-│   ├── zscore.ts               # weightForAge(), armCircumferenceForAge(), classifyZScore(), ageInDays()
-│   └── who-data.ts             # WHO reference tables used by zscore.ts
-├── i18n/
-│   ├── en.ts                   # English translation dictionary
-│   ├── es.ts                   # Spanish translation dictionary
-│   └── index.ts                # t(key, lang) typed translation function
-└── constants/
-    ├── roles.ts                # RBAC role constants and hierarchy helpers
-    └── sync.ts                 # Sync-related constants
-```
+## Environment variables
 
-**Key conventions:**
-- Every entity has three schema variants: `*CreateSchema` (input), `*UpdateSchema` (partial input), `*ReadSchema` (API response shape)
-- Use `z.infer<typeof SomeReadSchema>` for types — no manual interfaces
-- After editing, rebuild: `pnpm --filter @naru/shared build`
-
----
-
-## apps/backend
-
-Hono REST API server with Prisma ORM targeting PostgreSQL.
-
-```
-apps/backend/
-├── prisma/
-│   ├── schema.prisma           # Single source of truth for DB schema — all models defined here
-│   └── migrations/             # Auto-generated Prisma migration files
-├── src/
-│   ├── index.ts                # Server entrypoint — calls serve() with the Hono app on $PORT
-│   ├── app.ts                  # Hono app setup: mounts all routes under /api, configures CORS + error handler
-│   ├── db.ts                   # Prisma client singleton (import this everywhere, don't instantiate your own)
-│   ├── config.ts               # Reads and validates env vars (DATABASE_URL, JWT_SECRET, PORT, etc.)
-│   ├── middleware/
-│   │   ├── auth.ts             # auth() — verifies JWT, sets c.var.user; optionalAuth() — same but non-blocking
-│   │   ├── role.ts             # requireRole(role) factory, requireAdmin, requireSupervisor, requireCaseworker
-│   │   └── soft-delete.ts      # Prisma middleware that auto-filters deletedAt on reads and converts deletes to soft-deletes
-│   ├── routes/
-│   │   ├── auth.ts             # POST /api/auth/login, /refresh — no auth required (no signup: accounts are admin-created)
-│   │   ├── families.ts         # CRUD /api/families and /api/families/:id
-│   │   ├── children.ts         # CRUD /api/families/:familyId/children and /:id
-│   │   ├── parents.ts          # CRUD /api/families/:familyId/parents and /:id
-│   │   ├── child-visits.ts     # CRUD /api/families/:fid/children/:cid/visits and /:id
-│   │   ├── family-visits.ts    # CRUD /api/families/:familyId/visits and /:id
-│   │   ├── birthing-assistants.ts  # CRUD /api/birthing-assistants — SUPERVISOR+ only
-│   │   ├── users.ts            # CRUD /api/users — ADMIN only
-│   │   ├── admin.ts            # CRUD /api/admin/:table (lookup tables) — ADMIN only
-│   │   ├── dashboard.ts        # GET /api/dashboard — aggregate stats for the dashboard
-│   │   ├── health.ts           # Health utility endpoints (z-score calculations)
-│   │   ├── search.ts           # GET /api/search?q= — full-text search across families/children
-│   │   ├── files.ts            # POST /api/files (upload), GET /api/files/:id (download)
-│   │   ├── question-sets.ts    # CRUD /api/question-sets — ADMIN only
-│   │   ├── sites.ts            # CRUD /api/sites — ADMIN only
-│   │   ├── sync.ts             # POST /api/sync — mobile offline sync endpoint
-│   └── services/
-│       ├── auth.service.ts             # login(), refresh() — password verification, token generation
-│       ├── family.service.ts           # list(), fetch(), create(), update(), softDelete()
-│       ├── child.service.ts            # list(), fetch(), create(), update(), softDelete()
-│       ├── parent.service.ts           # list(), fetch(), create(), update(), softDelete()
-│       ├── child-visit.service.ts      # list(), fetch(), create(), update()
-│       ├── family-visit.service.ts     # list(), fetch(), create(), update()
-│       ├── birthing-assistant.service.ts  # CRUD + community/training associations
-│       ├── user.service.ts             # list(), fetch(), create(), update(), softDelete()
-│       ├── admin.service.ts            # Generic CRUD for lookup tables (Community, Resource, Training)
-│       ├── dashboard.service.ts        # getSummary() — aggregate counts and recent activity
-│       ├── search.service.ts           # search(query) — cross-entity full-text search
-│       ├── file.service.ts             # uploadFile(), getFile() — content-addressed by SHA-256 hash
-│       ├── question-set.service.ts     # CRUD for question sets and their items
-│       ├── site.service.ts             # CRUD for sites with geo boundary support
-│       ├── sync.service.ts             # processSync() — upserts offline records in dependency order
-└── tests/
-    ├── auth.test.ts
-    ├── families.test.ts
-    ├── children.test.ts
-    ├── parents.test.ts
-    ├── child-visits.test.ts
-    ├── family-visits.test.ts
-    ├── users.test.ts
-    ├── birthing-assistants.test.ts
-    ├── search.test.ts
-    ├── sync.test.ts
-    └── ...
-```
-
-**Key conventions:**
-- Route handlers are thin HTTP layer only — no business logic
-- All DB queries and domain logic live in `services/*.service.ts`
-- Middleware chain: `auth` → `requireRole(...)` → handler
-- Use `zValidator('json', Schema)` for input validation in routes, then `c.req.valid('json')`
-- List responses always return `{ items, total, skip, limit }`
-- Throw `HTTPException` from services for domain errors
-- Never expose `deletedAt` or `passwordHash` in responses
-
----
-
-## apps/web
-
-React SPA built with Vite.
-
-```
-apps/web/src/
-├── main.tsx                    # React DOM entry point — mounts <App /> with QueryClientProvider
-├── App.tsx                     # React Router v6 route definitions — all routes live here
-├── api/
-│   ├── client.ts               # Axios instance configured with /api base URL, JWT Authorization header interceptor, silent 401 refresh logic
-│   ├── auth.ts                 # authApi.login(), .refresh()
-│   ├── families.ts             # familiesApi.list(), .fetch(), .create(), .update(), .delete()
-│   ├── children.ts             # childrenApi.list(), .fetch(), .create(), .update(), .delete()
-│   ├── parents.ts              # parentsApi.list(), .fetch(), .create(), .update(), .delete()
-│   ├── visits.ts               # childVisitsApi and familyVisitsApi — list, fetch, create, update
-│   ├── users.ts                # usersApi — ADMIN user management calls
-│   ├── birthing-assistants.ts  # birthingAssistantsApi CRUD
-│   ├── admin.ts                # adminApi — generic lookup table CRUD calls
-│   ├── dashboard.ts            # dashboardApi.getSummary()
-│   ├── search.ts               # searchApi.search(query)
-│   ├── files.ts                # filesApi.upload(file), .getUrl(id)
-│   ├── question-sets.ts        # questionSetsApi CRUD
-│   └── sites.ts                # sitesApi CRUD
-├── components/
-│   ├── index.ts                # Barrel — import all components from here
-│   ├── Layout.tsx              # App shell with nav sidebar; wraps all authenticated pages
-│   ├── ProtectedRoute.tsx      # Redirects unauthenticated users to /login
-│   ├── RoleGate.tsx            # Conditionally renders children based on user role(s)
-│   ├── SearchBar.tsx           # Global search input — navigates to search results
-│   ├── MapPicker.tsx           # Interactive map for picking site geo boundaries
-│   ├── ZScoreBadge.tsx         # Renders WHO nutritional status badge from z-score
-│   └── ui/
-│       ├── PageHeader.tsx      # Consistent page title + optional action button
-│       ├── FormField.tsx       # Label + input wrapper with error display
-│       ├── FormSelect.tsx      # Label + select wrapper with error display
-│       ├── LoadingState.tsx    # Centered spinner for async loading states
-│       ├── EmptyState.tsx      # Empty list placeholder with optional call-to-action
-│       └── StatCard.tsx        # Dashboard metric card (label + value + optional icon)
-├── pages/
-│   ├── index.ts                # Barrel — export all pages from here
-│   ├── DashboardPage.tsx       # / — summary stats, recent activity
-│   ├── ErrorPage.tsx           # Catch-all error boundary page
-│   ├── LanguagePage.tsx        # /admin/language — toggle UI language (en/es)
-│   ├── auth/
-│   │   ├── LoginPage.tsx       # /login
-│   ├── families/
-│   │   ├── FamiliesPage.tsx    # /families — paginated list + search
-│   │   ├── FamilyDetailPage.tsx  # /families/:id — family overview, members, visits
-│   │   └── AddFamilyPage.tsx   # /families/new — create family form
-│   ├── children/
-│   │   ├── AddChildPage.tsx    # /families/:id/children/new
-│   │   └── ChildDetailPage.tsx # /families/:id/children/:cid — growth charts, visit history
-│   ├── parents/
-│   │   ├── AddParentPage.tsx   # /families/:id/parents/new
-│   │   └── ParentDetailPage.tsx  # /families/:id/parents/:pid
-│   ├── visits/
-│   │   ├── AddChildVisitPage.tsx     # /families/:id/children/:cid/visits/new
-│   │   ├── ChildVisitDetailPage.tsx  # /families/:id/children/:cid/visits/:vid
-│   │   ├── AddFamilyVisitPage.tsx    # /families/:id/visits/new
-│   │   └── FamilyVisitDetailPage.tsx # /families/:id/visits/:vid
-│   ├── admin/
-│   │   ├── AdminPage.tsx               # /admin — admin hub (SUPERVISOR+)
-│   │   ├── AdminUsersPage.tsx          # /admin/users (ADMIN)
-│   │   ├── AdminLookupsPage.tsx        # /admin/:table — Community, Resource, Training (ADMIN)
-│   │   ├── AdminBirthingAssistantsPage.tsx  # /admin/birthing-assistants (SUPERVISOR+)
-│   │   ├── AdminQuestionSetsPage.tsx   # /admin/question-sets/:visitType (ADMIN)
-│   │   └── AdminSitesPage.tsx          # /admin/sites (ADMIN)
-│   └── __tests__/              # Vitest + React Testing Library tests (one per page)
-├── store/
-│   └── auth.ts                 # Zustand store: user, accessToken, refreshToken, role, lang; persisted to localStorage
-└── hooks/                      # Custom React hooks (shared logic extracted from pages)
-```
-
-**Key conventions:**
-- Pages are functional components with both named and default exports
-- Data fetching via TanStack Query (`useQuery`, `useMutation`) — never fetch in `useEffect`
-- Query keys follow `['resource', id]` pattern for cache invalidation
-- Auth state comes from `useAuthStore()` — never read tokens from localStorage directly
-- Styling with Tailwind CSS only; use project palette (`hv-green`, `hv-accent`, `hv-crisis`, etc.)
-- Add new components to `components/index.ts` barrel
-
----
-
-## apps/android
-
-Native Android application using Kotlin and Jetpack Compose. Separate Gradle build — not managed by pnpm/Turborepo.
-
-**Frozen, and its code is not in this repo yet.** `/api/sync` has been removed; see `apps/android/README.md` and `docs/SCHEMA_V2.md` §11.
-
----
-
-## Environment Variables
-
-### Backend (`apps/backend/.env`)
+Backend, in `apps/backend/.env`:
 
 | Variable | Description |
 |---|---|
@@ -279,37 +53,24 @@ Native Android application using Kotlin and Jetpack Compose. Separate Gradle bui
 | `JWT_REFRESH_SECRET` | Refresh token signing key. Minimum 32 characters, and must differ from `JWT_SECRET` |
 | `PORT` | HTTP port (default: 3000) |
 
----
+Generate each secret with `openssl rand -base64 48`.
 
-## RBAC Roles
+## Roles
 
-| Role | Permissions |
+| Role | Can |
 |---|---|
-| `CASEWORKER` | CRUD own assigned families, children, parents, visits |
-| `SUPERVISOR` | All caseworker permissions + all families + soft-delete + birthing assistants |
-| `ADMIN` | All supervisor permissions + users + lookup tables + sites + question sets |
+| `CASEWORKER` | Create and edit subjects (mothers, children, people, families), enrollments and visits |
+| `SUPERVISOR` | Everything a caseworker can, plus soft-delete and manage birthing assistants |
+| `ADMIN` | Everything a supervisor can, plus manage users, programs, sites, question sets and lookup tables |
 
----
+Roles control what a user can **do**, not what they can **see**: every role sees every record.
 
 ## Testing
 
 ```bash
-# All packages
-pnpm test
-
-# Web only
-pnpm --filter @naru/web test
-
-# Backend only
-pnpm --filter @naru/backend test
-
-# Single file
-cd apps/web && npx vitest run src/pages/__tests__/FamiliesPage.test.tsx
+pnpm --filter @naru/web test        # Vitest + React Testing Library (jsdom)
+pnpm --filter @naru/backend test    # Vitest against a real PostgreSQL database, naru_test
+cd apps/web && npx vitest run src/pages/__tests__/FamiliesPage.test.tsx   # one file
 ```
 
-Backend tests use a real PostgreSQL test database (`naru_test`). Frontend tests use Vitest + React Testing Library with jsdom.
-
-**Test patterns (frontend):**
-- Mock API modules: `vi.mock('../../api/families')`
-- Mock auth store: `vi.mock('../../store/auth')`
-- Wrap with `QueryClientProvider` (retry: false) + `MemoryRouter`
+The backend suite connects to `postgresql://$USER@127.0.0.1:5432/naru_test` unless `TEST_DATABASE_URL` is set. See [GETTING_STARTED](./docs/GETTING_STARTED.md#4-apply-database-migrations) to create and migrate it.

@@ -26,7 +26,7 @@ apps/                # Deployables
 packages/            # Libraries the apps import
 └── shared/          # @naru/shared — Zod schemas, WHO z-scores, i18n (en/es)
 docs/                # Design docs, setup and deployment guides
-deployment/, nginx/  # Server config shipped by CI
+infra/              # nginx + systemd config and scripts shipped by CI; one-shot runbooks
 ```
 
 - **`@naru/shared`** is the contract between backend and web. Every entity has `*CreateSchema`, `*UpdateSchema` and `*ReadSchema`, and both apps validate against them. Rebuild after editing: `pnpm --filter @naru/shared build`.

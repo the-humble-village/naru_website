@@ -40,16 +40,16 @@ sudo chown -R ec2-user:ec2-user /var/www/backend
 ```
 
 ### 3. Nginx Configuration
-The configuration is now automatically deployed by GitHub Actions. For initial setup or manual updates, place `nginx/naru.conf` at `/etc/nginx/conf.d/naru.conf` on the EC2 instance:
+The configuration is now automatically deployed by GitHub Actions. For initial setup or manual updates, place `infra/nginx/naru.conf` at `/etc/nginx/conf.d/naru.conf` on the EC2 instance:
 ```bash
 # Manual setup (usually handled by GitHub Actions)
-sudo cp nginx/naru.conf /etc/nginx/conf.d/naru.conf
+sudo cp infra/nginx/naru.conf /etc/nginx/conf.d/naru.conf
 sudo nginx -t
 sudo systemctl restart nginx
 ```
 
 ### 4. Backend Service (systemd)
-Copy `deployment/naru-backend.service` to `/etc/systemd/system/naru-backend.service` and enable it:
+Copy `infra/systemd/naru-backend.service` to `/etc/systemd/system/naru-backend.service` and enable it:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable naru-backend

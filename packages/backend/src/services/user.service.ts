@@ -4,7 +4,8 @@ import {
   type UserCreate,
   type UserUpdate,
   type UserRead,
-  type Role
+  type Role,
+  type LoginAvailability,
 } from '@naru/shared';
 import prisma from '../db.js';
 
@@ -64,6 +65,20 @@ async function findLoginOwner(
     select: { id: true, deletedAt: true },
     includeDeleted: true,
   });
+}
+
+/**
+ * Whether a login is free to use, for the admin form's inline warning. Counts
+ * soft-deleted rows for the same reason createUser does. `excludeId` lets the
+ * user being edited keep their own login.
+ */
+export async function checkLoginAvailability(
+  login: string,
+  excludeId?: number
+): Promise<LoginAvailability> {
+  const owner = await findLoginOwner(login);
+  if (!owner || owner.id === excludeId) return { available: true, deleted: false };
+  return { available: false, deleted: owner.deletedAt !== null };
 }
 
 /** Number of admins that are still active (not soft-deleted). */

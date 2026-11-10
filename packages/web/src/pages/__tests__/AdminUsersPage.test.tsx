@@ -16,6 +16,7 @@ vi.mock('../../api/users', () => ({
     updateUser: vi.fn(),
     resetUserPassword: vi.fn(),
     deleteUser: vi.fn(),
+    checkLoginAvailability: vi.fn(),
   },
 }));
 
@@ -119,6 +120,10 @@ const getRowDeleteButtons = () =>
 describe('AdminUsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(usersApi.checkLoginAvailability).mockResolvedValue({
+      available: true,
+      deleted: false,
+    });
   });
 
   it('should render page title and back link', async () => {
@@ -212,7 +217,8 @@ describe('AdminUsersPage', () => {
     expect(screen.getByLabelText(/Email/)).toBeInTheDocument();
     expect(screen.getByLabelText(/First Name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Last Name/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Password/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Confirm Password/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Role/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Language/)).toBeInTheDocument();
   });
@@ -236,7 +242,8 @@ describe('AdminUsersPage', () => {
     await user.type(screen.getByLabelText(/Email/), 'new@test.com');
     await user.type(screen.getByLabelText(/First Name/), 'New');
     await user.type(screen.getByLabelText(/Last Name/), 'User');
-    await user.type(screen.getByLabelText(/Password/), 'password12345');
+    await user.type(screen.getByLabelText(/^Password/), 'password12345');
+    await user.type(screen.getByLabelText(/^Confirm Password/), 'password12345');
 
     // Submit form
     fireEvent.click(screen.getByText('Create User'));
@@ -273,7 +280,8 @@ describe('AdminUsersPage', () => {
     await user.type(screen.getByLabelText(/^Email/), '  minimal@test.com ');
     await user.type(screen.getByLabelText(/First Name/), ' Mini ');
     await user.type(screen.getByLabelText(/Last Name/), ' Mal ');
-    await user.type(screen.getByLabelText(/Password/), 'password12345');
+    await user.type(screen.getByLabelText(/^Password/), 'password12345');
+    await user.type(screen.getByLabelText(/^Confirm Password/), 'password12345');
     fireEvent.click(screen.getByText('Create User'));
 
     await waitFor(() => {
@@ -307,17 +315,159 @@ describe('AdminUsersPage', () => {
     await user.type(screen.getByLabelText(/^Email/), 'shortpass@test.com');
     await user.type(screen.getByLabelText(/First Name/), 'Short');
     await user.type(screen.getByLabelText(/Last Name/), 'Pass');
-    await user.type(screen.getByLabelText(/Password/), 'eleven-char'); // 11
+    await user.type(screen.getByLabelText(/^Password/), 'eleven-char');
+    await user.type(screen.getByLabelText(/^Confirm Password/), 'eleven-char'); // 11
     fireEvent.click(screen.getByText('Create User'));
 
-    // The static field hint also says "at least 12 characters", so match the
-    // error banner specifically — a plain sentence, not "password: String must…".
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        "Couldn't create user. Password must be at least 12 characters"
-      );
-    });
+    // Flagged under the field, not as a "Couldn't create user." banner.
+    expect(screen.getByText('Password must be at least 12 characters')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password/)).toHaveFocus();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(usersApi.createUser).not.toHaveBeenCalled();
+  });
+
+  it('flags a short password as soon as the field is left', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add User'));
+    const password = screen.getByLabelText(/^Password/);
+    await user.type(password, 'short');
+    expect(screen.queryByText('Password must be at least 12 characters')).not.toBeInTheDocument();
+
+    await user.tab();
+    expect(screen.getByText('Password must be at least 12 characters')).toBeInTheDocument();
+    expect(password).toHaveAttribute('aria-invalid', 'true');
+
+    // Clears live once fixed.
+    await user.type(password, '-but-now-long');
+    expect(screen.queryByText('Password must be at least 12 characters')).not.toBeInTheDocument();
+  });
+
+  it('blocks create when the confirm password does not match', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add User'));
+    await user.type(screen.getByLabelText(/Username/), 'typo');
+    await user.type(screen.getByLabelText(/^Email/), 'typo@test.com');
+    await user.type(screen.getByLabelText(/First Name/), 'Ty');
+    await user.type(screen.getByLabelText(/Last Name/), 'Po');
+    await user.type(screen.getByLabelText(/^Password/), 'password12345');
+    await user.type(screen.getByLabelText(/^Confirm Password/), 'password12346');
+    fireEvent.click(screen.getByText('Create User'));
+
+    expect(screen.getByText("Passwords don't match")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Confirm Password/)).toHaveFocus();
+    expect(screen.getByLabelText(/^Confirm Password/)).toHaveAttribute('aria-invalid', 'true');
+    expect(usersApi.createUser).not.toHaveBeenCalled();
+  });
+
+  it('waits for the confirm box to be left before flagging a mismatch', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add User'));
+    await user.type(screen.getByLabelText(/^Password/), 'password12345');
+    await user.type(screen.getByLabelText(/^Confirm Password/), 'pass');
+    expect(screen.queryByText("Passwords don't match")).not.toBeInTheDocument();
+
+    await user.tab();
+    expect(screen.getByText("Passwords don't match")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/^Confirm Password/));
+    await user.type(screen.getByLabelText(/^Confirm Password/), 'word12345');
+    expect(screen.queryByText("Passwords don't match")).not.toBeInTheDocument();
+  });
+
+  describe('username availability', () => {
+    const openCreateForm = async () => {
+      vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+      renderWithProviders(<AdminUsersPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Users (3)')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Add User'));
+    };
+
+    it('warns when the username belongs to a listed user', async () => {
+      const user = userEvent.setup();
+      await openCreateForm();
+
+      await user.type(screen.getByLabelText(/Username/), 'admin');
+      await user.tab();
+
+      expect(screen.getByText('That username is already taken')).toBeInTheDocument();
+      expect(screen.getByLabelText(/Username/)).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('asks the server, which also knows about deleted users', async () => {
+      const user = userEvent.setup();
+      vi.mocked(usersApi.checkLoginAvailability).mockResolvedValue({
+        available: false,
+        deleted: true,
+      });
+      await openCreateForm();
+
+      await user.type(screen.getByLabelText(/Username/), 'olduser');
+      await user.tab();
+
+      expect(
+        await screen.findByText("That username belonged to a deleted user and can't be reused")
+      ).toBeInTheDocument();
+      expect(usersApi.checkLoginAvailability).toHaveBeenCalledWith('olduser', undefined);
+    });
+
+    it('blocks create while the username is taken', async () => {
+      const user = userEvent.setup();
+      await openCreateForm();
+
+      await user.type(screen.getByLabelText(/Username/), 'supervisor1');
+      await user.type(screen.getByLabelText(/^Email/), 'new@test.com');
+      await user.type(screen.getByLabelText(/First Name/), 'New');
+      await user.type(screen.getByLabelText(/Last Name/), 'User');
+      await user.type(screen.getByLabelText(/^Password/), 'password12345');
+      await user.type(screen.getByLabelText(/^Confirm Password/), 'password12345');
+      fireEvent.click(screen.getByText('Create User'));
+
+      expect(screen.getByText('That username is already taken')).toBeInTheDocument();
+      expect(screen.getByLabelText(/Username/)).toHaveFocus();
+      expect(usersApi.createUser).not.toHaveBeenCalled();
+    });
+
+    it("doesn't flag a user's own username when editing them", async () => {
+      const user = userEvent.setup();
+      vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+      renderWithProviders(<AdminUsersPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Users (3)')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getAllByText('Edit')[1]!);
+
+      await user.click(screen.getByLabelText(/Username/));
+      await user.tab();
+
+      expect(screen.queryByText('That username is already taken')).not.toBeInTheDocument();
+      expect(usersApi.checkLoginAvailability).not.toHaveBeenCalled();
+    });
   });
 
   describe('sorting', () => {
@@ -405,7 +555,7 @@ describe('AdminUsersPage', () => {
     expect(screen.getByLabelText(/^Email/)).toHaveAttribute('placeholder', 'name@example.com');
     expect(screen.getByLabelText(/First Name/)).toHaveAttribute('placeholder', 'e.g. María');
     expect(screen.getByLabelText(/Last Name/)).toHaveAttribute('placeholder', 'e.g. López');
-    expect(screen.getByLabelText(/Password/)).toHaveAttribute('placeholder', 'At least 12 characters');
+    expect(screen.getByLabelText(/^Password/)).toHaveAttribute('placeholder', 'At least 12 characters');
   });
 
   describe('email validation', () => {
@@ -479,7 +629,8 @@ describe('AdminUsersPage', () => {
       await openCreateForm();
 
       await user.type(screen.getByLabelText(/Username/), 'newuser');
-      await user.type(screen.getByLabelText(/Password/), 'long-enough-password');
+      await user.type(screen.getByLabelText(/^Password/), 'long-enough-password');
+      await user.type(screen.getByLabelText(/^Confirm Password/), 'long-enough-password');
       fireEvent.click(screen.getByText('Create User'));
 
       expect(screen.getByText(requiredMessage)).toBeInTheDocument();
@@ -493,7 +644,8 @@ describe('AdminUsersPage', () => {
 
       await user.type(screen.getByLabelText(/Username/), 'newuser');
       await user.type(screen.getByLabelText(/^Email/), '   ');
-      await user.type(screen.getByLabelText(/Password/), 'long-enough-password');
+      await user.type(screen.getByLabelText(/^Password/), 'long-enough-password');
+      await user.type(screen.getByLabelText(/^Confirm Password/), 'long-enough-password');
       fireEvent.click(screen.getByText('Create User'));
 
       expect(screen.getByText(requiredMessage)).toBeInTheDocument();
@@ -535,7 +687,8 @@ describe('AdminUsersPage', () => {
       await user.type(screen.getByLabelText(/Username/), 'newuser');
       await user.type(screen.getByLabelText(/^Email/), 'new@test.com');
       await user.type(screen.getByLabelText(/Last Name/), '   ');
-      await user.type(screen.getByLabelText(/Password/), 'long-enough-password');
+      await user.type(screen.getByLabelText(/^Password/), 'long-enough-password');
+      await user.type(screen.getByLabelText(/^Confirm Password/), 'long-enough-password');
       fireEvent.click(screen.getByText('Create User'));
 
       expect(screen.getByText('Enter a first name')).toBeInTheDocument();
@@ -588,7 +741,8 @@ describe('AdminUsersPage', () => {
 
       await user.type(screen.getByLabelText(/Username/), 'newuser');
       await user.type(screen.getByLabelText(/^Email/), 'bad@');
-      await user.type(screen.getByLabelText(/Password/), 'long-enough-password');
+      await user.type(screen.getByLabelText(/^Password/), 'long-enough-password');
+      await user.type(screen.getByLabelText(/^Confirm Password/), 'long-enough-password');
       fireEvent.click(screen.getByText('Create User'));
 
       expect(screen.getByText(invalidMessage)).toBeInTheDocument();
@@ -637,7 +791,7 @@ describe('AdminUsersPage', () => {
     expect(screen.getByLabelText(/Last Name/)).toHaveValue('User');
 
     // Password field is now shown for edits (blank = keep current password)
-    expect(screen.getByLabelText(/New Password/)).toHaveValue('');
+    expect(screen.getByLabelText(/^New Password/)).toHaveValue('');
   });
 
   it('should update every editable field including role', async () => {
@@ -686,13 +840,34 @@ describe('AdminUsersPage', () => {
 
     fireEvent.click(screen.getAllByText('Edit')[1]!);
 
-    await user.type(screen.getByLabelText(/New Password/), 'brandnewpass');
+    await user.type(screen.getByLabelText(/^New Password/), 'brandnewpass');
+    await user.type(screen.getByLabelText(/^Confirm New Password/), 'brandnewpass');
     fireEvent.click(screen.getByText('Update User'));
 
     await waitFor(() => {
       expect(usersApi.resetUserPassword).toHaveBeenCalledWith(2, { password: 'brandnewpass' });
     });
     // No other field changed, so no update call was made
+    expect(usersApi.updateUser).not.toHaveBeenCalled();
+  });
+
+  it('does not reset the password when the confirm box does not match', async () => {
+    const user = userEvent.setup();
+    vi.mocked(usersApi.fetchUsers).mockResolvedValue(mockUsers);
+
+    renderWithProviders(<AdminUsersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Users (3)')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByText('Edit')[1]!);
+
+    await user.type(screen.getByLabelText(/^New Password/), 'brandnewpass');
+    fireEvent.click(screen.getByText('Update User'));
+
+    expect(screen.getByText("Passwords don't match")).toBeInTheDocument();
+    expect(usersApi.resetUserPassword).not.toHaveBeenCalled();
     expect(usersApi.updateUser).not.toHaveBeenCalled();
   });
 
@@ -855,7 +1030,9 @@ describe('AdminUsersPage', () => {
 
     fireEvent.click(screen.getAllByText('Edit')[1]!);
     await user.clear(screen.getByLabelText(/Username/));
-    await user.type(screen.getByLabelText(/Username/), 'admin');
+    // Not in the loaded list, so only the server can reject it (a race, or a
+    // deleted user the list can't see).
+    await user.type(screen.getByLabelText(/Username/), 'ghost');
     fireEvent.click(screen.getByText('Update User'));
 
     await waitFor(() => {

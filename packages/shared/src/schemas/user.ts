@@ -84,6 +84,20 @@ export const AuthResponseSchema = z.object({
   refreshToken: z.string(),
 });
 
+// Username availability check, so the admin form can warn before submit.
+// `excludeId` is the user being edited — their own current login isn't "taken".
+export const LoginAvailabilityQuerySchema = z.object({
+  login: z.string().min(1).max(255),
+  excludeId: z.coerce.number().int().positive().optional(),
+});
+
+// `deleted` is true when the login belongs to a soft-deleted user: the unique
+// constraint ignores deletedAt, so that name still can't be reused.
+export const LoginAvailabilitySchema = z.object({
+  available: z.boolean(),
+  deleted: z.boolean(),
+});
+
 // Inferred types for TypeScript
 export type Role = z.infer<typeof RoleSchema>;
 export type UserCreate = z.infer<typeof UserCreateSchema>;
@@ -93,3 +107,5 @@ export type UserRead = z.infer<typeof UserReadSchema>;
 export type Login = z.infer<typeof LoginSchema>;
 export type TokenPayload = z.infer<typeof TokenPayloadSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+export type LoginAvailabilityQuery = z.infer<typeof LoginAvailabilityQuerySchema>;
+export type LoginAvailability = z.infer<typeof LoginAvailabilitySchema>;

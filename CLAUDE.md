@@ -12,7 +12,7 @@ The data model is **program-centric**: people are *enrolled* in *programs*, and 
 
 **Backend:** Services, routes and tests for `program`, `enrollment`, `visit`, `question`, `question_set`, `mother`, `person`, `event`, `photo_attachment` and `report`, plus everything rewritten against V2 (auth, users, files, admin lookups, sites, birthing assistants, families, children, dashboard, search). All twelve answerable `SCHEMA_V2.md` §8 reports are implemented behind `/api/reports`, table + CSV from one query path.
 
-**Web:** `App.tsx` is the full §3 route map with no placeholders left. `PlaceholderPage` still exists but nothing routes to it.
+**Web:** `App.tsx` is the full §3 route map, and every route renders a real page.
 
 **Known gaps, by design or deferred:**
 - **Event attendance** is deferred (`SCHEMA_V2.md` §11), so the mobile-clinics report is served as `available: false` and rendered disabled rather than hidden (§12.8).
@@ -303,14 +303,12 @@ Roles control what a user can **do**, not what they can **see** — there is no 
 
 ## Routing (App.tsx)
 
-`App.tsx` is the full `WEB_DESIGN_V2.md` §3 map. A route with no page yet renders `<PlaceholderPage title="…" />` — the route exists so nav and links can be wired ahead of the page; replace the placeholder, don't add a route.
+`App.tsx` is the full `WEB_DESIGN_V2.md` §3 map, and every route renders a real page. A new screen gets its route added alongside its page.
 
 - Public: `/login`
 - Protected (any role): `/`, `/programs*`, `/mothers*`, `/children*`, `/people*`, `/families*`, `/unenrolled`, `/enrollments/:id*`, `/visits*`, `/reports*`, `/events*`, `/admin/language`
 - Supervisor+: `/admin`, `/admin/birthing-assistants`
 - Admin only: `/admin/users`, `/admin/programs`, `/admin/sites`, `/admin/question-sets`, `/admin/:table` (lookup tables)
-
-Real pages today: dashboard, families (list/new/detail), `/children/new`, `/children/:id`, and the admin pages. Everything else is a placeholder.
 
 **Subject routes are flat.** `/children/:id`, never `/families/:id/children/:cid` — a child can exist with no family, so a nested route cannot address one. `AddChildPage` takes an optional `?familyId=` **query** param for the same reason. The V1 nested paths are kept for one release as `RedirectRoute` entries at the bottom of the protected children list; drop them once bookmarks have aged out.
 

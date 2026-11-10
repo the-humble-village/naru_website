@@ -43,7 +43,6 @@ import {
   AddEventPage,
   EventDetailPage,
   LanguagePage,
-  PlaceholderPage,
   ErrorPage,
 } from './pages';
 
@@ -56,8 +55,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-const soon = (title: string, note?: string) => <PlaceholderPage title={title} note={note} />;
 
 const adminOnly = (element: React.ReactNode) => (
   <RoleGate requiredRole={['ADMIN']}>{element}</RoleGate>

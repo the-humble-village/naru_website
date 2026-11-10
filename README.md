@@ -2,7 +2,7 @@
 
 A full-stack family health tracking system for community health workers. Built as a pnpm + Turborepo monorepo.
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for system diagrams.
+See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for system diagrams, and [docs/](./docs/README.md) for the rest of the project documentation.
 
 ---
 
@@ -50,7 +50,7 @@ HumbleVillageWebAppOpen/
 │   ├── backend/         # @naru/backend — Hono REST API + Prisma
 │   └── web/             # @naru/web — React SPA
 ├── android/             # Native Android app (Kotlin + Jetpack Compose)
-├── ARCHITECTURE.md      # System diagrams (Mermaid)
+├── docs/                # Architecture, schema, web design, setup, deployment
 ├── README.md            # This file
 ├── pnpm-workspace.yaml
 └── turbo.json

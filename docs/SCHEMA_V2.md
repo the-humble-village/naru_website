@@ -2,7 +2,7 @@
 
 **Status:** ✅ Complete. Every step in §13 is built, including the web pages (step 7). Step 3 is
 moot (§12.5).
-**Supersedes:** the Family-centric model in `packages/backend/prisma/schema.prisma`
+**Supersedes:** the Family-centric model in `apps/backend/prisma/schema.prisma`
 **Source requirements:** `APP-DATA with my notes.md` (Humble Village / church reporting needs)
 
 ---

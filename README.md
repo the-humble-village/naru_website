@@ -25,7 +25,7 @@ pnpm build
 ### Backend setup
 
 ```bash
-# Create packages/backend/.env with:
+# Create apps/backend/.env with:
 # (both JWT secrets must be >= 32 chars and different from each other —
 #  generate each with: openssl rand -base64 48)
 DATABASE_URL=postgresql://user:pass@localhost:5432/naru
@@ -34,7 +34,7 @@ JWT_REFRESH_SECRET=<a second, different openssl rand -base64 48>
 PORT=3000
 
 # Run migrations and generate Prisma client
-cd packages/backend
+cd apps/backend
 npx prisma migrate dev
 npx prisma generate
 ```
@@ -45,11 +45,12 @@ npx prisma generate
 
 ```
 HumbleVillageWebAppOpen/
-├── packages/
-│   ├── shared/          # @naru/shared — schemas, health utils, i18n
+├── apps/                # Deployables
 │   ├── backend/         # @naru/backend — Hono REST API + Prisma
-│   └── web/             # @naru/web — React SPA
-├── android/             # Native Android app (Kotlin + Jetpack Compose)
+│   ├── web/             # @naru/web — React SPA
+│   └── android/         # Native Android app — placeholder, frozen
+├── packages/            # Libraries the apps import
+│   └── shared/          # @naru/shared — schemas, health utils, i18n
 ├── docs/                # Architecture, schema, web design, setup, deployment
 ├── README.md            # This file
 ├── pnpm-workspace.yaml
@@ -100,12 +101,12 @@ packages/shared/src/
 
 ---
 
-## packages/backend
+## apps/backend
 
 Hono REST API server with Prisma ORM targeting PostgreSQL.
 
 ```
-packages/backend/
+apps/backend/
 ├── prisma/
 │   ├── schema.prisma           # Single source of truth for DB schema — all models defined here
 │   └── migrations/             # Auto-generated Prisma migration files
@@ -176,12 +177,12 @@ packages/backend/
 
 ---
 
-## packages/web
+## apps/web
 
 React SPA built with Vite.
 
 ```
-packages/web/src/
+apps/web/src/
 ├── main.tsx                    # React DOM entry point — mounts <App /> with QueryClientProvider
 ├── App.tsx                     # React Router v6 route definitions — all routes live here
 ├── api/
@@ -259,17 +260,17 @@ packages/web/src/
 
 ---
 
-## android/
+## apps/android
 
 Native Android application using Kotlin and Jetpack Compose. Separate Gradle build — not managed by pnpm/Turborepo.
 
-Communicates with the backend via `POST /api/sync` for offline-first data entry.
+**Frozen, and its code is not in this repo yet.** `/api/sync` has been removed; see `apps/android/README.md` and `docs/SCHEMA_V2.md` §11.
 
 ---
 
 ## Environment Variables
 
-### Backend (`packages/backend/.env`)
+### Backend (`apps/backend/.env`)
 
 | Variable | Description |
 |---|---|
@@ -303,7 +304,7 @@ pnpm --filter @naru/web test
 pnpm --filter @naru/backend test
 
 # Single file
-cd packages/web && npx vitest run src/pages/__tests__/FamiliesPage.test.tsx
+cd apps/web && npx vitest run src/pages/__tests__/FamiliesPage.test.tsx
 ```
 
 Backend tests use a real PostgreSQL test database (`naru_test`). Frontend tests use Vitest + React Testing Library with jsdom.

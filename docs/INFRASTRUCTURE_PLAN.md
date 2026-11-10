@@ -504,7 +504,7 @@ events into something queryable.
 
 - Fix `DEPLOYMENT.md` — rename references to `pipeline.yml`, drop the unused `DATABASE_URL`
   secret row (L1, L2)
-- `git rm "packages/backend/prisma/migrations/20260403012809_add_photos_to_visits/migration 2.sql"` (L5)
+- `git rm "apps/backend/prisma/migrations/20260403012809_add_photos_to_visits/migration 2.sql"` (L5)
 - Log JWT validation failures at warn level without stack traces (L6)
 - Audit and terminate the three idle instances (L7)
 - `aws configure set region us-east-1` (L8)

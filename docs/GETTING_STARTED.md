@@ -34,11 +34,11 @@ createdb naru_test
 ### 3. Configure environment variables
 
 ```bash
-cd packages/backend
+cd apps/backend
 cp .env.example .env
 ```
 
-Edit `packages/backend/.env`:
+Edit `apps/backend/.env`:
 
 ```env
 DATABASE_URL=postgresql://<your-pg-username>:<your-pg-password>@127.0.0.1:5432/naru
@@ -61,7 +61,7 @@ The server checks both at boot and exits with a message if either is under 32 ch
 Both databases start empty. Create the schema in each:
 
 ```bash
-cd packages/backend
+cd apps/backend
 
 # Development database (uses DATABASE_URL from .env)
 npx prisma migrate dev
@@ -99,7 +99,7 @@ in the web UI. On a brand new database there is no admin yet, so seed one by han
 Generate a password hash:
 
 ```bash
-cd packages/backend
+cd apps/backend
 node -e "require('bcrypt').hash('yourpassword', 12).then(console.log)"
 ```
 

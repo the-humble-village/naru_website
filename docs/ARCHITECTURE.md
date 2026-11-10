@@ -2,7 +2,7 @@
 
 ## System Overview
 
-NaruProject is a full-stack family health tracking system for community health workers ("Humble Village"). It is a pnpm + Turborepo monorepo with three packages: a shared validation/i18n library, a Hono REST API backend, and a React SPA frontend. An Android app (Kotlin + Jetpack Compose) exists as a separate Gradle project.
+NaruProject is a full-stack family health tracking system for community health workers ("Humble Village"). It is a pnpm + Turborepo monorepo: two apps under `apps/` (a Hono REST API backend and a React SPA frontend) and one library under `packages/` (a shared validation/i18n package both apps import). An Android app (Kotlin + Jetpack Compose) exists as a separate Gradle project.
 
 ---
 
@@ -14,13 +14,13 @@ graph TD
         shared["@naru/shared<br/>Zod schemas · health utils · i18n"]
         backend["@naru/backend<br/>Hono REST API · Prisma ORM"]
         web["@naru/web<br/>React SPA · Vite · Tailwind"]
-        android["android/<br/>Kotlin + Jetpack Compose"]
+        android["apps/android<br/>Kotlin + Jetpack Compose<br/>(frozen)"]
     end
 
     shared -->|"imported by"| backend
     shared -->|"imported by"| web
     backend -->|"REST API (/api)"| web
-    backend -->|"REST API (/api/sync)"| android
+    backend -.->|"sync removed (frozen)"| android
 ```
 
 ---

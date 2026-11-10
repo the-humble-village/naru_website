@@ -77,6 +77,9 @@ pnpm build
 
 # Dev servers (backend :3000, web :5173 with /api proxy)
 pnpm dev
+pnpm dev:backend                 # backend only
+pnpm dev:web                     # web only
+pnpm studio                      # Prisma Studio (run in a second terminal)
 
 # Run tests
 pnpm test                        # all packages

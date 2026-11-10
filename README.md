@@ -14,6 +14,9 @@ pnpm install
 
 # Start all dev servers (backend :3000, web :5173)
 pnpm dev
+pnpm dev:backend                 # backend only
+pnpm dev:web                     # web only
+pnpm studio                      # Prisma Studio (run in a second terminal)
 
 # Run all tests
 pnpm test

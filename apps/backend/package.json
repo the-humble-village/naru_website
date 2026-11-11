@@ -27,7 +27,7 @@
     "hono": "^4.13.16",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.5.0",
-    "zod": "^3.24.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

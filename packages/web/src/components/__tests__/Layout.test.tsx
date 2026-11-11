@@ -82,49 +82,22 @@ describe('Layout top nav', () => {
     expect(screen.getByRole('link', { name: 'Naru' })).toHaveAttribute('href', '/programs');
   });
 
-  it('renders a link for every active program inside the Programs menu', async () => {
-    mockListPrograms.mockResolvedValue({
-      items: [program(1, 'Expectant Mother'), program(2, 'Nutrition Infant')],
-      total: 2,
-    });
-
+  it('links Programs straight to the programs page', async () => {
     renderLayout();
-    await waitFor(() => expect(mockListPrograms).toHaveBeenCalledWith({ activeOnly: true }));
 
-    openMenu(/Programs/);
-
-    const nav = mainNav();
-    expect(screen.getByRole('link', { name: 'All programs' })).toHaveAttribute('href', '/programs');
-    await waitFor(() => {
-      expect(within(nav).getByRole('link', { name: 'Expectant Mother' })).toHaveAttribute(
-        'href',
-        '/programs/1'
-      );
-    });
-    expect(within(nav).getByRole('link', { name: 'Nutrition Infant' })).toHaveAttribute(
+    expect(within(mainNav()).getByRole('link', { name: /Programs/ })).toHaveAttribute(
       'href',
-      '/programs/2'
+      '/programs'
     );
   });
 
-  it('keeps program links out of the DOM until the Programs menu is opened', async () => {
+  it('does not list individual programs in the top nav', async () => {
     mockListPrograms.mockResolvedValue({ items: [program(1, 'Expectant Mother')], total: 1 });
 
     renderLayout();
     await waitFor(() => expect(mockListPrograms).toHaveBeenCalled());
 
     expect(screen.queryByRole('link', { name: 'Expectant Mother' })).not.toBeInTheDocument();
-  });
-
-  it('shows an empty state in the Programs menu when no programs exist', async () => {
-    renderLayout();
-    await waitFor(() => expect(mockListPrograms).toHaveBeenCalled());
-
-    openMenu(/Programs/);
-
-    await waitFor(() => {
-      expect(screen.getByText('No programs yet')).toBeInTheDocument();
-    });
   });
 
   it('shows the unenrolled count on the People trigger and links to it in the menu', async () => {

@@ -24,7 +24,7 @@ import {
   SubjectTypeBadge,
   WeightDelta,
 } from '../../components';
-import { useTranslation } from '../../hooks';
+import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
 import { parseZodErrors } from '../../hooks/useFieldErrors';
 import { AgeReadout, ageDaysAt, fetchSubjectSummary, subjectHref } from './EnrollPage';
 
@@ -162,11 +162,13 @@ export const EnrollmentDetailPage: React.FC = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [entryPhotoId, setEntryPhotoId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const pendingPhotoDeletions = usePendingPhotoDeletions();
 
   const updateMutation = useMutation({
     mutationFn: (payload: EnrollmentUpdate) =>
       enrollmentsApi.updateEnrollment(enrollmentId, payload),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await pendingPhotoDeletions.commit();
       queryClient.invalidateQueries({ queryKey: ['enrollment', enrollmentId] });
       queryClient.invalidateQueries({ queryKey: ['enrollments'] });
       setEdit(null);
@@ -233,6 +235,11 @@ export const EnrollmentDetailPage: React.FC = () => {
     event.preventDefault();
     if (!edit) return;
     setFormError(null);
+
+    if (subjectType === 'CHILD' && numberOrNull(edit.entryWeight) === null) {
+      setFormError(t('enroll.entry_weight_required'));
+      return;
+    }
 
     const payload: EnrollmentUpdate = {
       enrolledAt: edit.enrolledAt,
@@ -478,6 +485,7 @@ export const EnrollmentDetailPage: React.FC = () => {
               <div>
                 <label htmlFor="entryWeight" className={LABEL}>
                   {t('enroll.entry_weight_kg')}
+                  {subjectType === 'CHILD' && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   id="entryWeight"
@@ -485,6 +493,7 @@ export const EnrollmentDetailPage: React.FC = () => {
                   inputMode="decimal"
                   step="any"
                   min="0"
+                  required={subjectType === 'CHILD'}
                   value={edit.entryWeight}
                   onChange={(event) => setField('entryWeight', event.target.value)}
                   className={FIELD}
@@ -629,6 +638,7 @@ export const EnrollmentDetailPage: React.FC = () => {
                 photos={entryPhotoId === null ? [] : [entryPhotoId]}
                 onChange={(ids) => setEntryPhotoId(ids.length === 0 ? null : ids[ids.length - 1] ?? null)}
                 maxPhotos={1}
+                pendingDeletions={pendingPhotoDeletions}
               />
             </div>
 
@@ -642,6 +652,7 @@ export const EnrollmentDetailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
+                  pendingPhotoDeletions.discard();
                   setEdit(null);
                   setFormError(null);
                 }}

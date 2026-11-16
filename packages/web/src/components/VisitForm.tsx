@@ -23,6 +23,7 @@ import { visitsApi } from '../api/visits';
 import { photosApi } from '../api/photos';
 import { adminApi } from '../api/admin';
 import { useTranslation } from '../hooks/useTranslation';
+import { usePendingPhotoDeletions } from '../hooks/usePendingPhotoDeletions';
 import { parseZodErrors } from '../hooks/useFieldErrors';
 import { FormSelect } from './ui/FormSelect';
 import { ResourceRow, ResourceRowValue } from './ResourceRow';
@@ -153,6 +154,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
   const [trainingIds, setTrainingIds] = useState<number[]>(() => visit?.trainingIds ?? []);
   const [answers, setAnswers] = useState<VisitAnswerEntry[]>(() => visit?.answers ?? []);
   const [photoIds, setPhotoIds] = useState<number[]>([]);
+  const pendingPhotoDeletions = usePendingPhotoDeletions();
   const [formError, setFormError] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
 
@@ -315,11 +317,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
     const existingFileIds = existing.map((item) => item.fileId);
 
     const added = photoIds.filter((fileId) => !existingFileIds.includes(fileId));
-    const removed = existing.filter((item) => !photoIds.includes(item.fileId));
 
-    for (const item of removed) {
-      await photosApi.deletePhoto(item.id);
-    }
     for (const [index, fileId] of added.entries()) {
       await photosApi.createPhoto({
         fileId,
@@ -329,6 +327,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
         sortOrder: existingFileIds.length + index,
       });
     }
+    await pendingPhotoDeletions.commit();
   };
 
   const saveMutation = useMutation({
@@ -653,7 +652,11 @@ export const VisitForm: React.FC<VisitFormProps> = ({
           />
         </div>
 
-        <PhotoUpload photos={photoIds} onChange={setPhotoIds} />
+        <PhotoUpload
+          photos={photoIds}
+          onChange={setPhotoIds}
+          pendingDeletions={isEdit ? pendingPhotoDeletions : undefined}
+        />
         {photoError && <p className="text-red-500 text-sm">{photoError}</p>}
       </section>
 

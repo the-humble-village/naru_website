@@ -224,6 +224,10 @@ export async function createEnrollment(data: EnrollmentCreate): Promise<Enrollme
     });
   }
 
+  if (program.subjectType === 'CHILD' && (data.entryWeight === undefined || data.entryWeight === null)) {
+    throw new HTTPException(400, { message: 'Entry weight is required for child programs' });
+  }
+
   const subjectId = data[expectedFk]!;
   await assertSubjectExists(program.subjectType as SubjectType, subjectId);
 
@@ -304,12 +308,16 @@ export async function updateEnrollment(
       id: true,
       exitedAt: true,
       enrolledAt: true,
-      program: { select: { kind: true } },
+      program: { select: { kind: true, subjectType: true } },
     },
   });
 
   if (!existing) {
     throw new HTTPException(404, { message: 'Enrollment not found' });
+  }
+
+  if (existing.program.subjectType === 'CHILD' && data.entryWeight === null) {
+    throw new HTTPException(400, { message: 'Entry weight is required for child programs' });
   }
 
   const detail = assertDetailMatchesKind(existing.program.kind as ProgramKind, data);

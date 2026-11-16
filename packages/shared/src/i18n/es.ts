@@ -207,6 +207,7 @@ export const es = {
   'add_record.notes': 'Notas:',
   'add_record.error_date': 'La fecha es obligatoria.',
   'add_record.error_weight': 'El peso es obligatorio.',
+  'enroll.entry_weight_required': 'El peso al ingreso es obligatorio en los programas de niños.',
   'add_record.error_arm': 'La circunferencia del brazo es obligatoria.',
   'add_record.button': 'Agregar Registro',
 

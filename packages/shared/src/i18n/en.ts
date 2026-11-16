@@ -653,6 +653,7 @@ export const en = {
   'enroll.age_at_admission': 'Age at admission',
   'enroll.age_band_warning': 'This subject is outside the age band this program is set up for.',
   'enroll.entry_weight_kg': 'Entry weight (kg)',
+  'enroll.entry_weight_required': 'Entry weight is required for child programs.',
   'enroll.entry_photo': 'Entry photo',
   'enroll.length_mm': 'Length at admission (mm)',
   'enroll.nutritional_status': 'Nutritional status',

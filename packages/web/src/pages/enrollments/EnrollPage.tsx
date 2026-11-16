@@ -278,6 +278,7 @@ export const EnrollPage: React.FC = () => {
   });
 
   const detailKind = program ? KIND_ENROLLMENT_DETAIL[program.kind] : null;
+  const weightRequired = program?.subjectType === 'CHILD';
 
   const { data: birthingAssistants = [] } = useQuery({
     queryKey: ['birthing-assistants'],
@@ -385,6 +386,11 @@ export const EnrollPage: React.FC = () => {
 
     const payload = buildPayload();
     if (!payload) return;
+
+    if (weightRequired && payload.entryWeight === null) {
+      setFormError(t('enroll.entry_weight_required'));
+      return;
+    }
 
     const invalid = preflight(EnrollmentCreateSchema, payload);
     if (invalid) {
@@ -501,6 +507,7 @@ export const EnrollPage: React.FC = () => {
               <div>
                 <label htmlFor="entryWeight" className={LABEL}>
                   {t('enroll.entry_weight_kg')}
+                  {weightRequired && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   id="entryWeight"
@@ -508,6 +515,7 @@ export const EnrollPage: React.FC = () => {
                   inputMode="decimal"
                   step="any"
                   min="0"
+                  required={weightRequired}
                   value={form.entryWeight}
                   onChange={(event) => set('entryWeight', event.target.value)}
                   className={FIELD}

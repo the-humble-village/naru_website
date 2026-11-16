@@ -5,7 +5,7 @@ description: Naru/HumbleVillage UI design system and patterns. Use when creating
 
 # Naru Design System
 
-All UI uses Tailwind CSS utility classes only. No CSS modules, styled-components, or inline styles. The custom color palette is defined in `packages/web/tailwind.config.ts`.
+All UI uses Tailwind CSS utility classes only. No CSS modules, styled-components, or inline styles. The custom color palette is defined in `apps/web/tailwind.config.ts`.
 
 ## Design Philosophy
 

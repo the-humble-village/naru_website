@@ -6,9 +6,12 @@ export const RoleSchema = z.enum(['ADMIN', 'SUPERVISOR', 'CASEWORKER']);
 // User creation schema (admin create only — there is no self-service signup)
 export const UserCreateSchema = z.object({
   login: z.string().min(1).max(255),
-  email: z.string().email().optional().nullable(),
-  firstName: z.string().max(255).optional().nullable(),
-  lastName: z.string().max(255).optional().nullable(),
+  // Email and both names are required for new users. The columns stay nullable
+  // so accounts created before this rule keep working; UserUpdateSchema lets them
+  // add a value but not clear one.
+  email: z.string().email(),
+  firstName: z.string().trim().min(1).max(255),
+  lastName: z.string().trim().min(1).max(255),
   password: z.string().min(12), // Plain password for creation
   role: RoleSchema.default('CASEWORKER'),
   lang: z.string().max(5).default('en'),
@@ -20,9 +23,10 @@ export const UserCreateSchema = z.object({
 // hashed server-side and replaces passwordHash. It is never echoed back.
 export const UserUpdateSchema = z.object({
   login: z.string().min(1).max(255).optional(),
-  email: z.string().email().optional().nullable(),
-  firstName: z.string().max(255).optional().nullable(),
-  lastName: z.string().max(255).optional().nullable(),
+  // Not nullable: these can be changed, not removed.
+  email: z.string().email().optional(),
+  firstName: z.string().trim().min(1).max(255).optional(),
+  lastName: z.string().trim().min(1).max(255).optional(),
   role: RoleSchema.optional(),
   lang: z.string().max(5).optional(),
   password: z.string().min(12).optional(),
@@ -80,6 +84,20 @@ export const AuthResponseSchema = z.object({
   refreshToken: z.string(),
 });
 
+// Username availability check, so the admin form can warn before submit.
+// `excludeId` is the user being edited — their own current login isn't "taken".
+export const LoginAvailabilityQuerySchema = z.object({
+  login: z.string().min(1).max(255),
+  excludeId: z.coerce.number().int().positive().optional(),
+});
+
+// `deleted` is true when the login belongs to a soft-deleted user: the unique
+// constraint ignores deletedAt, so that name still can't be reused.
+export const LoginAvailabilitySchema = z.object({
+  available: z.boolean(),
+  deleted: z.boolean(),
+});
+
 // Inferred types for TypeScript
 export type Role = z.infer<typeof RoleSchema>;
 export type UserCreate = z.infer<typeof UserCreateSchema>;
@@ -89,3 +107,5 @@ export type UserRead = z.infer<typeof UserReadSchema>;
 export type Login = z.infer<typeof LoginSchema>;
 export type TokenPayload = z.infer<typeof TokenPayloadSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+export type LoginAvailabilityQuery = z.infer<typeof LoginAvailabilityQuerySchema>;
+export type LoginAvailability = z.infer<typeof LoginAvailabilitySchema>;

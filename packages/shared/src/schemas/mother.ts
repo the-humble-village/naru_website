@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { PhoneSchema } from './phone.js';
 
 export const MotherCreateSchema = z.object({
   name: z.string().min(1).max(256),
   birthDate: z.string().datetime().optional().nullable(),
   communityId: z.number().int().positive().optional().nullable(),
-  phone: z.string().max(64).optional().nullable(),
+  phone: PhoneSchema.optional().nullable(),
   familyId: z.number().int().positive().optional().nullable(),
   midwifeId: z.number().int().positive().optional().nullable(),
   pregnancies: z.number().int().min(0).optional().nullable(),

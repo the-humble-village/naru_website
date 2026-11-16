@@ -1,5 +1,6 @@
 // Re-export all schemas from this directory
 export * from './enums.js';
+export * from './phone.js';
 export * from './user.js';
 export * from './person.js';
 export * from './mother.js';

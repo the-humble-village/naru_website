@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { PhoneSchema } from './phone.js';
 import { DateOnlySchema } from './enums.js';
 
 export const FamilyCreateSchema = z.object({
   familyName: z.string().max(512).optional().nullable(),
   communityId: z.number().int().positive().optional().nullable(),
-  phone: z.string().max(64).optional().nullable(),
+  phone: PhoneSchema.optional().nullable(),
   caretaker2Name: z.string().max(256).optional().nullable(),
   incomeSources: z.string().optional().nullable(),
   deathsNotes: z.string().optional().nullable(),

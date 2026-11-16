@@ -235,7 +235,7 @@ describe('EnrollmentDetailPage', () => {
     await screen.findByRole('heading', { name: 'Nutrition Infant' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
-    const weight = await screen.findByLabelText('Entry weight (kg)');
+    const weight = await screen.findByLabelText(/Entry weight \(kg\)/);
     fireEvent.change(weight, { target: { value: '3.4' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 

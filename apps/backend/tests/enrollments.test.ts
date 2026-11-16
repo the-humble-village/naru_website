@@ -70,12 +70,25 @@ describe('Enrollments Routes', () => {
   });
 
   describe('POST /enrollments — subject rules', () => {
-    it('enrols a child in a nutrition program with nothing but a date', async () => {
+    it('requires an entry weight to enrol a child', async () => {
       const child = await createTestChild({ name: 'José' });
 
       const res = await client.post(
         '/enrollments',
         { programId: nutrition.id, childId: child.id, enrolledAt: '2026-05-02' },
+        caseworkerToken
+      );
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).message).toContain('Entry weight is required');
+    });
+
+    it('enrols a child in a nutrition program with a date and entry weight', async () => {
+      const child = await createTestChild({ name: 'José' });
+
+      const res = await client.post(
+        '/enrollments',
+        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-05-02', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -129,7 +142,7 @@ describe('Enrollments Routes', () => {
 
       const res = await client.post(
         '/enrollments',
-        { programId: nutrition.id, childId: child.id, motherId: mother.id, enrolledAt: '2026-05-02' },
+        { programId: nutrition.id, childId: child.id, motherId: mother.id, enrolledAt: '2026-05-02', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -139,7 +152,7 @@ describe('Enrollments Routes', () => {
     it('404s on a missing subject', async () => {
       const res = await client.post(
         '/enrollments',
-        { programId: nutrition.id, childId: 999999, enrolledAt: '2026-05-02' },
+        { programId: nutrition.id, childId: 999999, enrolledAt: '2026-05-02', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -152,7 +165,7 @@ describe('Enrollments Routes', () => {
 
       const res = await client.post(
         '/enrollments',
-        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-05-02' },
+        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-05-02', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -164,7 +177,7 @@ describe('Enrollments Routes', () => {
 
       const res = await client.post(
         '/enrollments',
-        { programId: 999999, childId: child.id, enrolledAt: '2026-05-02' },
+        { programId: 999999, childId: child.id, enrolledAt: '2026-05-02', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -177,7 +190,7 @@ describe('Enrollments Routes', () => {
 
       const res = await client.post(
         '/enrollments',
-        { programId: closed.id, childId: child.id, enrolledAt: '2026-05-02' },
+        { programId: closed.id, childId: child.id, enrolledAt: '2026-05-02', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -212,7 +225,7 @@ describe('Enrollments Routes', () => {
 
       const res = await client.post(
         '/enrollments',
-        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-06-01' },
+        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-06-01', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -229,7 +242,7 @@ describe('Enrollments Routes', () => {
 
       const res = await client.post(
         '/enrollments',
-        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-06-01' },
+        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-06-01', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -260,6 +273,7 @@ describe('Enrollments Routes', () => {
           programId: nutrition.id,
           childId: child.id,
           enrolledAt: '2026-05-02',
+          entryWeight: 3.2,
           nutritionDetail: {
             lengthAtAdmission: 540,
             caretakerName: 'Juana Ramírez',
@@ -323,6 +337,7 @@ describe('Enrollments Routes', () => {
           programId: nutrition.id,
           childId: child.id,
           enrolledAt: '2026-05-02',
+          entryWeight: 3.2,
           pregnancyDetail: { pregnancyNumber: 1 },
         },
         caseworkerToken
@@ -574,6 +589,19 @@ describe('Enrollments Routes', () => {
       expect(res.status).toBe(400);
     });
 
+    it('refuses to clear the entry weight on a child enrollment', async () => {
+      const child = await createTestChild({ name: 'José' });
+      const enrollment = await createTestEnrollment(nutrition.id, { childId: child.id });
+
+      const res = await client.put(
+        `/enrollments/${enrollment.id}`,
+        { entryWeight: null },
+        caseworkerToken
+      );
+
+      expect(res.status).toBe(400);
+    });
+
     it('ignores an attempt to move the enrollment to another subject', async () => {
       const child = await createTestChild({ name: 'José' });
       const other = await createTestChild({ name: 'Other' });
@@ -699,7 +727,7 @@ describe('Enrollments Routes', () => {
 
       const res = await client.post(
         '/enrollments',
-        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-10-01' },
+        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-10-01', entryWeight: 3.2 },
         caseworkerToken
       );
 
@@ -788,7 +816,7 @@ describe('Enrollments Routes', () => {
 
       const reenrol = await client.post(
         '/enrollments',
-        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-10-01' },
+        { programId: nutrition.id, childId: child.id, enrolledAt: '2026-10-01', entryWeight: 3.2 },
         caseworkerToken
       );
       expect(reenrol.status).toBe(201);

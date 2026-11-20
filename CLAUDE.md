@@ -68,6 +68,7 @@ apps/                      # Deployables — each one runs or ships on its own
 
   android/                 # Native Kotlin + Jetpack Compose — placeholder, code not in repo (frozen, see §11)
 
+infra/                     # nginx/, systemd/, scripts/ — shipped to EC2 by CI. runbooks/ — one-shot scripts, already run
 docs/                      # SCHEMA_V2, WEB_DESIGN_V2, ARCHITECTURE, GETTING_STARTED, DEPLOYMENT, INFRASTRUCTURE_PLAN
 ```
 

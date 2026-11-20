@@ -226,7 +226,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      # Nothing is built here; the checkout is only for nginx/ and deployment/,
+      # Nothing is built here; the checkout is only for infra/,
       # which are scp'd as-is. The web dist and the backend bundle come from the
       # build job's artifacts so the exact tree that was tested is the tree that
       # ships — and so install/generate/build are not paid for twice.
@@ -271,6 +271,10 @@ jobs:
             # An empty RELEASE would turn the rm below into `rm -rf .../releases/`.
             RELEASE="${{ env.RELEASE }}"
             : "${RELEASE:?release id was not set}"
+
+            # Clear the infra upload dir so a file missing from this deploy's
+            # upload cannot be stood in for by one left over from a previous one.
+            rm -rf /tmp/infra
 
             # Non-recursive: releases/ holds several node_modules trees and a
             # recursive chown over them costs minutes for no benefit.
@@ -322,24 +326,15 @@ jobs:
           target: "/var/www/backend/releases/${{ env.RELEASE }}"
           strip_components: 1
 
-      - name: Deploy Nginx Config to EC2 (Temporary)
+      # Lands under /tmp/infra/... — scp-action keeps each source's path.
+      - name: Deploy infra config to EC2 (Temporary)
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           port: 22
-          source: "nginx/naru.conf"
-          target: "/tmp"
-
-      - name: Deploy Service Config to EC2 (Temporary)
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
-          port: 22
-          source: "deployment/naru-backend.service,deployment/check-prisma-client-drift.cjs"
+          source: "infra/nginx/naru.conf,infra/systemd/naru-backend.service,infra/scripts/check-prisma-client-drift.cjs"
           target: "/tmp"
 
       - name: Post-deployment on EC2
@@ -356,6 +351,15 @@ jobs:
             WEB=/var/www/web
             NEW="$BACKEND/releases/$RELEASE"
             KEEP=5
+
+            # This script has no `set -e`, so a failed `sudo cp` of a config
+            # would carry on and silently keep the old one. Check up front.
+            for f in /tmp/infra/nginx/naru.conf /tmp/infra/systemd/naru-backend.service /tmp/infra/scripts/check-prisma-client-drift.cjs; do
+              if [ ! -f "$f" ]; then
+                echo "❌ ERROR: $f was not uploaded. Aborting before any change."
+                exit 1
+              fi
+            done
 
             # Relative link targets, so `readlink` yields "releases/<id>" and the
             # whole tree stays relocatable. Empty on the very first deploy.
@@ -462,7 +466,7 @@ jobs:
             # copied into the app tree first — Node resolves @prisma/client
             # relative to the script's own directory, not the cwd.
             echo "🔍 Verifying client/schema agreement..."
-            cp /tmp/deployment/check-prisma-client-drift.cjs ./check-prisma-client-drift.cjs
+            cp /tmp/infra/scripts/check-prisma-client-drift.cjs ./check-prisma-client-drift.cjs
             if ! node ./check-prisma-client-drift.cjs prisma/schema.prisma; then
               rm -f ./check-prisma-client-drift.cjs
               echo "❌ ERROR: Generated Prisma client does not match the schema. Aborting before cutover."
@@ -476,14 +480,14 @@ jobs:
             # here and not earlier: on a first deploy `current` does not exist
             # until the swap below, and an nginx reload before that point would
             # start serving 404s from a root that is not there yet.
-            sudo cp /tmp/nginx/naru.conf /etc/nginx/conf.d/naru.conf
+            sudo cp /tmp/infra/nginx/naru.conf /etc/nginx/conf.d/naru.conf
             sudo chown root:root /etc/nginx/conf.d/naru.conf
             if ! sudo nginx -t; then
               echo "❌ ERROR: nginx config is invalid. Aborting before cutover."
               exit 1
             fi
 
-            sudo cp /tmp/deployment/naru-backend.service /etc/systemd/system/naru-backend.service
+            sudo cp /tmp/infra/systemd/naru-backend.service /etc/systemd/system/naru-backend.service
             sudo chown root:root /etc/systemd/system/naru-backend.service
             sudo systemctl daemon-reload
             sudo systemctl enable naru-backend

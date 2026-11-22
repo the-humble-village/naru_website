@@ -39,7 +39,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
       - name: Turborepo Cache
@@ -53,6 +53,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The backend type-check imports @prisma/client, whose types only exist
+      # once the client is generated. No database is needed for this.
+      - name: Generate Prisma Client
+        run: |
+            cd apps/backend
+            npx prisma generate
+
+      # tsc --noEmit in every package. Vite strips types without checking
+      # them, so this is the only CI step that type-checks the web app.
       - name: Lint
         run: pnpm lint
 
@@ -85,7 +94,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
       - name: Turborepo Cache
@@ -103,14 +112,14 @@ jobs:
         id: cache-prisma
         uses: actions/cache@v6
         with:
-          path: packages/backend/node_modules/.prisma
-          key: prisma-${{ runner.os }}-${{ hashFiles('packages/backend/prisma/schema.prisma') }}
+          path: apps/backend/node_modules/.prisma
+          key: prisma-${{ runner.os }}-${{ hashFiles('apps/backend/prisma/schema.prisma') }}
 
       - name: Set up database and generate Prisma client
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/naru_test
         run: |
-          cd packages/backend
+          cd apps/backend
           npx prisma migrate deploy
           if [ "${{ steps.cache-prisma.outputs.cache-hit }}" != "true" ]; then
             npx prisma generate
@@ -138,7 +147,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
       - name: Turborepo Cache
@@ -154,12 +163,12 @@ jobs:
 
       # No cache gate. pnpm generates the client into
       # node_modules/.pnpm/@prisma+client@*/node_modules/.prisma, not
-      # packages/backend/node_modules/.prisma, so the cache never covered the
+      # apps/backend/node_modules/.prisma, so the cache never covered the
       # real output — and this job's build is now what ships, so gating on it
       # risks bundling a stale client.
       - name: Generate Prisma Client
         run: |
-            cd packages/backend
+            cd apps/backend
             npx prisma generate
 
       - name: Build monorepo
@@ -205,7 +214,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-dist
-          path: packages/web/dist
+          path: apps/web/dist
           if-no-files-found: error
           retention-days: 7
 
@@ -228,7 +237,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-dist
-          path: packages/web/dist
+          path: apps/web/dist
 
       - name: Download backend bundle
         uses: actions/download-artifact@v4
@@ -298,7 +307,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.NARU_GITHUB_PRIVATE_KEY }}
           port: 22
-          source: "packages/web/dist/**"
+          source: "apps/web/dist/**"
           target: "/var/www/web/releases/${{ env.RELEASE }}"
           strip_components: 3
 

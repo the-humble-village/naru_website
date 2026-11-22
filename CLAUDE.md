@@ -2,17 +2,17 @@
 
 ## Project Overview
 
-NaruProject is a full-stack family health tracking system for community health workers ("Humble Village"). It's a pnpm + Turborepo monorepo with three packages: a shared validation/i18n library, a Hono REST API backend, and a React SPA frontend.
+NaruProject is a full-stack family health tracking system for community health workers ("Humble Village"). It's a pnpm + Turborepo monorepo with two apps under `apps/` — a Hono REST API backend and a React SPA frontend — and one library under `packages/`, a shared validation/i18n package both apps import.
 
-The data model is **program-centric**: people are *enrolled* in *programs*, and every visit is recorded against an enrollment. `Enrollment` is the spine — the only place that knows who is in what, when they joined, when they left, and what they weighed at each end. The full design, including rationale, is in `SCHEMA_V2.md` at the repo root; read it before changing the schema.
+The data model is **program-centric**: people are *enrolled* in *programs*, and every visit is recorded against an enrollment. `Enrollment` is the spine — the only place that knows who is in what, when they joined, when they left, and what they weighed at each end. The full design, including rationale, is in `docs/SCHEMA_V2.md`; read it before changing the schema.
 
 ## Rearchitecture status — READ THIS FIRST
 
-**The V2 rearchitecture is complete.** Every step of `SCHEMA_V2.md` §13 and `WEB_DESIGN_V2.md` §14 is built: schema, backend, all 14 components, every page in the §3 route map, and both i18n dictionaries. A subject can be enrolled and a visit recorded end to end through the UI.
+**The V2 rearchitecture is complete.** Every step of `SCHEMA_V2.md` §13 and `WEB_DESIGN_V2.md` §14 (both in `docs/`) is built: schema, backend, all 14 components, every page in the §3 route map, and both i18n dictionaries. A subject can be enrolled and a visit recorded end to end through the UI.
 
 **Backend:** Services, routes and tests for `program`, `enrollment`, `visit`, `question`, `question_set`, `mother`, `person`, `event`, `photo_attachment` and `report`, plus everything rewritten against V2 (auth, users, files, admin lookups, sites, birthing assistants, families, children, dashboard, search). All twelve answerable `SCHEMA_V2.md` §8 reports are implemented behind `/api/reports`, table + CSV from one query path.
 
-**Web:** `App.tsx` is the full §3 route map with no placeholders left. `PlaceholderPage` still exists but nothing routes to it.
+**Web:** `App.tsx` is the full §3 route map, and every route renders a real page.
 
 **Known gaps, by design or deferred:**
 - **Event attendance** is deferred (`SCHEMA_V2.md` §11), so the mobile-clinics report is served as `available: false` and rendered disabled rather than hidden (§12.8).
@@ -27,7 +27,7 @@ The data model is **program-centric**: people are *enrolled* in *programs*, and 
 ## Monorepo Structure
 
 ```
-packages/
+packages/                  # Libraries — imported, never run on their own
   shared/src/
     schemas/          # Zod schemas (one file per entity) + index.ts barrel
       enums.ts        # All V2 enums + DateOnlySchema + SUBJECT_FK / KIND_*_DETAIL maps
@@ -35,6 +35,7 @@ packages/
     i18n/             # en.ts, es.ts — t(key, lang) function
     index.ts          # Re-exports everything
 
+apps/                      # Deployables — each one runs or ships on its own
   backend/
     prisma/schema.prisma   # Single source of truth for DB schema
     prisma/seed.ts         # The six program rows (npx prisma db seed)
@@ -65,7 +66,9 @@ packages/
     hooks/
     store/auth.ts          # Zustand: user, tokens, role, lang
 
-android/                   # Native Kotlin + Jetpack Compose (frozen — see §11)
+  android/                 # Native Kotlin + Jetpack Compose — placeholder, code not in repo (frozen, see §11)
+
+docs/                      # SCHEMA_V2, WEB_DESIGN_V2, ARCHITECTURE, GETTING_STARTED, DEPLOYMENT, INFRASTRUCTURE_PLAN
 ```
 
 ## Quick Commands
@@ -76,6 +79,9 @@ pnpm build
 
 # Dev servers (backend :3000, web :5173 with /api proxy)
 pnpm dev
+pnpm dev:backend                 # backend only
+pnpm dev:web                     # web only
+pnpm studio                      # Prisma Studio (run in a second terminal)
 
 # Run tests
 pnpm test                        # all packages
@@ -83,10 +89,10 @@ pnpm --filter @naru/web test     # web only
 pnpm --filter @naru/backend test # backend only
 
 # Run a single test file
-cd packages/web && npx vitest run src/pages/__tests__/SomePage.test.tsx
+cd apps/web && npx vitest run src/pages/__tests__/SomePage.test.tsx
 
 # Prisma
-cd packages/backend
+cd apps/backend
 npx prisma migrate dev           # create/apply migration
 npx prisma generate              # regenerate client after schema change
 npx prisma db seed               # (re)create the six program rows
@@ -162,12 +168,12 @@ Kinds with no detail table record visits purely on the shared `visit` spine (dat
 
 1. **Schema**: `packages/shared/src/schemas/[entity].ts` — define `*CreateSchema`, `*UpdateSchema`, `*ReadSchema` + inferred types. Export from `schemas/index.ts`.
 2. **Prisma model**: Add to `prisma/schema.prisma`. Run `npx prisma migrate dev`.
-3. **Service**: `packages/backend/src/services/[entity].service.ts` — all DB logic here.
-4. **Route**: `packages/backend/src/routes/[entity].ts` — HTTP layer only. Mount in `app.ts`.
-5. **Backend test**: `packages/backend/tests/[entity].test.ts`
-6. **API client**: `packages/web/src/api/[entity].ts` — export namespace object.
-7. **Page**: `packages/web/src/pages/[Name]Page.tsx` — add route in `App.tsx`.
-8. **Page test**: `packages/web/src/pages/__tests__/[Name]Page.test.tsx`
+3. **Service**: `apps/backend/src/services/[entity].service.ts` — all DB logic here.
+4. **Route**: `apps/backend/src/routes/[entity].ts` — HTTP layer only. Mount in `app.ts`.
+5. **Backend test**: `apps/backend/tests/[entity].test.ts`
+6. **API client**: `apps/web/src/api/[entity].ts` — export namespace object.
+7. **Page**: `apps/web/src/pages/[Name]Page.tsx` — add route in `App.tsx`.
+8. **Page test**: `apps/web/src/pages/__tests__/[Name]Page.test.tsx`
 
 ## Entity Relationships
 
@@ -204,7 +210,7 @@ Lookup tables: Community, Site, Resource, Training, ExaminationType
 User (standalone — auth only; referenced by visit.recordedById)
 ```
 
-Full schema: `packages/backend/prisma/schema.prisma`
+Full schema: `apps/backend/prisma/schema.prisma`
 
 ## Shared Package (`@naru/shared`)
 
@@ -297,14 +303,12 @@ Roles control what a user can **do**, not what they can **see** — there is no 
 
 ## Routing (App.tsx)
 
-`App.tsx` is the full `WEB_DESIGN_V2.md` §3 map. A route with no page yet renders `<PlaceholderPage title="…" />` — the route exists so nav and links can be wired ahead of the page; replace the placeholder, don't add a route.
+`App.tsx` is the full `WEB_DESIGN_V2.md` §3 map, and every route renders a real page. A new screen gets its route added alongside its page.
 
 - Public: `/login`
 - Protected (any role): `/`, `/programs*`, `/mothers*`, `/children*`, `/people*`, `/families*`, `/unenrolled`, `/enrollments/:id*`, `/visits*`, `/reports*`, `/events*`, `/admin/language`
 - Supervisor+: `/admin`, `/admin/birthing-assistants`
 - Admin only: `/admin/users`, `/admin/programs`, `/admin/sites`, `/admin/question-sets`, `/admin/:table` (lookup tables)
-
-Real pages today: dashboard, families (list/new/detail), `/children/new`, `/children/:id`, and the admin pages. Everything else is a placeholder.
 
 **Subject routes are flat.** `/children/:id`, never `/families/:id/children/:cid` — a child can exist with no family, so a nested route cannot address one. `AddChildPage` takes an optional `?familyId=` **query** param for the same reason. The V1 nested paths are kept for one release as `RedirectRoute` entries at the bottom of the protected children list; drop them once bookmarks have aged out.
 
@@ -327,7 +331,7 @@ Not answerable in V1: mobile clinics and communities per site — needs event at
 
 ## Environment Variables
 
-Backend requires (in `packages/backend/.env`):
+Backend requires (in `apps/backend/.env`):
 - `DATABASE_URL` — PostgreSQL connection string
 - `JWT_SECRET` — access token signing key
 - `JWT_REFRESH_SECRET` — refresh token signing key

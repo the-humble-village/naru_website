@@ -5,13 +5,19 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "dev": "turbo run dev",
+    "dev:backend": "pnpm --filter @naru/backend dev",
+    "dev:web": "pnpm --filter @naru/web dev",
+    "studio": "pnpm --filter @naru/backend exec prisma studio",
     "lint": "turbo run lint",
     "prepare": "husky"
   },
   "devDependencies": {
     "husky": "^9.1.7",
-    "turbo": "^2.10.9",
+    "turbo": "^2.11.10",
     "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "packageManager": "pnpm@12.18.0"
 }

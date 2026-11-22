@@ -9,7 +9,7 @@ This skill documents how to add new database tables and wire them through the fu
 
 ## Step-by-Step: Adding a New Entity
 
-### 1. Prisma Model (`packages/backend/prisma/schema.prisma`)
+### 1. Prisma Model (`apps/backend/prisma/schema.prisma`)
 
 Every model follows this template:
 
@@ -41,10 +41,10 @@ model Widget {
 
 After editing, run:
 ```bash
-cd packages/backend && npx prisma migrate dev --name add_widgets
+cd apps/backend && npx prisma migrate dev --name add_widgets
 ```
 
-**Update test setup** — add the new table to the `beforeEach` cleanup in `packages/backend/tests/setup.ts`. Insert it in the correct foreign-key order (children before parents). Also add a `createTestWidget` helper if tests need seed data.
+**Update test setup** — add the new table to the `beforeEach` cleanup in `apps/backend/tests/setup.ts`. Insert it in the correct foreign-key order (children before parents). Also add a `createTestWidget` helper if tests need seed data.
 
 ### 2. Shared Zod Schema (`packages/shared/src/schemas/widget.ts`)
 
@@ -85,7 +85,7 @@ export type WidgetRead = z.infer<typeof WidgetReadSchema>;
 
 **Rebuild shared** after any change: `pnpm --filter @naru/shared build`
 
-### 3. Service (`packages/backend/src/services/widget.service.ts`)
+### 3. Service (`apps/backend/src/services/widget.service.ts`)
 
 All database queries and business logic go here. Routes never touch Prisma directly.
 
@@ -266,7 +266,7 @@ export async function deleteWidget(id: number, user: UserRead): Promise<void> {
 - Pagination: `skip` defaults to 0, `limit` defaults to 20 and caps at 100
 - For nested resources (e.g., child under family), verify the parent exists first
 
-### 4. Route (`packages/backend/src/routes/widget.ts`)
+### 4. Route (`apps/backend/src/routes/widget.ts`)
 
 Routes are thin HTTP adapters — no business logic, just validation + delegation to service.
 
@@ -352,7 +352,7 @@ export default app;
 - `requireSupervisor` — SUPERVISOR or ADMIN
 - `requireCaseworker` — any authenticated user (rarely needed since `auth` already gates)
 
-### 5. Mount in App (`packages/backend/src/app.ts`)
+### 5. Mount in App (`apps/backend/src/app.ts`)
 
 Add the import and route mounting:
 
@@ -368,7 +368,7 @@ app.route('/api/families/:familyId/widgets', widgetRoutes);
 
 Nested routes receive the parent ID via params — the route handler reads it from `c.req.param('familyId')` or validates with `zValidator('param', ...)`.
 
-### 6. Backend Test (`packages/backend/tests/widget.test.ts`)
+### 6. Backend Test (`apps/backend/tests/widget.test.ts`)
 
 ```typescript
 // Set up environment BEFORE imports
@@ -454,7 +454,7 @@ describe('Widget Routes', () => {
 - Response structure: `deletedAt` is never present
 - Soft delete: verify `deletedAt` is set in DB, record hidden from list endpoint
 
-Run with: `cd packages/backend && npx vitest run tests/widget.test.ts`
+Run with: `cd apps/backend && npx vitest run tests/widget.test.ts`
 
 ## Architecture Invariants
 
@@ -475,18 +475,18 @@ When adding a new entity, touch these files:
 
 | # | File | Action |
 |---|------|--------|
-| 1 | `packages/backend/prisma/schema.prisma` | Add Prisma model |
+| 1 | `apps/backend/prisma/schema.prisma` | Add Prisma model |
 | 2 | `packages/shared/src/schemas/[entity].ts` | Create/Update/Read schemas + types |
 | 3 | `packages/shared/src/schemas/index.ts` | Add `export * from './[entity].js'` |
-| 4 | `packages/backend/src/services/[entity].service.ts` | CRUD functions |
-| 5 | `packages/backend/src/routes/[entity].ts` | Hono route handlers |
-| 6 | `packages/backend/src/app.ts` | Import + `app.route(...)` |
-| 7 | `packages/backend/tests/setup.ts` | Add to cleanup + create helper |
-| 8 | `packages/backend/tests/[entity].test.ts` | Route/service tests |
+| 4 | `apps/backend/src/services/[entity].service.ts` | CRUD functions |
+| 5 | `apps/backend/src/routes/[entity].ts` | Hono route handlers |
+| 6 | `apps/backend/src/app.ts` | Import + `app.route(...)` |
+| 7 | `apps/backend/tests/setup.ts` | Add to cleanup + create helper |
+| 8 | `apps/backend/tests/[entity].test.ts` | Route/service tests |
 
 Then run:
 ```bash
-cd packages/backend && npx prisma migrate dev --name add_[entity]
+cd apps/backend && npx prisma migrate dev --name add_[entity]
 pnpm --filter @naru/shared build
-cd packages/backend && npx vitest run tests/[entity].test.ts
+cd apps/backend && npx vitest run tests/[entity].test.ts
 ```

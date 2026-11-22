@@ -207,6 +207,7 @@ export const es = {
   'add_record.notes': 'Notas:',
   'add_record.error_date': 'La fecha es obligatoria.',
   'add_record.error_weight': 'El peso es obligatorio.',
+  'enroll.entry_weight_required': 'El peso al ingreso es obligatorio en los programas de niños.',
   'add_record.error_arm': 'La circunferencia del brazo es obligatoria.',
   'add_record.button': 'Agregar Registro',
 
@@ -326,7 +327,10 @@ export const es = {
   'admin.email_required': 'Ingrese un correo electrónico',
   'admin.invalid_email': 'Ingrese un correo electrónico válido, como nombre@ejemplo.com',
   'admin.invalid_login': 'Ingrese un usuario',
+  'admin.login_taken': 'Ese usuario ya está en uso',
+  'admin.login_taken_deleted': 'Ese usuario pertenecía a un usuario eliminado y no se puede reutilizar',
   'admin.invalid_password': 'La contraseña debe tener al menos 12 caracteres',
+  'admin.passwords_mismatch': 'Las contraseñas no coinciden',
   'admin.invalid_form': 'Revise el formulario e inténtelo de nuevo',
   'admin.try_again': 'Inténtelo de nuevo',
   'admin.create_user_failed': 'No se pudo crear el usuario.',
@@ -461,6 +465,8 @@ export const es = {
   'common.last_name': 'Apellido',
   'common.password': 'Contrasena',
   'common.new_password': 'Nueva Contrasena',
+  'common.confirm_password': 'Confirmar Contraseña',
+  'common.confirm_new_password': 'Confirmar Nueva Contraseña',
   'common.delete': 'Eliminar',
   'common.you': 'usted',
 

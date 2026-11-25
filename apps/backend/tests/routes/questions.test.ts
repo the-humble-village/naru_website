@@ -1,8 +1,9 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
-import questionsRoutes from '../src/routes/questions';
-import questionSetsRoutes from '../src/routes/question-sets';
-import { testDb, createTestUser, createTestProgram } from './setup';
-import { mountRoutes, tokenFor } from './http';
+import questionsRoutes from '@/routes/questions';
+import questionSetsRoutes from '@/routes/question-sets';
+import { testDb, createTestUser, createTestProgram } from '../setup';
+import { mountRoutes, tokenFor } from '../http';
 
 const questions = mountRoutes('/questions', questionsRoutes);
 const sets = mountRoutes('/question-sets', questionSetsRoutes);

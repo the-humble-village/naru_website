@@ -1,10 +1,11 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, afterAll } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { LocalStorage, LOCAL_STORAGE_DIR, verifyToken } from '../src/storage/local';
-import fileRoutes from '../src/routes/files';
+import { LocalStorage, LOCAL_STORAGE_DIR, verifyToken } from '@/storage/local';
+import fileRoutes from '@/routes/files';
 
 // Extract the ?token=... value from a URL produced by the driver
 function tokenOf(url: string): string {

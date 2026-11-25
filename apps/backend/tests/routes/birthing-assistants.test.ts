@@ -1,10 +1,11 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import birthingAssistantRoutes from '../src/routes/birthing-assistants';
-import { testDb, createTestUser, createTestCommunity, createTestTraining } from './setup';
-import { appConfig } from '../src/config';
+import birthingAssistantRoutes from '@/routes/birthing-assistants';
+import { testDb, createTestUser, createTestCommunity, createTestTraining } from '../setup';
+import { appConfig } from '@/config';
 
 // Create test app with birthing assistants routes and error handler
 const app = new Hono();

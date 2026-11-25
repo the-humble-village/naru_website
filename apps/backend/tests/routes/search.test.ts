@@ -1,10 +1,11 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import searchRoutes from '../src/routes/search';
-import { testDb, createTestUser, createTestFamily, createTestMother, createTestPerson, createTestChild } from './setup';
-import { appConfig } from '../src/config';
+import searchRoutes from '@/routes/search';
+import { testDb, createTestUser, createTestFamily, createTestMother, createTestPerson, createTestChild } from '../setup';
+import { appConfig } from '@/config';
 
 // Create test app with search routes and error handler
 const app = new Hono();

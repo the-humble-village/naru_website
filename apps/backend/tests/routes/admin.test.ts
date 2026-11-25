@@ -1,10 +1,11 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import adminRoutes from '../src/routes/admin';
-import { testDb, createTestUser } from './setup';
-import { appConfig } from '../src/config';
+import adminRoutes from '@/routes/admin';
+import { testDb, createTestUser } from '../setup';
+import { appConfig } from '@/config';
 
 // Create test app with admin routes and error handler
 const app = new Hono();

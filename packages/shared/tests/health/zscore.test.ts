@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect } from 'vitest';
 import {
   ageInDays,
@@ -7,7 +8,7 @@ import {
   heightForAge,
   weightForHeight,
   computeNutritionZScores,
-} from '../zscore';
+} from '@/health/zscore';
 
 describe('Z-Score Calculator', () => {
   describe('ageInDays', () => {

@@ -1,5 +1,6 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, expect, it } from 'vitest';
-import { formatPhone, PhoneSchema } from '../phone.js';
+import { formatPhone, PhoneSchema } from '@/schemas/phone.js';
 
 describe('formatPhone', () => {
   it('groups a local number as XXXX-XXXX', () => {

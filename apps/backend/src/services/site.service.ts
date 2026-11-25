@@ -1,5 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import type { Site } from '@prisma/client';
+import { Prisma, type Site } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import { type SiteCreate, type SiteUpdate, type SiteRead } from '@naru/shared';
 import prisma from '../db.js';
@@ -52,7 +52,7 @@ export async function updateSite(id: number, data: SiteUpdate): Promise<SiteRead
       ...(data.title !== undefined && { title: data.title }),
       ...(data.lat !== undefined && { lat: data.lat }),
       ...(data.lng !== undefined && { lng: data.lng }),
-      ...(data.boundary !== undefined && { boundary: data.boundary ?? undefined }),
+      ...(data.boundary !== undefined && { boundary: data.boundary ?? Prisma.DbNull }),
     },
   });
   return fmt(site);

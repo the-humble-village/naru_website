@@ -95,3 +95,8 @@ Task: Removed skip and limit from the families list response type and its test f
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Gave the Prisma client its real type and replaced every any in the backend source, because the client was declared any, which turned off type-checking for every database query.
+
+## 2026-11-25: apps/backend/src/services/ (dashboard, family, site).service.ts, apps/backend/tests/routes/ (dashboard, families).test.ts, apps/backend/tests/routes/sites.test.ts (new file), AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Excluded soft-deleted children, visits and enrollments from the families list and dashboard, because the soft-delete filter does not reach nested data, and let a site's boundary be cleared, because null was treated as no change.

@@ -123,10 +123,18 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
         notes: true,
         createdAt: true,
         updatedAt: true,
-        _count: { select: { children: true } },
+        // The soft-delete extension only rewrites the top-level where, so the
+        // nested filters are spelled out.
+        _count: { select: { children: { where: { deletedAt: null } } } },
         enrollments: {
+          where: { deletedAt: null },
           select: {
-            visits: { take: 1, orderBy: { visitDate: 'desc' }, select: { visitDate: true } },
+            visits: {
+              where: { deletedAt: null },
+              take: 1,
+              orderBy: { visitDate: 'desc' },
+              select: { visitDate: true },
+            },
           },
         },
       },
@@ -136,7 +144,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
         communityId: true,
         _count: {
           select: {
-            children: true,
+            children: { where: { deletedAt: null } },
             enrollments: { where: ACTIVE },
           },
         },

@@ -5,6 +5,10 @@ import { toDateOnly } from '../utils/date.js';
 
 const ACTIVE = { exitedAt: null, deletedAt: null } as const;
 
+// Soft-deleting an enrollment does not cascade to its visits, so every visit
+// query filters the join or a deleted enrollment's visits keep showing up.
+const LIVE_VISIT = { deletedAt: null, enrollment: { deletedAt: null } } as const;
+
 // An enrollment names exactly one subject, so whichever relation came back
 // non-null is the one to read the display name from.
 function subjectOf(enrollment: {
@@ -79,6 +83,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
     visitsThisMonth,
   ] = await Promise.all([
     prisma.visit.findMany({
+      where: LIVE_VISIT,
       take: 10,
       orderBy: { visitDate: 'desc' },
       select: {
@@ -156,7 +161,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
     prisma.person.count(),
     prisma.family.count(),
     prisma.community.count(),
-    prisma.visit.count({ where: { visitDate: { gte: startOfMonth }, deletedAt: null } }),
+    prisma.visit.count({ where: { ...LIVE_VISIT, visitDate: { gte: startOfMonth } } }),
   ]);
 
   // Subjects with no active enrollment — the §9.4 worklist.
@@ -165,7 +170,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
   const trends = await Promise.all(
     monthSlots.map(async ({ label, start, end }) => {
       const [visits, newcomers] = await Promise.all([
-        prisma.visit.count({ where: { visitDate: { gte: start, lt: end }, deletedAt: null } }),
+        prisma.visit.count({ where: { ...LIVE_VISIT, visitDate: { gte: start, lt: end } } }),
         prisma.enrollment.count({ where: { enrolledAt: { gte: start, lt: end }, deletedAt: null } }),
       ]);
       return { month: label, visits, newcomers };

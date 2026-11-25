@@ -137,6 +137,24 @@ describe('Dashboard Routes', () => {
       expect(data.communityBreakdown[0].children).toBe(1);
     });
 
+    it('ignores visits on deleted enrollments', async () => {
+      const child = await createTestChild();
+      const program = await createTestProgram();
+      const enrollment = await createTestEnrollment(
+        program.id,
+        { childId: child.id },
+        { deletedAt: new Date() }
+      );
+      await createTestVisit(enrollment.id, { visitDate: new Date() });
+
+      const response = await testClient.get('/', accessToken);
+      const data = await response.json();
+
+      expect(data.recentVisits).toEqual([]);
+      expect(data.stats.visitsThisMonth).toBe(0);
+      expect(data.visitsPerMonth.every((month: { count: number }) => month.count === 0)).toBe(true);
+    });
+
     it('should return empty arrays when no data exists', async () => {
       const response = await testClient.get('/', accessToken);
       expect(response.status).toBe(200);

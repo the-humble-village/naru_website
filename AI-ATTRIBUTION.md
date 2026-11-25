@@ -100,3 +100,8 @@ Task: Gave the Prisma client its real type and replaced every any in the backend
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Excluded soft-deleted children, visits and enrollments from the families list and dashboard, because the soft-delete filter does not reach nested data, and let a site's boundary be cleared, because null was treated as no change.
+
+## 2026-11-25: apps/backend/src/services/dashboard.service.ts, apps/backend/tests/routes/dashboard.test.ts, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Excluded visits on soft-deleted enrollments from the dashboard's recent visits and visit counts, because deleting an enrollment does not delete its visits.

@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   type PersonCreate,
@@ -21,7 +23,9 @@ const PERSON_SELECT = {
   // Explicitly exclude deletedAt
 } as const;
 
-function toPersonRead(person: any): PersonRead {
+type PersonRow = Prisma.PersonGetPayload<{ select: typeof PERSON_SELECT }>;
+
+function toPersonRead(person: PersonRow): PersonRead {
   return {
     ...person,
     birthDate: person.birthDate ? person.birthDate.toISOString() : null,
@@ -49,7 +53,7 @@ export async function listPeople(options: {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 50));
 
-  const where: any = {};
+  const where: Prisma.PersonWhereInput = {};
 
   if (options.communityId !== undefined) where.communityId = options.communityId;
 
@@ -166,7 +170,7 @@ export async function updatePerson(
     }
   }
 
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: Prisma.PersonUncheckedUpdateInput = { updatedAt: new Date() };
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.birthDate !== undefined) {

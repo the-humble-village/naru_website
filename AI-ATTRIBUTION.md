@@ -90,3 +90,8 @@ Task: Corrected statements in AGENTS.md and the backend skill that no longer mat
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Removed skip and limit from the families list response type and its test fixtures, because the API does not return them.
+
+## 2026-11-25: apps/backend/src/db.ts, apps/backend/src/middleware/soft-delete.ts, apps/backend/src/services/ (admin, birthing-assistant, child, dashboard, enrollment, event, family, mother, person, photo-attachment, program, question, question-set, search, site, user, visit).service.ts, AGENTS.md, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Gave the Prisma client its real type and replaced every any in the backend source, because the client was declared any, which turned off type-checking for every database query.

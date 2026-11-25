@@ -1,9 +1,10 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { HTTPException } from 'hono/http-exception';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Question } from '@prisma/client';
 import { type QuestionCreate, type QuestionUpdate, type QuestionRead } from '@naru/shared';
 import prisma from '../db.js';
 
-function fmt(q: any): QuestionRead {
+function fmt(q: Question): QuestionRead {
   return {
     id: q.id,
     title: q.title,

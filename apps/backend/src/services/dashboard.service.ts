@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { type DashboardResponse, type UserRead } from '@naru/shared';
 import prisma from '../db.js';
 import { toDateOnly } from '../utils/date.js';
@@ -6,11 +7,16 @@ const ACTIVE = { exitedAt: null, deletedAt: null } as const;
 
 // An enrollment names exactly one subject, so whichever relation came back
 // non-null is the one to read the display name from.
-function subjectOf(enrollment: any): { type: 'MOTHER' | 'CHILD' | 'PERSON' | 'FAMILY'; id: number; name: string | null } {
+function subjectOf(enrollment: {
+  mother: { id: number; name: string } | null;
+  child: { id: number; name: string } | null;
+  person: { id: number; name: string } | null;
+  family: { id: number; familyName: string | null } | null;
+}): { type: 'MOTHER' | 'CHILD' | 'PERSON' | 'FAMILY'; id: number; name: string | null } {
   if (enrollment.mother) return { type: 'MOTHER', id: enrollment.mother.id, name: enrollment.mother.name };
   if (enrollment.child) return { type: 'CHILD', id: enrollment.child.id, name: enrollment.child.name };
   if (enrollment.person) return { type: 'PERSON', id: enrollment.person.id, name: enrollment.person.name };
-  return { type: 'FAMILY', id: enrollment.family.id, name: enrollment.family.familyName };
+  return { type: 'FAMILY', id: enrollment.family!.id, name: enrollment.family!.familyName };
 }
 
 export interface UnenrolledCount {
@@ -168,7 +174,7 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
   }
 
   return {
-    recentVisits: recentVisitRows.map((visit: any) => {
+    recentVisits: recentVisitRows.map((visit) => {
       const subject = subjectOf(visit.enrollment);
       return {
         id: visit.id,
@@ -185,15 +191,15 @@ export async function getDashboardData(user: UserRead): Promise<DashboardRespons
       };
     }),
 
-    enrollmentsByProgram: programs.map((program: any) => ({
+    enrollmentsByProgram: programs.map((program) => ({
       programId: program.id,
       programName: program.name,
       programKind: program.kind,
       active: program._count.enrollments,
     })),
 
-    familiesInCrisis: familiesInCrisisRows.map(({ _count, enrollments, ...family }: any) => {
-      const visitDates: Date[] = enrollments.flatMap((e: any) => e.visits).map((v: any) => v.visitDate);
+    familiesInCrisis: familiesInCrisisRows.map(({ _count, enrollments, ...family }) => {
+      const visitDates = enrollments.flatMap((e) => e.visits).map((v) => v.visitDate);
       const lastVisit = visitDates.length ? visitDates.reduce((a, b) => (a > b ? a : b)) : null;
 
       return {

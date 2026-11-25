@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import bcrypt from 'bcrypt';
 import { HTTPException } from 'hono/http-exception';
 import {
@@ -8,6 +9,7 @@ import {
   type LoginAvailability,
 } from '@naru/shared';
 import prisma from '../db.js';
+import { withDeleted } from '../middleware/soft-delete.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -28,7 +30,7 @@ const USER_SELECT = {
   updatedAt: true,
 } as const;
 
-/** Shape of a row selected with USER_SELECT (the prisma client is untyped here). */
+/** Shape of a row selected with USER_SELECT. */
 type UserRecord = {
   id: number;
   localId: string | null;
@@ -60,11 +62,9 @@ function toUserRead(user: UserRecord): UserRead {
 async function findLoginOwner(
   login: string
 ): Promise<{ id: number; deletedAt: Date | null } | null> {
-  return prisma.user.findFirst({
-    where: { login },
-    select: { id: true, deletedAt: true },
-    includeDeleted: true,
-  });
+  return prisma.user.findFirst(
+    withDeleted({ where: { login }, select: { id: true, deletedAt: true } })
+  );
 }
 
 /**

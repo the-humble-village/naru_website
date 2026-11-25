@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import { type LookupRead, type LookupReorder } from '@naru/shared';
 import prisma from '../db.js';
@@ -35,12 +37,23 @@ function validateTableName(table: string): table is LookupTableName {
   return Object.keys(TABLE_MODEL_MAP).includes(table);
 }
 
+type LookupRow = Omit<LookupRead, 'createdAt' | 'updatedAt'> & { createdAt: Date; updatedAt: Date };
+
+// The five lookup models differ only in their extra columns, but Prisma gives
+// each its own args type and TypeScript cannot call the union. This is the part
+// they share.
+interface LookupDelegate {
+  findMany(args: object): Promise<LookupRow[]>;
+  findFirst(args: object): Promise<{ id: number; title: string } | null>;
+  create(args: object): Promise<LookupRow>;
+  update(args: object): Prisma.PrismaPromise<LookupRow>;
+}
+
 /**
  * Get the Prisma model for a table name
  */
-function getPrismaModel(table: LookupTableName) {
-  const modelName = TABLE_MODEL_MAP[table];
-  return (prisma as any)[modelName];
+function getPrismaModel(table: LookupTableName): LookupDelegate {
+  return prisma[TABLE_MODEL_MAP[table]] as unknown as LookupDelegate;
 }
 
 // Columns beyond `title` that a given lookup table accepts. Community carries
@@ -90,7 +103,7 @@ export async function listLookupEntries(table: string): Promise<LookupRead[]> {
       : { title: 'asc' },
   });
 
-  const entriesRead: LookupRead[] = entries.map((entry: any) => ({
+  const entriesRead: LookupRead[] = entries.map((entry) => ({
     ...entry,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),

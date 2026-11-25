@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   type FamilyCreate,
@@ -25,7 +27,9 @@ const FAMILY_SELECT = {
   // Explicitly exclude deletedAt
 } as const;
 
-function toFamilyRead(family: any): FamilyRead {
+type FamilyRow = Prisma.FamilyGetPayload<{ select: typeof FAMILY_SELECT }>;
+
+function toFamilyRead(family: FamilyRow): FamilyRead {
   return {
     ...family,
     createdAt: family.createdAt.toISOString(),
@@ -45,11 +49,11 @@ export async function listFamilies(options: {
   inCrisis?: string;
   unenrolled?: boolean;
   user: UserRead;
-} = {} as any): Promise<{ families: FamilyListItem[]; total: number }> {
+}): Promise<{ families: FamilyListItem[]; total: number }> {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 20)); // Max 100 per page
 
-  const where: any = {};
+  const where: Prisma.FamilyWhereInput = {};
 
   if (options.search && options.search.trim()) {
     where.familyName = {
@@ -116,10 +120,10 @@ export async function listFamilies(options: {
   ]);
 
   const familiesRead: FamilyListItem[] = families.map(
-    ({ community, enrollments, ...family }: any) => {
-      const visitDates: Date[] = enrollments
-        .flatMap((enrollment: any) => enrollment.visits)
-        .map((visit: any) => visit.visitDate);
+    ({ community, enrollments, ...family }) => {
+      const visitDates = enrollments
+        .flatMap((enrollment) => enrollment.visits)
+        .map((visit) => visit.visitDate);
 
       const lastVisit = visitDates.length
         ? visitDates.reduce((a, b) => (a > b ? a : b))

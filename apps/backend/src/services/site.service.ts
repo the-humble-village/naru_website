@@ -1,8 +1,10 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Site } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import { type SiteCreate, type SiteUpdate, type SiteRead } from '@naru/shared';
 import prisma from '../db.js';
 
-function fmt(s: any): SiteRead {
+function fmt(s: Site): SiteRead {
   return {
     id: s.id,
     title: s.title,

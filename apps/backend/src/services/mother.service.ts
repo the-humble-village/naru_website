@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   type MotherCreate,
@@ -26,7 +28,9 @@ const MOTHER_SELECT = {
   // Explicitly exclude deletedAt
 } as const;
 
-function toMotherRead(mother: any): MotherRead {
+type MotherRow = Prisma.MotherGetPayload<{ select: typeof MOTHER_SELECT }>;
+
+function toMotherRead(mother: MotherRow): MotherRead {
   return {
     ...mother,
     birthDate: mother.birthDate ? mother.birthDate.toISOString() : null,
@@ -52,7 +56,7 @@ export async function listMothers(options: {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 50));
 
-  const where: any = {};
+  const where: Prisma.MotherWhereInput = {};
 
   if (options.familyId !== undefined) where.familyId = options.familyId;
   if (options.midwifeId !== undefined) where.midwifeId = options.midwifeId;
@@ -172,7 +176,7 @@ export async function updateMother(
     }
   }
 
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: Prisma.MotherUncheckedUpdateInput = { updatedAt: new Date() };
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.birthDate !== undefined) {

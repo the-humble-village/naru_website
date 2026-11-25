@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   type QuestionSetCreate,
@@ -24,7 +26,9 @@ const SET_SELECT = {
     },
   },
   // Explicitly exclude deletedAt
-} as const;
+} satisfies Prisma.QuestionSetSelect;
+
+type QuestionSetRow = Prisma.QuestionSetGetPayload<{ select: typeof SET_SELECT }>;
 
 /**
  * A retired question stays in its sets so historical answers remain readable,
@@ -32,7 +36,7 @@ const SET_SELECT = {
  * than at the call site. The soft-delete extension cannot do this: it only
  * rewrites the top-level where, never a nested relation.
  */
-function fmt(set: any): QuestionSetRead {
+function fmt(set: QuestionSetRow): QuestionSetRead {
   return {
     id: set.id,
     name: set.name,
@@ -40,8 +44,8 @@ function fmt(set: any): QuestionSetRead {
     createdAt: set.createdAt.toISOString(),
     updatedAt: set.updatedAt.toISOString(),
     items: set.items
-      .filter((item: any) => item.question.deletedAt === null)
-      .map((item: any) => ({
+      .filter((item) => item.question.deletedAt === null)
+      .map((item) => ({
         id: item.id,
         questionId: item.questionId,
         questionTitle: item.question.title,
@@ -63,7 +67,7 @@ export async function listQuestionSets(options: {
   programId?: number;
   includeShared?: boolean;
 } = {}): Promise<QuestionSetRead[]> {
-  const where: any = {};
+  const where: Prisma.QuestionSetWhereInput = {};
 
   if (options.programId !== undefined) {
     where.OR = options.includeShared

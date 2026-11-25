@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { type SearchResponse, type SearchResultItem, type UserRead } from '@naru/shared';
 import prisma from '../db.js';
 
@@ -73,7 +74,7 @@ export async function searchByName(query: string, user: UserRead): Promise<Searc
   ]);
 
   const results: SearchResultItem[] = [
-    ...families.map((family: any) => ({
+    ...families.map((family) => ({
       id: family.id,
       type: 'family' as const,
       name: family.familyName,
@@ -82,7 +83,7 @@ export async function searchByName(query: string, user: UserRead): Promise<Searc
       communityId: family.communityId,
       activeEnrollments: family._count.enrollments,
     })),
-    ...mothers.map((mother: any) => ({
+    ...mothers.map((mother) => ({
       id: mother.id,
       type: 'mother' as const,
       name: mother.name,
@@ -91,7 +92,7 @@ export async function searchByName(query: string, user: UserRead): Promise<Searc
       communityId: mother.communityId,
       activeEnrollments: mother._count.enrollments,
     })),
-    ...children.map((child: any) => ({
+    ...children.map((child) => ({
       id: child.id,
       type: 'child' as const,
       name: child.name,
@@ -100,7 +101,7 @@ export async function searchByName(query: string, user: UserRead): Promise<Searc
       communityId: child.communityId,
       activeEnrollments: child._count.enrollments,
     })),
-    ...people.map((person: any) => ({
+    ...people.map((person) => ({
       id: person.id,
       type: 'person' as const,
       name: person.name,

@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   SUBJECT_FK,
@@ -37,7 +39,9 @@ const KIND_SUBJECT_TYPE: Record<ProgramKind, SubjectType> = {
   FAMILY_PAF: 'FAMILY',
 };
 
-function toProgramRead(program: any): ProgramRead {
+type ProgramRow = Prisma.ProgramGetPayload<{ select: typeof PROGRAM_SELECT }>;
+
+function toProgramRead(program: ProgramRow): ProgramRead {
   return {
     ...program,
     createdAt: program.createdAt.toISOString(),
@@ -53,7 +57,7 @@ export async function listPrograms(options: {
   kind?: ProgramKind;
   activeOnly?: boolean;
 }): Promise<{ programs: Array<ProgramRead & { activeEnrollmentCount: number }>; total: number }> {
-  const where: any = {};
+  const where: Prisma.ProgramWhereInput = {};
 
   if (options.kind !== undefined) where.kind = options.kind;
   if (options.activeOnly) where.active = true;
@@ -69,7 +73,7 @@ export async function listPrograms(options: {
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
   });
 
-  const items = programs.map(({ _count, ...program }: any) => ({
+  const items = programs.map(({ _count, ...program }) => ({
     ...toProgramRead(program),
     activeEnrollmentCount: _count.enrollments,
   }));
@@ -141,7 +145,7 @@ export async function updateProgram(programId: number, data: ProgramUpdate): Pro
   const maxAgeMonths = data.maxAgeMonths !== undefined ? data.maxAgeMonths : existing.maxAgeMonths;
   assertAgeBand(minAgeMonths, maxAgeMonths);
 
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: Prisma.ProgramUpdateInput = { updatedAt: new Date() };
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.description !== undefined) updateData.description = data.description;

@@ -1,9 +1,9 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { NUTRITION_STATUS_STYLE } from '../../utils/nutritionStatus';
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { z } from 'zod';
 import {
   EnrollmentCreate,
   EnrollmentCreateSchema,
@@ -35,7 +35,7 @@ import {
 } from '../../components';
 import type { PickedSubject } from '../../components';
 import { useTranslation } from '../../hooks';
-import { parseZodErrors } from '../../hooks/useFieldErrors';
+import { firstFieldError } from '../../hooks/useFieldErrors';
 
 const FIELD =
   'w-full min-h-[44px] px-3 py-2 bg-white border border-hv-border-input rounded-md focus:outline-none focus:ring-2 focus:ring-hv-accent';
@@ -165,17 +165,6 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
-};
-
-const preflight = <T,>(schema: z.ZodType<T>, data: unknown): string | null => {
-  const result = schema.safeParse(data);
-  if (result.success) return null;
-
-  const first = Object.entries(parseZodErrors(result.error))[0];
-  if (!first) return null;
-
-  const [field, message] = first;
-  return `${field}: ${message}`;
 };
 
 interface FormState {
@@ -393,7 +382,7 @@ export const EnrollPage: React.FC = () => {
       return;
     }
 
-    const invalid = preflight(EnrollmentCreateSchema, payload);
+    const invalid = firstFieldError(EnrollmentCreateSchema, payload, t);
     if (invalid) {
       setFormError(invalid);
       return;

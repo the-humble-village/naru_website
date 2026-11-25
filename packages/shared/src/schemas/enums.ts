@@ -1,4 +1,6 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { z } from 'zod';
+import { fallbackMessage } from './message.js';
 
 export const SexEnum = z.enum(['MALE', 'FEMALE']);
 
@@ -64,12 +66,14 @@ export const KIND_VISIT_DETAIL: Record<z.infer<typeof ProgramKindEnum>, 'pregnan
   FAMILY_PAF: null,
 };
 
+export const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
+
 // Date-only columns (@db.Date). Accepts a bare YYYY-MM-DD or a full ISO
 // timestamp and normalises to YYYY-MM-DD, so a client in a behind-UTC timezone
 // cannot shift an admission or visit onto the previous day.
 export const DateOnlySchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/, 'Expected YYYY-MM-DD')
+  .regex(DATE_ONLY_PATTERN, { error: fallbackMessage('Expected YYYY-MM-DD') })
   .transform((value) => value.slice(0, 10));
 
 export type Sex = z.infer<typeof SexEnum>;

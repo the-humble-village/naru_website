@@ -1,8 +1,8 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { NUTRITION_STATUS_STYLE } from '../utils/nutritionStatus';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { z } from 'zod';
 import {
   KIND_VISIT_DETAIL,
   LocationType,
@@ -24,7 +24,7 @@ import { photosApi } from '../api/photos';
 import { adminApi } from '../api/admin';
 import { useTranslation } from '../hooks/useTranslation';
 import { usePendingPhotoDeletions } from '../hooks/usePendingPhotoDeletions';
-import { parseZodErrors } from '../hooks/useFieldErrors';
+import { firstFieldError } from '../hooks/useFieldErrors';
 import { FormSelect } from './ui/FormSelect';
 import { ResourceRow, ResourceRowValue } from './ResourceRow';
 import { TrainingPicker } from './TrainingPicker';
@@ -101,17 +101,6 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
-};
-
-const preflight = <T,>(schema: z.ZodType<T>, data: unknown): string | null => {
-  const result = schema.safeParse(data);
-  if (result.success) return null;
-
-  const first = Object.entries(parseZodErrors(result.error))[0];
-  if (!first) return null;
-
-  const [field, message] = first;
-  return `${field}: ${message}`;
 };
 
 export const VisitForm: React.FC<VisitFormProps> = ({
@@ -377,7 +366,7 @@ export const VisitForm: React.FC<VisitFormProps> = ({
       return;
     }
 
-    const invalid = preflight(VisitCreateSchema, payload);
+    const invalid = firstFieldError(VisitCreateSchema, payload, t);
     if (invalid) {
       setFormError(invalid);
       return;

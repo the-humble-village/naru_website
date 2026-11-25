@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 // Spanish translations ported from root/sys/i18n/es.php
 export const es = {
   // People directories
@@ -473,6 +474,17 @@ export const es = {
   'common.loading': 'Cargando...',
   'common.unknown': 'Desconocido',
   'common.add_visit': 'Agregar Visita',
+
+  // Form validation
+  'validation.required': 'Este campo es obligatorio.',
+  'validation.too_short': 'Use al menos {min} caracteres.',
+  'validation.too_long': 'Use un máximo de {max} caracteres.',
+  'validation.number_too_small': 'Ingrese {min} o más.',
+  'validation.number_too_big': 'Ingrese {max} o menos.',
+  'validation.invalid_email': 'Ingrese un correo electrónico válido.',
+  'validation.invalid_date': 'Ingrese una fecha válida.',
+  'validation.invalid_phone': 'El número de teléfono solo puede contener dígitos.',
+  'validation.invalid': 'Ingrese un valor válido.',
 
   // Error page
   'error.title': 'Algo salio mal',

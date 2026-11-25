@@ -1,8 +1,8 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import React, { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { z } from 'zod';
 import {
   EnrollmentExit,
   EnrollmentExitSchema,
@@ -23,7 +23,7 @@ import {
   WeightDelta,
 } from '../../components';
 import { useTranslation } from '../../hooks';
-import { parseZodErrors } from '../../hooks/useFieldErrors';
+import { firstFieldError } from '../../hooks/useFieldErrors';
 import { AgeReadout, ageDaysAt, fetchSubjectSummary, todayLocal } from './EnrollPage';
 
 const FIELD =
@@ -69,17 +69,6 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
-};
-
-const preflight = <T,>(schema: z.ZodType<T>, data: unknown): string | null => {
-  const result = schema.safeParse(data);
-  if (result.success) return null;
-
-  const first = Object.entries(parseZodErrors(result.error))[0];
-  if (!first) return null;
-
-  const [field, message] = first;
-  return `${field}: ${message}`;
 };
 
 export const ExitEnrollmentPage: React.FC = () => {
@@ -239,7 +228,7 @@ export const ExitEnrollmentPage: React.FC = () => {
       exitNotes: textOrNull(exitNotes),
     };
 
-    const invalid = preflight(EnrollmentExitSchema, payload);
+    const invalid = firstFieldError(EnrollmentExitSchema, payload, t);
     if (invalid) {
       setFormError(invalid);
       return;

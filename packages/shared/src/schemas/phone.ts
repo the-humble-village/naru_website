@@ -1,4 +1,6 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { z } from 'zod';
+import { fallbackMessage } from './message.js';
 
 // Guatemalan numbers are eight digits, written 5512-3344. The country code is
 // 502, so the international form is +502 5512-3344.
@@ -52,7 +54,9 @@ export function formatPhone(raw: string): string {
 }
 
 /** Digits, spaces, dashes, parentheses and an optional leading `+` — no letters. */
+export const PHONE_PATTERN = /^\+?[\d\s()-]*$/;
+
 export const PhoneSchema = z
   .string()
   .max(64)
-  .regex(/^\+?[\d\s()-]*$/, 'Phone number may contain only digits');
+  .regex(PHONE_PATTERN, { error: fallbackMessage('Phone number may contain only digits') });

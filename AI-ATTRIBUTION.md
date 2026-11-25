@@ -10,3 +10,8 @@ Task: Create AGENTS.md on a new branch, moving the CLAUDE.md content into it and
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Add a rule that git commits end with '[agent-assisted]'.
+
+## 2026-11-25: apps/web/src/pages/__tests__/ErrorPage.test.tsx (new file), AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, add a test for ErrorPage, the only top-level page without one.

@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { Enrollment } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import eventsRoutes from '@/routes/events';
 import visitsRoutes from '@/routes/visits';
@@ -18,7 +20,7 @@ const visitClient = mountRoutes('/visits', visitsRoutes);
 describe('Event Routes', () => {
   let caseworkerToken: string;
   let supervisorToken: string;
-  let enrollment: any;
+  let enrollment: Enrollment;
 
   beforeEach(async () => {
     const caseworker = await createTestUser({ login: 'cw', email: 'cw@example.com', role: 'CASEWORKER' });
@@ -32,7 +34,7 @@ describe('Event Routes', () => {
     enrollment = await createTestEnrollment(program.id, { childId: child.id });
   });
 
-  const newEvent = (overrides: any = {}) => ({
+  const newEvent = (overrides: Record<string, unknown> = {}) => ({
     name: 'Midwives Day',
     eventDate: '2026-03-01',
     ...overrides,
@@ -111,7 +113,7 @@ describe('Event Routes', () => {
       expect(body.total).toBe(3);
       expect(body.skip).toBe(0);
       expect(body.limit).toBe(50);
-      expect(body.items.map((e: any) => e.name)).toEqual(['March', 'February', 'January']);
+      expect(body.items.map((e: { name: unknown }) => e.name)).toEqual(['March', 'February', 'January']);
       expect(body.items[0]).not.toHaveProperty('deletedAt');
     });
 
@@ -223,7 +225,7 @@ describe('Event Routes', () => {
       const res = await client.delete(`/events/${created.id}`, supervisorToken);
       expect(res.status).toBe(200);
 
-      const row = await testDb.event.findFirst({ where: { id: created.id }, includeDeleted: true });
+      const row = await testDb.event.findFirst(withDeleted({ where: { id: created.id } }));
       expect(row?.deletedAt).not.toBeNull();
 
       expect((await (await client.get('/events', caseworkerToken)).json()).total).toBe(0);

@@ -1,4 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { User } from '@prisma/client';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -56,7 +57,7 @@ const testClient = {
 };
 
 describe('Dashboard Routes', () => {
-  let user: any;
+  let user: User;
   let accessToken: string;
 
   beforeEach(async () => {
@@ -231,7 +232,7 @@ describe('Dashboard Routes', () => {
       const response = await testClient.get('/', accessToken);
       const data = await response.json();
 
-      const row = data.enrollmentsByProgram.find((p: any) => p.programId === program.id);
+      const row = data.enrollmentsByProgram.find((p: { programId: unknown }) => p.programId === program.id);
       expect(row.active).toBe(1);
       expect(data.stats.activeEnrollments).toBe(1);
     });
@@ -273,7 +274,7 @@ describe('Dashboard Routes', () => {
       const response = await testClient.get('/', accessToken);
       const data = await response.json();
 
-      const row = data.communityBreakdown.find((c: any) => c.communityId === community.id);
+      const row = data.communityBreakdown.find((c: { communityId: unknown }) => c.communityId === community.id);
       expect(row.families).toBe(1);
       expect(row.children).toBe(1);
       expect(row.activeEnrollments).toBe(1);

@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import LoginPage from '@/pages/auth/LoginPage';
 import * as authApi from '@/api/auth';
-import { en } from '@naru/shared';
+import { en, type AuthResponse } from '@naru/shared';
 
 // Mock the auth API
 vi.mock('@/api/auth', () => ({
@@ -91,7 +91,7 @@ describe('LoginPage', () => {
   });
 
   it('calls API when valid credentials are provided', async () => {
-    (authApi.authApi.login as any).mockRejectedValue({
+    vi.mocked(authApi.authApi.login).mockRejectedValue({
       response: { data: { message: 'Invalid credentials' } },
     });
 
@@ -136,7 +136,7 @@ describe('LoginPage', () => {
       refreshToken: 'test-refresh-token',
     };
 
-    (authApi.authApi.login as any).mockResolvedValue(mockAuthResponse);
+    vi.mocked(authApi.authApi.login).mockResolvedValue(mockAuthResponse);
 
     render(
       <TestWrapper>
@@ -171,7 +171,7 @@ describe('LoginPage', () => {
 
   it('shows API error on login failure', async () => {
     const errorMessage = 'Invalid credentials';
-    (authApi.authApi.login as any).mockRejectedValue({
+    vi.mocked(authApi.authApi.login).mockRejectedValue({
       response: { data: { message: errorMessage } },
     });
 
@@ -199,7 +199,7 @@ describe('LoginPage', () => {
   // "check your credentials", which is the wrong advice when the fix is to wait.
   it('shows the server message from the { error } response shape', async () => {
     const errorMessage = 'Too many login attempts. Please wait a few minutes and try again.';
-    (authApi.authApi.login as any).mockRejectedValue({
+    vi.mocked(authApi.authApi.login).mockRejectedValue({
       response: { status: 429, data: { error: errorMessage } },
     });
 
@@ -224,16 +224,16 @@ describe('LoginPage', () => {
 
 
   it('shows loading state during form submission', async () => {
-    let resolveLogin: any;
-    const loginPromise = new Promise(resolve => {
+    let resolveLogin = () => {};
+    const loginPromise = new Promise<AuthResponse>(resolve => {
       resolveLogin = () => resolve({
         user: { id: 1, login: 'testuser' },
         accessToken: 'abc',
         refreshToken: 'def'
-      });
+      } as AuthResponse);
     });
 
-    (authApi.authApi.login as any).mockReturnValue(loginPromise);
+    vi.mocked(authApi.authApi.login).mockReturnValue(loginPromise);
 
     render(
       <TestWrapper>

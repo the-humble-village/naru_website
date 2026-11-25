@@ -31,7 +31,7 @@ describe('ZScoreBadge', () => {
     });
 
     it('should handle undefined z-score', () => {
-      render(<ZScoreBadge zScore={undefined as any} />);
+      render(<ZScoreBadge zScore={undefined as unknown as null} />);
 
       expect(screen.getByText('Z-Score: No data')).toBeInTheDocument();
     });

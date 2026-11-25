@@ -28,7 +28,7 @@ afterAll(async () => {
 
 describe('LocalStorage driver', () => {
   it('signs upload/download URLs pointing at the local endpoint', async () => {
-    const uploadUrl = await storage.getUploadUrl(KEY, 'image/jpeg', 1024);
+    const uploadUrl = await storage.getUploadUrl(KEY, 'image/jpeg');
     expect(uploadUrl).toContain('/api/files/local?token=');
 
     const putToken = verifyToken(tokenOf(uploadUrl), 'put');
@@ -49,7 +49,7 @@ describe('LocalStorage driver', () => {
     expect(await storage.exists(KEY)).toBe(false);
 
     // Upload via the presigned PUT URL
-    const uploadUrl = await storage.getUploadUrl(KEY, 'image/jpeg', bytes.length);
+    const uploadUrl = await storage.getUploadUrl(KEY, 'image/jpeg');
     const putRes = await app.request('http://localhost' + uploadUrl, {
       method: 'PUT',
       body: bytes,

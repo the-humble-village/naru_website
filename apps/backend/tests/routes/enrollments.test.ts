@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { Program } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import enrollmentsRoutes from '@/routes/enrollments';
 import {
@@ -21,11 +23,11 @@ describe('Enrollments Routes', () => {
   let caseworkerToken: string;
   let supervisorToken: string;
 
-  let nutrition: any;
-  let pregnancy: any;
-  let midwives: any;
-  let youth: any;
-  let paf: any;
+  let nutrition: Program;
+  let pregnancy: Program;
+  let midwives: Program;
+  let youth: Program;
+  let paf: Program;
 
   beforeEach(async () => {
     const caseworker = await createTestUser({ login: 'cw', email: 'cw@example.com', role: 'CASEWORKER' });
@@ -436,7 +438,7 @@ describe('Enrollments Routes', () => {
       const res = await client.get('/enrollments?status=all&onDate=2026-06-01', caseworkerToken);
       const body = await res.json();
 
-      expect(body.items.map((e: any) => e.subjectName)).toEqual(['Joined Jan']);
+      expect(body.items.map((e: { subjectName: unknown }) => e.subjectName)).toEqual(['Joined Jan']);
     });
 
     it('reports visit count and last visit date', async () => {
@@ -512,7 +514,7 @@ describe('Enrollments Routes', () => {
       const res = await client.get(`/enrollments?communityId=${xela.id}`, caseworkerToken);
       const body = await res.json();
 
-      expect(body.items.map((e: any) => e.subjectName)).toEqual(['In Xela']);
+      expect(body.items.map((e: { subjectName: unknown }) => e.subjectName)).toEqual(['In Xela']);
     });
 
     it('filters by site, derived through the community', async () => {
@@ -529,7 +531,7 @@ describe('Enrollments Routes', () => {
       const res = await client.get(`/enrollments?siteId=${site.id}`, caseworkerToken);
       const body = await res.json();
 
-      expect(body.items.map((e: any) => e.subjectName)).toEqual(['In site']);
+      expect(body.items.map((e: { subjectName: unknown }) => e.subjectName)).toEqual(['In site']);
     });
 
     it('excludes soft-deleted enrollments', async () => {
@@ -809,11 +811,10 @@ describe('Enrollments Routes', () => {
       const res = await client.delete(`/enrollments/${enrollment.id}`, supervisorToken);
       expect(res.status).toBe(200);
 
-      const row = await testDb.enrollment.findFirst({
+      const row = await testDb.enrollment.findFirst(withDeleted({
         where: { id: enrollment.id },
-        includeDeleted: true,
-      });
-      expect(row.deletedAt).not.toBeNull();
+      }));
+      expect(row!.deletedAt).not.toBeNull();
 
       const reenrol = await client.post(
         '/enrollments',

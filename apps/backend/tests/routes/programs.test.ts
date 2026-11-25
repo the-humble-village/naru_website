@@ -1,4 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import programsRoutes from '@/routes/programs';
 import {
@@ -49,7 +50,7 @@ describe('Programs Routes', () => {
       const res = await client.get('/programs', caseworkerToken);
       const body = await res.json();
 
-      expect(body.items.map((p: any) => p.name)).toEqual(['First', 'Second', 'Third']);
+      expect(body.items.map((p: { name: unknown }) => p.name)).toEqual(['First', 'Second', 'Third']);
     });
 
     it('filters to active programs only', async () => {
@@ -59,7 +60,7 @@ describe('Programs Routes', () => {
       const res = await client.get('/programs?activeOnly=true', caseworkerToken);
       const body = await res.json();
 
-      expect(body.items.map((p: any) => p.name)).toEqual(['On']);
+      expect(body.items.map((p: { name: unknown }) => p.name)).toEqual(['On']);
     });
 
     it('filters by kind', async () => {
@@ -69,7 +70,7 @@ describe('Programs Routes', () => {
       const res = await client.get('/programs?kind=MIDWIFE', caseworkerToken);
       const body = await res.json();
 
-      expect(body.items.map((p: any) => p.name)).toEqual(['Midwives']);
+      expect(body.items.map((p: { name: unknown }) => p.name)).toEqual(['Midwives']);
     });
 
     it('counts active enrollments only', async () => {
@@ -231,11 +232,10 @@ describe('Programs Routes', () => {
       const res = await client.delete(`/programs/${program.id}`, adminToken);
       expect(res.status).toBe(200);
 
-      const row = await testDb.program.findFirst({
+      const row = await testDb.program.findFirst(withDeleted({
         where: { id: program.id },
-        includeDeleted: true,
-      });
-      expect(row.deletedAt).not.toBeNull();
+      }));
+      expect(row!.deletedAt).not.toBeNull();
     });
 
     it('refuses while active enrollments exist', async () => {

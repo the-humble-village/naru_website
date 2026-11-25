@@ -1,4 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import peopleRoutes from '@/routes/people';
 import {
@@ -127,7 +128,7 @@ describe('People Routes', () => {
       const res = await client.get('/people?unenrolled=true', caseworkerToken);
       const body = await res.json();
 
-      expect(body.items.map((p: any) => p.name)).toEqual(['Never enrolled']);
+      expect(body.items.map((p: { name: unknown }) => p.name)).toEqual(['Never enrolled']);
     });
 
     it('excludes soft-deleted people', async () => {
@@ -151,7 +152,7 @@ describe('People Routes', () => {
 
       const body = await res.json();
       expect(body.total).toBe(2);
-      expect(body.items.map((m: any) => m.name)).toEqual(['Ana', 'Rosa']);
+      expect(body.items.map((m: { name: unknown }) => m.name)).toEqual(['Ana', 'Rosa']);
     });
 
     it('returns an empty caseload for a person who is not a midwife', async () => {
@@ -196,8 +197,8 @@ describe('People Routes', () => {
       const res = await client.delete(`/people/${person.id}`, supervisorToken);
       expect(res.status).toBe(200);
 
-      const row = await testDb.person.findFirst({ where: { id: person.id }, includeDeleted: true });
-      expect(row.deletedAt).not.toBeNull();
+      const row = await testDb.person.findFirst(withDeleted({ where: { id: person.id } }));
+      expect(row!.deletedAt).not.toBeNull();
     });
   });
 });

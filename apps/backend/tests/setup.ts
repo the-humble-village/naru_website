@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { beforeAll, afterAll, beforeEach } from 'vitest'
 import { assertTestDatabaseUrl } from './assert-test-database'
 
@@ -22,7 +23,7 @@ assertTestDatabaseUrl(process.env.DATABASE_URL, 'the test environment')
 process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only'
 process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only'
 
-import { PrismaClient } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { prisma as testDb } from '../src/db'
 import { resetAllRateLimits } from '../src/middleware/rate-limit'
@@ -35,10 +36,10 @@ beforeAll(async () => {
   // Connect to test database
   try {
     await testDb.$connect()
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Failed to connect to the test database.')
     console.error('DATABASE_URL:', process.env.DATABASE_URL?.replace(/:([^@]+)@/, ':****@')) // Mask password
-    console.error('Error:', error.message)
+    console.error('Error:', error instanceof Error ? error.message : error)
     console.error('\nPossible solutions:')
     console.error('1. Make sure PostgreSQL is running.')
     console.error('2. Check if the database "naru_test" exists (run: createdb naru_test).')
@@ -51,9 +52,11 @@ beforeAll(async () => {
   // i.e. a migration landed on main that this database has not caught up with).
   try {
     await testDb.user.count()
-  } catch (error: any) {
-    if (error.code === 'P2021' || error.code === 'P2022' || error.message.includes('does not exist')) {
-      const detail = error.code === 'P2022'
+  } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : undefined
+    const message = error instanceof Error ? error.message : ''
+    if (code === 'P2021' || code === 'P2022' || message.includes('does not exist')) {
+      const detail = code === 'P2022'
         ? 'Test database schema is out of date (a column is missing).'
         : 'Test database tables do not exist.'
       console.error(`❌ ${detail}`)
@@ -79,9 +82,9 @@ beforeEach(async () => {
 })
 
 // Helper functions for tests
-export const createTestUser = async (overrides: any = {}) => {
+export const createTestUser = async (overrides: Partial<Prisma.UserUncheckedCreateInput> = {}) => {
   const email = overrides.email || 'test@example.com';
-  const login = overrides.login || email.split('@')[0];
+  const login = overrides.login || email.split('@')[0]!;
   return testDb.user.create({
     data: {
       login,
@@ -96,7 +99,9 @@ export const createTestUser = async (overrides: any = {}) => {
   })
 }
 
-export const createTestFamily = async (familyNameOrOverrides: string | any = {}) => {
+export const createTestFamily = async (
+  familyNameOrOverrides: string | Partial<Prisma.FamilyUncheckedCreateInput> = {}
+) => {
   // Handle both string and object forms
   const overrides = typeof familyNameOrOverrides === 'string'
     ? { familyName: familyNameOrOverrides }
@@ -112,7 +117,7 @@ export const createTestFamily = async (familyNameOrOverrides: string | any = {})
   })
 }
 
-export const createTestCommunity = async (overrides: any = {}) => {
+export const createTestCommunity = async (overrides: Partial<Prisma.CommunityUncheckedCreateInput> = {}) => {
   return testDb.community.create({
     data: {
       title: 'Test Community',
@@ -121,7 +126,7 @@ export const createTestCommunity = async (overrides: any = {}) => {
   })
 }
 
-export const createTestMother = async (overrides: any = {}) => {
+export const createTestMother = async (overrides: Partial<Prisma.MotherUncheckedCreateInput> = {}) => {
   return testDb.mother.create({
     data: {
       name: 'Test Mother',
@@ -131,7 +136,7 @@ export const createTestMother = async (overrides: any = {}) => {
   })
 }
 
-export const createTestPerson = async (overrides: any = {}) => {
+export const createTestPerson = async (overrides: Partial<Prisma.PersonUncheckedCreateInput> = {}) => {
   return testDb.person.create({
     data: {
       name: 'Test Person',
@@ -142,7 +147,7 @@ export const createTestPerson = async (overrides: any = {}) => {
 
 // familyId is deliberately optional: a child must be creatable with no family
 // and no mother.
-export const createTestChild = async (overrides: any = {}) => {
+export const createTestChild = async (overrides: Partial<Prisma.ChildUncheckedCreateInput> = {}) => {
   return testDb.child.create({
     data: {
       name: 'Test Child',
@@ -156,7 +161,7 @@ export const createTestChild = async (overrides: any = {}) => {
 
 // cleanupDatabase() truncates `programs` too, so each test creates the program
 // rows it needs rather than relying on the migration seed.
-export const createTestProgram = async (overrides: any = {}) => {
+export const createTestProgram = async (overrides: Partial<Prisma.ProgramUncheckedCreateInput> = {}) => {
   return testDb.program.create({
     data: {
       name: 'Test Nutrition Program',
@@ -167,7 +172,11 @@ export const createTestProgram = async (overrides: any = {}) => {
   })
 }
 
-export const createTestEnrollment = async (programId: number, subject: any, overrides: any = {}) => {
+export const createTestEnrollment = async (
+  programId: number,
+  subject: Partial<Pick<Prisma.EnrollmentUncheckedCreateInput, 'motherId' | 'childId' | 'personId' | 'familyId'>>,
+  overrides: Partial<Prisma.EnrollmentUncheckedCreateInput> = {}
+) => {
   return testDb.enrollment.create({
     data: {
       programId,
@@ -178,7 +187,10 @@ export const createTestEnrollment = async (programId: number, subject: any, over
   })
 }
 
-export const createTestVisit = async (enrollmentId: number, overrides: any = {}) => {
+export const createTestVisit = async (
+  enrollmentId: number,
+  overrides: Partial<Prisma.VisitUncheckedCreateInput> = {}
+) => {
   return testDb.visit.create({
     data: {
       enrollmentId,
@@ -231,7 +243,7 @@ const assertConnectedToTestDatabase = async () => {
   if (verifiedDatabase) return
 
   const [{ current_database: name }] = await testDb.$queryRaw<
-    Array<{ current_database: string }>
+    [{ current_database: string }]
   >`SELECT current_database();`
 
   if (!name.endsWith('_test')) {

@@ -1,4 +1,5 @@
-import { Hono } from 'hono';
+// AI-assisted: see AI-ATTRIBUTION.md
+import { Hono, type Env } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 import { appConfig } from '../src/config';
@@ -10,7 +11,7 @@ import { appConfig } from '../src/config';
  * The older suites (children, families, ...) each carry their own copy of this;
  * new suites use this instead.
  */
-export function mountRoutes(basePath: string, routes: Hono<any>) {
+export function mountRoutes<E extends Env>(basePath: string, routes: Hono<E>) {
   const app = new Hono();
 
   app.onError((err, c) => {
@@ -20,12 +21,12 @@ export function mountRoutes(basePath: string, routes: Hono<any>) {
     return c.json({ message: 'Internal Server Error' }, 500);
   });
 
-  app.route(basePath, routes as any);
+  app.route(basePath, routes);
 
   const send = async (
     method: string,
     path: string,
-    body?: any,
+    body?: unknown,
     accessToken?: string
   ): Promise<Response> => {
     const headers: Record<string, string> = {};
@@ -44,8 +45,8 @@ export function mountRoutes(basePath: string, routes: Hono<any>) {
   return {
     app,
     get: (path: string, token?: string) => send('GET', path, undefined, token),
-    post: (path: string, body?: any, token?: string) => send('POST', path, body, token),
-    put: (path: string, body?: any, token?: string) => send('PUT', path, body, token),
+    post: (path: string, body?: unknown, token?: string) => send('POST', path, body, token),
+    put: (path: string, body?: unknown, token?: string) => send('PUT', path, body, token),
     delete: (path: string, token?: string) => send('DELETE', path, undefined, token),
   };
 }

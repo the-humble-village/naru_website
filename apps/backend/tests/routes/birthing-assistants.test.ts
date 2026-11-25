@@ -1,4 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { User } from '@prisma/client';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -43,7 +44,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  post: async (path: string, body?: any, accessToken?: string) => {
+  post: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -58,7 +59,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  put: async (path: string, body?: any, accessToken?: string) => {
+  put: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -87,9 +88,9 @@ const testClient = {
 };
 
 describe('Birthing Assistant Routes', () => {
-  let caseworkerUser: any;
-  let supervisorUser: any;
-  let adminUser: any;
+  let caseworkerUser: User;
+  let supervisorUser: User;
+  let adminUser: User;
   let caseworkerToken: string;
   let supervisorToken: string;
   let adminToken: string;
@@ -177,7 +178,7 @@ describe('Birthing Assistant Routes', () => {
       });
 
       const listed = await (await testClient.get('/birthing-assistants', caseworkerToken)).json();
-      const fromList = listed.find((ba: any) => ba.id === id);
+      const fromList = listed.find((ba: { id: unknown }) => ba.id === id);
       expect(fromList.servedCommunities).toEqual([{ id: keptCommunity.id, title: 'Kept Community' }]);
       expect(fromList.trainingsReceived).toEqual([{ id: keptTraining.id, title: 'Kept Training' }]);
 

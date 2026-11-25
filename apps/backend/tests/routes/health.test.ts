@@ -33,7 +33,7 @@ const createTokens = (userId: number, role: string, lang: string = 'en') => {
 
 // Helper to make requests with auth
 const testClient = {
-  post: async (path: string, body?: any, accessToken?: string) => {
+  post: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -194,7 +194,7 @@ describe('Health Routes', () => {
           referenceDate: '2024-02-01T00:00:00Z'
         }, accessToken);
 
-        expect(response.status).toBe(200, `Role ${role} should have access`);
+        expect(response.status, `Role ${role} should have access`).toBe(200);
       }
     });
   });

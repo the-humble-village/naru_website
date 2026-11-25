@@ -1,4 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { User } from '@prisma/client';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -43,7 +44,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  post: async (path: string, body?: any, accessToken?: string) => {
+  post: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -58,7 +59,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  put: async (path: string, body?: any, accessToken?: string) => {
+  put: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -123,9 +124,9 @@ const createTestExaminationType = async (title: string = 'Test Examination Type'
 };
 
 describe('Admin Routes', () => {
-  let caseworkerUser: any;
-  let supervisorUser: any;
-  let adminUser: any;
+  let caseworkerUser: User;
+  let supervisorUser: User;
+  let adminUser: User;
   let caseworkerToken: string;
   let supervisorToken: string;
   let adminToken: string;
@@ -433,7 +434,7 @@ describe('Admin Routes', () => {
       // Verify it's soft deleted (not visible in normal queries due to soft-delete middleware)
       const listResponse = await testClient.get('/admin/communities', adminToken);
       const communities = await listResponse.json();
-      expect(communities.find((c: any) => c.id === community.id)).toBeUndefined();
+      expect(communities.find((c: { id: unknown }) => c.id === community.id)).toBeUndefined();
     });
 
     it('should work for all lookup table types', async () => {

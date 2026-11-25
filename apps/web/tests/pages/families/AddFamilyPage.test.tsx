@@ -8,6 +8,7 @@ import AddFamilyPage from '@/pages/families/AddFamilyPage';
 import * as familiesApi from '@/api/families';
 import * as adminApi from '@/api/admin';
 import * as birthingAssistantsApi from '@/api/birthing-assistants';
+import type { FamilyRead } from '@naru/shared';
 
 // Mock the APIs
 vi.mock('@/api/families', () => ({
@@ -87,9 +88,9 @@ describe('AddFamilyPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
-    (adminApi.adminApi.fetchCommunities as any).mockResolvedValue(mockCommunities);
-    (adminApi.adminApi.fetchSites as any).mockResolvedValue(mockSites);
-    (birthingAssistantsApi.birthingAssistantsApi.fetchBirthingAssistants as any).mockResolvedValue(mockBirthingAssistants);
+    vi.mocked(adminApi.adminApi.fetchCommunities).mockResolvedValue(mockCommunities);
+    vi.mocked(adminApi.adminApi.fetchSites).mockResolvedValue(mockSites);
+    vi.mocked(birthingAssistantsApi.birthingAssistantsApi.fetchBirthingAssistants).mockResolvedValue(mockBirthingAssistants);
   });
 
   it('renders add family form', async () => {
@@ -191,7 +192,7 @@ describe('AddFamilyPage', () => {
       updatedAt: '2024-01-01T00:00:00Z',
     };
 
-    (familiesApi.familiesApi.createFamily as any).mockResolvedValue(mockCreatedFamily);
+    vi.mocked(familiesApi.familiesApi.createFamily).mockResolvedValue(mockCreatedFamily);
 
     render(
       <TestWrapper>
@@ -219,8 +220,8 @@ describe('AddFamilyPage', () => {
     await waitFor(() => {
       expect(familiesApi.familiesApi.createFamily).toHaveBeenCalled();
       // Check that first argument matches our expected data structure
-      const firstCall = (familiesApi.familiesApi.createFamily as any).mock.calls[0];
-      const familyData = firstCall[0];
+      const firstCall = vi.mocked(familiesApi.familiesApi.createFamily).mock.calls[0];
+      const familyData = firstCall![0];
       expect(familyData).toEqual({
         familyName: 'Test Family',
         inCrisis: false,
@@ -263,7 +264,7 @@ describe('AddFamilyPage', () => {
   });
 
   it('shows error message when family creation fails', async () => {
-    (familiesApi.familiesApi.createFamily as any).mockRejectedValue(
+    vi.mocked(familiesApi.familiesApi.createFamily).mockRejectedValue(
       new Error('Failed to create family')
     );
 
@@ -287,12 +288,12 @@ describe('AddFamilyPage', () => {
   });
 
   it('shows loading state during submission', async () => {
-    let resolveMutation: any;
-    const mutationPromise = new Promise(resolve => {
-      resolveMutation = () => resolve({ id: 1 });
+    let resolveMutation = () => {};
+    const mutationPromise = new Promise<FamilyRead>(resolve => {
+      resolveMutation = () => resolve({ id: 1 } as FamilyRead);
     });
 
-    (familiesApi.familiesApi.createFamily as any).mockReturnValue(mutationPromise);
+    vi.mocked(familiesApi.familiesApi.createFamily).mockReturnValue(mutationPromise);
 
     render(
       <TestWrapper>
@@ -349,7 +350,7 @@ describe('AddFamilyPage', () => {
 
   it('shows loading spinner while fetching lookup data', () => {
     // Mock pending promises to keep loading state
-    (adminApi.adminApi.fetchCommunities as any).mockImplementation(
+    vi.mocked(adminApi.adminApi.fetchCommunities).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 

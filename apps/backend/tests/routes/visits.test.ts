@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { Child, Enrollment, Program, Question, Resource, Training, User } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import visitsRoutes from '@/routes/visits';
 import {
@@ -19,20 +21,20 @@ import { mountRoutes, tokenFor } from '../http';
 const client = mountRoutes('/visits', visitsRoutes);
 
 describe('Visits Routes', () => {
-  let caseworker: any;
+  let caseworker: User;
   let caseworkerToken: string;
   let supervisorToken: string;
 
-  let nutrition: any;
-  let pregnancy: any;
-  let paf: any;
+  let nutrition: Program;
+  let pregnancy: Program;
+  let paf: Program;
 
   // 2025-02-15 birth against a 2026-02-15 visit is exactly 365 days, which is a
   // populated row in both WHO tables — the assertions below depend on it.
-  let child: any;
-  let childEnrollment: any;
-  let motherEnrollment: any;
-  let familyEnrollment: any;
+  let child: Child;
+  let childEnrollment: Enrollment;
+  let motherEnrollment: Enrollment;
+  let familyEnrollment: Enrollment;
 
   beforeEach(async () => {
     caseworker = await createTestUser({ login: 'cw', email: 'cw@example.com', role: 'CASEWORKER' });
@@ -69,7 +71,7 @@ describe('Visits Routes', () => {
     familyEnrollment = await createTestEnrollment(paf.id, { familyId: family.id });
   });
 
-  const newVisit = (overrides: any = {}) => ({
+  const newVisit = (overrides: Record<string, unknown> = {}) => ({
     enrollmentId: childEnrollment.id,
     visitDate: '2026-02-15',
     locationType: 'SITE',
@@ -279,10 +281,10 @@ describe('Visits Routes', () => {
   });
 
   describe('join tables', () => {
-    let incaparina: any;
-    let milk: any;
-    let handwashing: any;
-    let question: any;
+    let incaparina: Resource;
+    let milk: Resource;
+    let handwashing: Training;
+    let question: Question;
 
     beforeEach(async () => {
       incaparina = await testDb.resource.create({ data: { title: 'Incaparina', defaultUnit: 'bag' } });
@@ -367,8 +369,8 @@ describe('Visits Routes', () => {
   });
 
   describe('PUT /visits/:id', () => {
-    let incaparina: any;
-    let handwashing: any;
+    let incaparina: Resource;
+    let handwashing: Training;
     let visitId: number;
 
     beforeEach(async () => {
@@ -463,7 +465,7 @@ describe('Visits Routes', () => {
       const body = await res.json();
       expect(body.total).toBe(3);
       expect(body.items[0].visitDate).toBe('2026-04-01');
-      expect(body.items.map((v: any) => v.visitDate)).toEqual([
+      expect(body.items.map((v: { visitDate: unknown }) => v.visitDate)).toEqual([
         '2026-04-01',
         '2026-03-15',
         '2026-03-01',
@@ -596,11 +598,9 @@ describe('Visits Routes', () => {
       const res = await client.delete(`/visits/${visit.id}`, supervisorToken);
       expect(res.status).toBe(200);
 
-      const row = await testDb.visit.findFirst({
+      const row = await testDb.visit.findFirst(withDeleted({
         where: { id: visit.id },
-        // @ts-expect-error — bypasses the soft-delete extension
-        includeDeleted: true,
-      });
+      }));
       expect(row?.deletedAt).not.toBeNull();
 
       const list = await client.get('/visits', caseworkerToken);

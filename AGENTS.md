@@ -62,9 +62,10 @@ apps/                      # Deployables — each one runs or ships on its own
       RoleGate.tsx         # Conditionally renders by role
     pages/
       [Name]Page.tsx       # One per route, named + default export
-      __tests__/           # Vitest + RTL, one test file per page
     hooks/
     store/auth.ts          # Zustand: user, tokens, role, lang
+  web/tests/               # Vitest + RTL, mirrors web/src (tests/pages/mothers/…)
+    setup.ts               # Vitest setup file
 
   android/                 # Native Kotlin + Jetpack Compose — placeholder, code not in repo (frozen, see §11)
 
@@ -89,7 +90,7 @@ pnpm --filter @naru/web test     # web only
 pnpm --filter @naru/backend test # backend only
 
 # Run a single test file
-cd apps/web && npx vitest run src/pages/__tests__/SomePage.test.tsx
+cd apps/web && npx vitest run tests/pages/SomePage.test.tsx
 
 # Prisma
 cd apps/backend
@@ -173,7 +174,7 @@ Kinds with no detail table record visits purely on the shared `visit` spine (dat
 5. **Backend test**: `apps/backend/tests/[entity].test.ts`
 6. **API client**: `apps/web/src/api/[entity].ts` — export namespace object.
 7. **Page**: `apps/web/src/pages/[Name]Page.tsx` — add route in `App.tsx`.
-8. **Page test**: `apps/web/src/pages/__tests__/[Name]Page.test.tsx`
+8. **Page test**: `apps/web/tests/pages/[feature]/[Name]Page.test.tsx` — same path as the page under `src/`
 
 ## Entity Relationships
 
@@ -257,7 +258,7 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 - Functional components with `React.FC`
 - Named export + default export
 - Data fetching via TanStack Query hooks (`useQuery`, `useMutation`)
-- Every page should have a basic render test in `src/pages/__tests__/`
+- Every page should have a basic render test in `tests/pages/`, at the same path as the page
 
 ### Components (`src/components/`)
 
@@ -282,10 +283,11 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 - Custom palette: `hv-green`, `hv-green-hover`, `hv-accent`, `hv-crisis`, `hv-gray`, `hv-border`, `hv-card`, `hv-page`
 - Defined in `tailwind.config.ts`
 
-### Test patterns (`src/pages/__tests__/*.test.tsx`)
+### Test patterns (`tests/**/*.test.tsx`)
 
-- Mock API modules with `vi.mock('../../api/foo')`
-- Mock auth store with `vi.mock('../../store/auth')`
+- `tests/` mirrors `src/`; import app code through the `@/` alias (`@/pages/mothers/MothersPage`)
+- Mock API modules with `vi.mock('@/api/foo')`
+- Mock auth store with `vi.mock('@/store/auth')`
 - Wrap with `QueryClientProvider` (retry: false) + `MemoryRouter`
 - Use `screen.getByText()`, `waitFor()`, `fireEvent`
 

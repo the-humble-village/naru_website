@@ -6,7 +6,8 @@
     "jsx": "react-jsx",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
+    "paths": { "@/*": ["./src/*"] },
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
@@ -15,6 +16,6 @@
     "resolveJsonModule": true,
     "types": ["vite/client", "vitest/globals"]
   },
-  "include": ["src"],
+  "include": ["src", "tests"],
   "exclude": ["node_modules", "dist"]
 }

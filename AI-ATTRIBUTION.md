@@ -10,3 +10,8 @@ Task: Create AGENTS.md on a new branch, moving the CLAUDE.md content into it and
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Add a rule that git commits end with '[agent-assisted]'.
+
+## 2026-11-25: apps/backend/package.json, pnpm-workspace.yaml, pnpm-lock.yaml, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, remove the unused backend dependencies multer, @types/multer and @aws-sdk/client-rds, plus the leftover multer override.

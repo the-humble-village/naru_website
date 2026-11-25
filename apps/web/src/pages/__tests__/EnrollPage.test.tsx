@@ -159,7 +159,7 @@ describe('EnrollPage', () => {
     const admissionDate = await screen.findByLabelText(/Admission date/);
     fireEvent.change(admissionDate, { target: { value: '2026-09-01' } });
 
-    fireEvent.change(screen.getByLabelText('Entry weight (kg)'), {
+    fireEvent.change(screen.getByLabelText(/Entry weight \(kg\)/), {
       target: { value: '3.1' },
     });
 
@@ -177,7 +177,7 @@ describe('EnrollPage', () => {
 
     const admissionDate = await screen.findByLabelText(/Admission date/);
     fireEvent.change(admissionDate, { target: { value: '2026-09-01' } });
-    fireEvent.change(screen.getByLabelText('Entry weight (kg)'), {
+    fireEvent.change(screen.getByLabelText(/Entry weight \(kg\)/), {
       target: { value: '3.1' },
     });
     fireEvent.change(screen.getByLabelText('Caretaker'), {

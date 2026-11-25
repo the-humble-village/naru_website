@@ -127,7 +127,6 @@ const useNavData = () => {
 
   return {
     programs: programs?.items ?? [],
-    programsLoaded: programs !== undefined,
     unenrolledCount: unenrolled?.total ?? 0,
     isStaff: user?.role === 'ADMIN' || user?.role === 'SUPERVISOR',
   };
@@ -140,7 +139,7 @@ export const Layout: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { programs, programsLoaded, unenrolledCount, isStaff } = useNavData();
+  const { programs, unenrolledCount, isStaff } = useNavData();
 
   useEffect(() => {
     setMobileOpen(false);
@@ -150,7 +149,6 @@ export const Layout: React.FC = () => {
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase()
     : '';
 
-  const programsActive = location.pathname.startsWith('/programs');
   const peopleActive = peopleRoots.some((root) => location.pathname.startsWith(root));
 
   const peopleLinks = [
@@ -178,41 +176,10 @@ export const Layout: React.FC = () => {
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1 shrink-0" aria-label="Main">
-            <NavMenu
-              buttonClass={triggerClass(programsActive)}
-              trigger={(open) => (
-                <>
-                  <Layers size={16} />
-                  {t('nav.programs')}
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform ${open ? 'rotate-180' : ''}`}
-                  />
-                </>
-              )}
-            >
-              {(close) => (
-                <>
-                  <NavLink to="/programs" end className={menuItemClass} onClick={close}>
-                    {t('nav.all_programs')}
-                  </NavLink>
-                  <div className="my-1 border-t border-hv-border" />
-                  {programsLoaded && programs.length === 0 && (
-                    <p className="px-4 py-2.5 text-sm text-hv-sage">{t('nav.no_programs')}</p>
-                  )}
-                  {programs.map((program) => (
-                    <NavLink
-                      key={program.id}
-                      to={`/programs/${program.id}`}
-                      className={menuItemClass}
-                      onClick={close}
-                    >
-                      <span className="truncate">{program.name}</span>
-                    </NavLink>
-                  ))}
-                </>
-              )}
-            </NavMenu>
+            <NavLink to="/programs" className={topLinkClass}>
+              <Layers size={16} />
+              {t('nav.programs')}
+            </NavLink>
 
             <NavMenu
               buttonClass={triggerClass(peopleActive)}

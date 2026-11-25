@@ -35,3 +35,8 @@ Task: On a new branch, derive the auth store's User type from the shared UserRea
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: On a new branch, move the web tests into an apps/web/tests folder that mirrors src, with an @/ import alias. The user approved a one-off script for the path rewrites and header lines.
+
+## 2026-11-25: apps/web/tests/app.test.tsx (deleted), AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Delete the placeholder app.test.tsx, which tested no app code.

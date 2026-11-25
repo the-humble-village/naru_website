@@ -75,3 +75,8 @@ Task: Changed the attribution rule to record what was done and why, so entries e
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Merged dev into the infra/ pull request and resolved the CLAUDE.md conflict by moving its infra/ line to AGENTS.md, because the project instructions now live there.
+
+## 2026-11-25: .github/dependabot.yml, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Grouped Dependabot's weekly minor and patch updates into one pull request, and its GitHub Actions updates into another, because separate pull requests for each package were piling up.

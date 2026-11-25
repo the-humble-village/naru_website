@@ -10,9 +10,17 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "dev"
+    # One PR for all minor and patch updates. Majors stay separate, because one
+    # that breaks the build would block every other update in its group.
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     target-branch: "dev"
+    groups:
+      actions:
+        patterns: ["*"]

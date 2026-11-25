@@ -234,7 +234,9 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 - Middleware chain: `auth` → `requireAdmin`/`requireSupervisor` → handler
 - Validation: `zValidator('json', SomeCreateSchema)` then `c.req.valid('json')`
 - Response: `c.json(result)` or `c.json(result, 201)`
-- List endpoints return `{ items, total, skip, limit }`
+- Paginated list endpoints return `{ items, total, skip, limit }`; services return `{ <plural>, total }` and the route reshapes it. `limit` defaults to 50 and caps at 100
+- Exceptions: `/families` returns `{ families, total }` and `/users` returns `{ users, total }`, both defaulting to 20; `/programs` and `/reports` return `{ items, total }` unpaginated; `/search` returns `{ results, total, query }`
+- Lookups (`/admin/:table`), `/birthing-assistants`, `/questions`, `/question-sets` and `/sites` return a plain array
 - **Resources are top-level, not nested.** `/api/children?familyId=1`, not `/api/families/1/children` — a child can exist with no family, and a nested route cannot address one.
 
 ### Service files (`src/services/*.service.ts`)

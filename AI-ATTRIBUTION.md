@@ -84,4 +84,4 @@ Task: Grouped Dependabot's weekly minor and patch updates into one pull request,
 ## 2026-11-25: AGENTS.md, .claude/skills/naru-backend/SKILL.md, AI-ATTRIBUTION.md
 Tool: Claude Code
 Model: Claude Opus 5.5
-Task: Corrected statements in AGENTS.md and the backend skill that no longer matched the code, such as which models have deletedAt and how tests are set up, because following them would produce wrong code.
+Task: Corrected statements in AGENTS.md and the backend skill that no longer matched the code, such as which models have deletedAt, how tests are set up and what list endpoints return, because following them would produce wrong code.

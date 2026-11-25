@@ -112,7 +112,7 @@ export async function listWidgets(options: {
   user: UserRead;
 }): Promise<{ widgets: WidgetRead[]; total: number }> {
   const skip = Math.max(0, options.skip || 0);
-  const limit = Math.min(100, Math.max(1, options.limit || 20));
+  const limit = Math.min(100, Math.max(1, options.limit || 50));
 
   const where: Prisma.WidgetWhereInput = {};
   if (options.search?.trim()) {
@@ -267,7 +267,7 @@ export async function deleteWidget(id: number, user: UserRead): Promise<void> {
 - Convert `Date` objects to ISO strings before returning
 - Throw `HTTPException(404)` when not found, `HTTPException(400)` for domain errors
 - Check `localId` uniqueness on create and update
-- Pagination: `skip` defaults to 0, `limit` defaults to 20 and caps at 100
+- Pagination: `skip` defaults to 0, `limit` defaults to 50 and caps at 100
 - For nested resources (e.g., child under family), verify the parent exists first
 
 ### 4. Route (`apps/backend/src/routes/widget.ts`)
@@ -303,7 +303,12 @@ app.get('/', auth, async (c) => {
   const user = c.get('user') as UserRead;
 
   const result = await widgetService.listWidgets({ search, skip, limit, user });
-  return c.json(result);
+  return c.json({
+    items: result.widgets,
+    total: result.total,
+    skip: skip ?? 0,
+    limit: limit ?? 50,
+  });
 });
 
 // POST / — create
@@ -419,7 +424,7 @@ Run with: `cd apps/backend && npx vitest run tests/routes/widget.test.ts`
 6. **Date fields → ISO strings** — all `DateTime` values are converted via `.toISOString()` before returning.
 7. **localId uniqueness** — check before create and update if the entity supports offline sync.
 8. **Existence checks** — verify the record exists before update/delete; verify parent exists before creating a child entity.
-9. **Pagination** — list endpoints return `{ items: T[], total: number }` with `skip`/`limit` query params. Default limit 20, max 100.
+9. **Pagination** — paginated list endpoints return `{ items, total, skip, limit }` with `skip`/`limit` query params. Default limit 50, max 100. `AGENTS.md` lists the existing exceptions.
 10. **Prisma migrations only** — never raw SQL or manual ALTER TABLE. Run `npx prisma migrate dev` after schema changes.
 
 ## File Checklist

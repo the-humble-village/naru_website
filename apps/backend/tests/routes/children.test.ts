@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { Child, Family, User } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -51,7 +53,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  post: async (path: string, body?: any, accessToken?: string) => {
+  post: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -66,7 +68,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  put: async (path: string, body?: any, accessToken?: string) => {
+  put: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -95,13 +97,13 @@ const testClient = {
 };
 
 describe('Children Routes', () => {
-  let caseworkerUser: any;
-  let supervisorUser: any;
-  let adminUser: any;
+  let caseworkerUser: User;
+  let supervisorUser: User;
+  let adminUser: User;
   let caseworkerToken: string;
   let supervisorToken: string;
   let adminToken: string;
-  let testFamily: any;
+  let testFamily: Family;
 
   beforeEach(async () => {
     caseworkerUser = await createTestUser({ login: 'caseworker', role: 'CASEWORKER' });
@@ -347,7 +349,7 @@ describe('Children Routes', () => {
   });
 
   describe('GET /children/:id', () => {
-    let testChild: any;
+    let testChild: Child;
 
     beforeEach(async () => {
       testChild = await createTestChild({
@@ -388,7 +390,7 @@ describe('Children Routes', () => {
   });
 
   describe('PUT /children/:id', () => {
-    let testChild: any;
+    let testChild: Child;
 
     beforeEach(async () => {
       testChild = await createTestChild({
@@ -412,10 +414,9 @@ describe('Children Routes', () => {
       expect(result.name).toBe(updateData.name);
       expect(result.notes).toBe(updateData.notes);
 
-      const dbChild = await testDb.child.findUnique({
+      const dbChild = await testDb.child.findUnique(withDeleted({
         where: { id: testChild.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbChild?.name).toBe(updateData.name);
     });
 
@@ -482,7 +483,7 @@ describe('Children Routes', () => {
   });
 
   describe('DELETE /children/:id', () => {
-    let testChild: any;
+    let testChild: Child;
 
     beforeEach(async () => {
       testChild = await createTestChild({ name: 'Delete Test Child', familyId: testFamily.id });
@@ -498,10 +499,9 @@ describe('Children Routes', () => {
         expect(result.message).toContain('deleted successfully');
       }
 
-      const dbChild = await testDb.child.findUnique({
+      const dbChild = await testDb.child.findUnique(withDeleted({
         where: { id: testChild.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbChild?.deletedAt).toBeTruthy();
     });
 
@@ -510,10 +510,9 @@ describe('Children Routes', () => {
 
       expect(response.status).toBe(200);
 
-      const dbChild = await testDb.child.findUnique({
+      const dbChild = await testDb.child.findUnique(withDeleted({
         where: { id: testChild.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbChild?.deletedAt).toBeTruthy();
     });
 
@@ -527,10 +526,9 @@ describe('Children Routes', () => {
         expect(result.message).toContain('Access denied');
       }
 
-      const dbChild = await testDb.child.findUnique({
+      const dbChild = await testDb.child.findUnique(withDeleted({
         where: { id: testChild.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbChild?.deletedAt).toBeNull();
     });
 

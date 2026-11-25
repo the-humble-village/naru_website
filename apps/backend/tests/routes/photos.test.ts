@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { Child, Event, Family, File, Mother, Person, Visit } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import photosRoutes from '@/routes/photos';
 import {
@@ -16,7 +18,7 @@ import { mountRoutes, tokenFor } from '../http';
 
 const client = mountRoutes('/photos', photosRoutes);
 
-const createTestFile = async (overrides: any = {}) =>
+const createTestFile = async (overrides: Record<string, unknown> = {}) =>
   testDb.file.create({
     data: {
       extension: 'jpg',
@@ -32,13 +34,13 @@ describe('Photo Attachment Routes', () => {
   let caseworkerToken: string;
   let supervisorToken: string;
 
-  let file: any;
-  let visit: any;
-  let child: any;
-  let mother: any;
-  let person: any;
-  let family: any;
-  let event: any;
+  let file: File;
+  let visit: Visit;
+  let child: Child;
+  let mother: Mother;
+  let person: Person;
+  let family: Family;
+  let event: Event;
 
   beforeEach(async () => {
     const caseworker = await createTestUser({ login: 'cw', email: 'cw@example.com', role: 'CASEWORKER' });
@@ -62,7 +64,7 @@ describe('Photo Attachment Routes', () => {
     });
   });
 
-  const newPhoto = (overrides: any = {}) => ({
+  const newPhoto = (overrides: Record<string, unknown> = {}) => ({
     fileId: file.id,
     ownerType: 'VISIT',
     ownerId: visit.id,
@@ -194,7 +196,7 @@ describe('Photo Attachment Routes', () => {
       expect(body.total).toBe(3);
       expect(body.skip).toBe(0);
       expect(body.limit).toBe(50);
-      expect(body.items.map((p: any) => p.caption)).toEqual(['first', 'second', 'third']);
+      expect(body.items.map((p: { caption: unknown }) => p.caption)).toEqual(['first', 'second', 'third']);
       expect(body.items[0]).not.toHaveProperty('deletedAt');
     });
 
@@ -283,10 +285,9 @@ describe('Photo Attachment Routes', () => {
       const res = await client.delete(`/photos/${created.id}`, supervisorToken);
       expect(res.status).toBe(200);
 
-      const row = await testDb.photoAttachment.findFirst({
+      const row = await testDb.photoAttachment.findFirst(withDeleted({
         where: { id: created.id },
-        includeDeleted: true,
-      });
+      }));
       expect(row?.deletedAt).not.toBeNull();
 
       const list = await (
@@ -318,7 +319,7 @@ describe('Photo Attachment Routes', () => {
       expect(res.status).toBe(200);
 
       const body = await res.json();
-      expect(body.items.map((p: any) => p.caption)).toEqual(['c', 'a', 'b']);
+      expect(body.items.map((p: { caption: unknown }) => p.caption)).toEqual(['c', 'a', 'b']);
     });
 
     it('404s when a photo belongs to another owner', async () => {

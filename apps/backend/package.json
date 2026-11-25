@@ -8,7 +8,7 @@
     "prisma"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "dev": "tsx watch src/index.ts",

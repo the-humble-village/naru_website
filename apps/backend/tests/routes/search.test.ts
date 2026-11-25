@@ -1,4 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { Family, User } from '@prisma/client';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -46,13 +47,13 @@ const testClient = {
 };
 
 describe('Search Routes', () => {
-  let caseworkerUser: any;
-  let supervisorUser: any;
-  let adminUser: any;
+  let caseworkerUser: User;
+  let supervisorUser: User;
+  let adminUser: User;
   let caseworkerToken: string;
   let supervisorToken: string;
   let adminToken: string;
-  let testFamily: any;
+  let testFamily: Family;
 
   beforeEach(async () => {
     // Create test users
@@ -177,7 +178,7 @@ describe('Search Routes', () => {
       expect(result.total).toBe(4);
       expect(result.results).toHaveLength(4);
 
-      expect(result.results.map((r: any) => r.type)).toEqual([
+      expect(result.results.map((r: { type: unknown }) => r.type)).toEqual([
         'family',
         'mother',
         'child',

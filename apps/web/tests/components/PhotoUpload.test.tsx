@@ -54,10 +54,10 @@ const confirmRemoval = async (fileId: number, buttonName: RegExp) => {
 describe('PhotoUpload photo removal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (filesApi.getPresignedDownloadUrls as any).mockResolvedValue({
+    vi.mocked(filesApi.getPresignedDownloadUrls).mockResolvedValue({
       urls: [{ fileId: 1, url: 'http://example.test/1.jpg' }, { fileId: 2, url: 'http://example.test/2.jpg' }],
     });
-    (filesApi.deleteFile as any).mockResolvedValue(undefined);
+    vi.mocked(filesApi.deleteFile).mockResolvedValue(undefined);
   });
 
   describe('without pendingDeletions (create forms)', () => {
@@ -143,7 +143,7 @@ describe('PhotoUpload photo removal', () => {
 
     it('reports a failed cleanup without losing the rest', async () => {
       let hook: PendingPhotoDeletions | undefined;
-      (filesApi.deleteFile as any)
+      vi.mocked(filesApi.deleteFile)
         .mockRejectedValueOnce(new Error('storage down'))
         .mockResolvedValueOnce(undefined);
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});

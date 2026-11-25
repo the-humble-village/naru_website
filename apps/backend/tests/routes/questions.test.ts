@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { Program, Question } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import questionsRoutes from '@/routes/questions';
 import questionSetsRoutes from '@/routes/question-sets';
@@ -140,7 +142,7 @@ describe('Questions Routes', () => {
       await questions.post('/questions', { ...chickens, title: 'second', sortOrder: 2 }, adminToken);
 
       const res = await questions.get('/questions', caseworkerToken);
-      expect((await res.json()).map((q: any) => q.title)).toEqual(['first', 'second', 'third']);
+      expect((await res.json()).map((q: { title: unknown }) => q.title)).toEqual(['first', 'second', 'third']);
     });
   });
 
@@ -152,11 +154,9 @@ describe('Questions Routes', () => {
       expect((await questions.delete(`/questions/${id}`, adminToken)).status).toBe(200);
       expect(await (await questions.get('/questions', adminToken)).json()).toEqual([]);
 
-      const row = await testDb.question.findFirst({
+      const row = await testDb.question.findFirst(withDeleted({
         where: { id },
-        // @ts-expect-error — bypasses the soft-delete extension
-        includeDeleted: true,
-      });
+      }));
       expect(row?.deletedAt).not.toBeNull();
     });
 
@@ -168,11 +168,9 @@ describe('Questions Routes', () => {
 
       // The answer a worker recorded is still a fact after the question retires.
       expect(await testDb.question.count({ where: { id } })).toBe(0);
-      const row = await testDb.question.findFirst({
+      const row = await testDb.question.findFirst(withDeleted({
         where: { id },
-        // @ts-expect-error — bypasses the soft-delete extension
-        includeDeleted: true,
-      });
+      }));
       expect(row).not.toBeNull();
     });
   });
@@ -181,10 +179,10 @@ describe('Questions Routes', () => {
 describe('Question Sets Routes', () => {
   let caseworkerToken: string;
   let adminToken: string;
-  let nutrition: any;
-  let pregnancy: any;
-  let chickens: any;
-  let meals: any;
+  let nutrition: Program;
+  let pregnancy: Program;
+  let chickens: Question;
+  let meals: Question;
 
   beforeEach(async () => {
     const caseworker = await createTestUser({ login: 'cw', email: 'cw@example.com', role: 'CASEWORKER' });
@@ -217,8 +215,8 @@ describe('Question Sets Routes', () => {
 
       expect(body.name).toBe('Household');
       expect(body.programId).toBe(nutrition.id);
-      expect(body.items.map((i: any) => i.questionId)).toEqual([meals.id, chickens.id]);
-      expect(body.items.map((i: any) => i.sortOrder)).toEqual([0, 1]);
+      expect(body.items.map((i: { questionId: unknown }) => i.questionId)).toEqual([meals.id, chickens.id]);
+      expect(body.items.map((i: { sortOrder: unknown }) => i.sortOrder)).toEqual([0, 1]);
       expect(body.items[0]).toMatchObject({ questionTitle: 'Meals per day?', answerType: 'NUMBER' });
     });
 
@@ -269,7 +267,7 @@ describe('Question Sets Routes', () => {
 
     it('matches programId exactly without includeShared', async () => {
       const res = await sets.get(`/question-sets?programId=${nutrition.id}`, caseworkerToken);
-      expect((await res.json()).map((s: any) => s.name)).toEqual(['Nutrition only']);
+      expect((await res.json()).map((s: { name: unknown }) => s.name)).toEqual(['Nutrition only']);
     });
 
     it('ORs in the shared sets with includeShared', async () => {
@@ -278,7 +276,7 @@ describe('Question Sets Routes', () => {
         caseworkerToken
       );
 
-      expect((await res.json()).map((s: any) => s.name)).toEqual(['Nutrition only', 'Shared']);
+      expect((await res.json()).map((s: { name: unknown }) => s.name)).toEqual(['Nutrition only', 'Shared']);
     });
   });
 
@@ -306,7 +304,7 @@ describe('Question Sets Routes', () => {
       const res = await sets.put(`/question-sets/${setId}`, { questionIds: [meals.id] }, adminToken);
       const body = await res.json();
 
-      expect(body.items.map((i: any) => i.questionId)).toEqual([meals.id]);
+      expect(body.items.map((i: { questionId: unknown }) => i.questionId)).toEqual([meals.id]);
       expect(await testDb.questionSetItem.count()).toBe(1);
     });
 
@@ -317,7 +315,7 @@ describe('Question Sets Routes', () => {
         adminToken
       );
 
-      expect((await res.json()).items.map((i: any) => i.questionId)).toEqual([meals.id, chickens.id]);
+      expect((await res.json()).items.map((i: { questionId: unknown }) => i.questionId)).toEqual([meals.id, chickens.id]);
     });
 
     it('empties the set with an empty array', async () => {
@@ -347,7 +345,7 @@ describe('Question Sets Routes', () => {
       expect(await testDb.questionSetItem.count({ where: { setId } })).toBe(2);
 
       const res = await sets.get(`/question-sets/${setId}`, caseworkerToken);
-      expect((await res.json()).items.map((i: any) => i.questionId)).toEqual([meals.id]);
+      expect((await res.json()).items.map((i: { questionId: unknown }) => i.questionId)).toEqual([meals.id]);
     });
 
     it('keeps a retired question in the set when membership is rewritten', async () => {
@@ -365,10 +363,10 @@ describe('Question Sets Routes', () => {
       const res = await sets.put(`/question-sets/${setId}`, { questionIds: [meals.id] }, adminToken);
 
       expect(res.status).toBe(200);
-      expect((await res.json()).items.map((i: any) => i.questionId)).toEqual([meals.id]);
+      expect((await res.json()).items.map((i: { questionId: unknown }) => i.questionId)).toEqual([meals.id]);
 
       const rows = await testDb.questionSetItem.findMany({ where: { setId } });
-      expect(rows.map((r: any) => r.questionId).sort()).toEqual(
+      expect(rows.map((r: { questionId: unknown }) => r.questionId).sort()).toEqual(
         [chickens.id, meals.id].sort()
       );
     });

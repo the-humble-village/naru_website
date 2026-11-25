@@ -113,7 +113,7 @@ DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrat
 
 | Layer | Tech |
 |-------|------|
-| Language | TypeScript (strict mode, no `any` in new code) |
+| Language | TypeScript (strict mode, no `any`; lint type-checks tests too) |
 | Backend | Hono, Prisma, PostgreSQL 16 |
 | Validation | Zod (shared schemas are the single source of truth) |
 | Frontend | React 18, Vite, React Router v7, Tailwind CSS |
@@ -131,7 +131,7 @@ DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrat
 - **All business logic lives in services**, not route handlers
 - **Use Prisma migrations** — never raw SQL or manual ALTER TABLE
 - **Validate all input with Zod** — schemas come from `@naru/shared`
-- **No `any` types in new code** — use Zod inference (`z.infer<typeof Schema>`). The backend source has none; older tests still have some. Type a row with `Prisma.XGetPayload<{ select: typeof X_SELECT }>`, and use `withDeleted()` for a read that must include soft-deleted rows
+- **No `any` types**, in source or tests — use Zod inference (`z.infer<typeof Schema>`). Type a row with `Prisma.XGetPayload<{ select: typeof X_SELECT }>`, and use `withDeleted()` for a read that must include soft-deleted rows
 
 ### V2-specific invariants
 

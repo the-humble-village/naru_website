@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { User } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -58,7 +60,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  post: async (path: string, body?: any, accessToken?: string) => {
+  post: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -87,11 +89,11 @@ const testClient = {
 };
 
 // Test user and auth token
-let testUser: any;
+let testUser: User;
 let testToken: string;
 
 // Helper to create a confirmed file in the DB
-async function createTestFile(overrides: any = {}) {
+async function createTestFile(overrides: Record<string, unknown> = {}) {
   return testDb.file.create({
     data: {
       extension: 'jpg',
@@ -402,10 +404,9 @@ describe('File Routes', () => {
 
       // `includeDeleted` opts out of the soft-delete extension — the whole point
       // of this assertion is that the row survived the delete.
-      const dbFile = await testDb.file.findUnique({
+      const dbFile = await testDb.file.findUnique(withDeleted({
         where: { id: file.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbFile).toBeTruthy();
       expect(dbFile?.deletedAt).toBeInstanceOf(Date);
     });
@@ -494,10 +495,9 @@ describe('File Routes', () => {
 
       const response = await testClient.delete(`/files/${file.id}`, testToken);
       expect(response.status).toBe(200);
-      expect((await testDb.file.findUnique({
+      expect((await testDb.file.findUnique(withDeleted({
         where: { id: file.id },
-        includeDeleted: true,
-      } as any))?.deletedAt).toBeInstanceOf(Date);
+      })))?.deletedAt).toBeInstanceOf(Date);
     });
 
     it('should still soft-delete the row when the storage delete throws', async () => {
@@ -510,10 +510,9 @@ describe('File Routes', () => {
       const response = await testClient.delete(`/files/${file.id}`, testToken);
       expect(response.status).toBe(200);
 
-      const dbFile = await testDb.file.findUnique({
+      const dbFile = await testDb.file.findUnique(withDeleted({
         where: { id: file.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbFile?.deletedAt).toBeInstanceOf(Date);
       expect(consoleError).toHaveBeenCalled();
 
@@ -606,10 +605,9 @@ describe('File Routes', () => {
 
       const response = await testClient.delete(`/files/${file.id}`, testToken);
       expect(response.status).toBe(200);
-      expect((await testDb.file.findUnique({
+      expect((await testDb.file.findUnique(withDeleted({
         where: { id: file.id },
-        includeDeleted: true,
-      } as any))?.deletedAt).toBeInstanceOf(Date);
+      })))?.deletedAt).toBeInstanceOf(Date);
     });
   });
 });

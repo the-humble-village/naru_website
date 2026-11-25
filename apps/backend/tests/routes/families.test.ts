@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { Community, Family, User } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -51,7 +53,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  post: async (path: string, body?: any, accessToken?: string) => {
+  post: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -66,7 +68,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  put: async (path: string, body?: any, accessToken?: string) => {
+  put: async (path: string, body?: unknown, accessToken?: string) => {
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -95,13 +97,13 @@ const testClient = {
 };
 
 describe('Family Routes', () => {
-  let caseworkerUser: any;
-  let supervisorUser: any;
-  let adminUser: any;
+  let caseworkerUser: User;
+  let supervisorUser: User;
+  let adminUser: User;
   let caseworkerToken: string;
   let supervisorToken: string;
   let adminToken: string;
-  let testCommunity: any;
+  let testCommunity: Community;
 
   beforeEach(async () => {
     // Create test users
@@ -195,7 +197,7 @@ describe('Family Routes', () => {
 
       expect(response.status).toBe(200);
       expect(result.total).toBe(2);
-      expect(result.families.map((f: any) => f.familyName).sort()).toEqual([
+      expect(result.families.map((f: { familyName: unknown }) => f.familyName).sort()).toEqual([
         'Exited Family',
         'Never Enrolled',
       ]);
@@ -366,7 +368,7 @@ describe('Family Routes', () => {
   });
 
   describe('GET /families/:id', () => {
-    let testFamily: any;
+    let testFamily: Family;
 
     beforeEach(async () => {
       testFamily = await createTestFamily({
@@ -405,7 +407,7 @@ describe('Family Routes', () => {
   });
 
   describe('PUT /families/:id', () => {
-    let testFamily: any;
+    let testFamily: Family;
 
     beforeEach(async () => {
       testFamily = await createTestFamily({
@@ -431,10 +433,9 @@ describe('Family Routes', () => {
       expect(result.notes).toBe(updateData.notes);
 
       // Verify in database
-      const dbFamily = await testDb.family.findUnique({
+      const dbFamily = await testDb.family.findUnique(withDeleted({
         where: { id: testFamily.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbFamily?.familyName).toBe(updateData.familyName);
       expect(dbFamily?.inCrisis).toBe(updateData.inCrisis);
     });
@@ -474,7 +475,7 @@ describe('Family Routes', () => {
   });
 
   describe('DELETE /families/:id', () => {
-    let testFamily: any;
+    let testFamily: Family;
 
     beforeEach(async () => {
       testFamily = await createTestFamily({
@@ -493,10 +494,9 @@ describe('Family Routes', () => {
       }
 
       // Verify soft delete in database
-      const dbFamily = await testDb.family.findUnique({
+      const dbFamily = await testDb.family.findUnique(withDeleted({
         where: { id: testFamily.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbFamily?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -506,10 +506,9 @@ describe('Family Routes', () => {
       expect(response.status).toBe(200);
 
       // Verify soft delete in database
-      const dbFamily = await testDb.family.findUnique({
+      const dbFamily = await testDb.family.findUnique(withDeleted({
         where: { id: testFamily.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbFamily?.deletedAt).toBeTruthy(); // Should be soft deleted
     });
 
@@ -524,10 +523,9 @@ describe('Family Routes', () => {
       }
 
       // Verify family was NOT deleted
-      const dbFamily = await testDb.family.findUnique({
+      const dbFamily = await testDb.family.findUnique(withDeleted({
         where: { id: testFamily.id },
-        includeDeleted: true,
-      } as any);
+      }));
       expect(dbFamily?.deletedAt).toBeNull(); // Should NOT be deleted
     });
 

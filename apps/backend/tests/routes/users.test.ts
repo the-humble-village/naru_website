@@ -1,4 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import type { User } from '@prisma/client';
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -45,7 +47,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  post: async (path: string, body?: any, token?: string) => {
+  post: async (path: string, body?: unknown, token?: string) => {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -60,7 +62,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  put: async (path: string, body?: any, token?: string) => {
+  put: async (path: string, body?: unknown, token?: string) => {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -75,7 +77,7 @@ const testClient = {
     });
     return app.request(request);
   },
-  patch: async (path: string, body?: any, token?: string) => {
+  patch: async (path: string, body?: unknown, token?: string) => {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -106,12 +108,12 @@ const testClient = {
 // Reads a user row bypassing the soft-delete extension, so tests can assert the
 // row still exists and only carries a deletedAt stamp.
 const findRowIncludingDeleted = async (id: number) =>
-  testDb.user.findFirst({ where: { id }, includeDeleted: true });
+  testDb.user.findFirst(withDeleted({ where: { id } }));
 
 describe('User Routes', () => {
-  let adminUser: any;
-  let caseworkerUser: any;
-  let supervisorUser: any;
+  let adminUser: User;
+  let caseworkerUser: User;
+  let supervisorUser: User;
   let adminToken: string;
   let caseworkerToken: string;
   let supervisorToken: string;
@@ -174,7 +176,7 @@ describe('User Routes', () => {
       expect(result.total).toBeGreaterThanOrEqual(3);
 
       // Check that users are returned with correct fields
-      const user = result.users.find((u: any) => u.login === 'admin');
+      const user = result.users.find((u: { login: unknown }) => u.login === 'admin');
       expect(user).toBeDefined();
       expect(user.email).toBe('admin@example.com');
       expect(user.role).toBe('ADMIN');
@@ -840,8 +842,8 @@ describe('User Routes', () => {
 
       const listResponse = await testClient.get('/users', adminToken);
       const list = await listResponse.json();
-      expect(list.users.some((u: any) => u.id === caseworkerUser.id)).toBe(false);
-      expect(list.users.some((u: any) => u.login === 'caseworker')).toBe(false);
+      expect(list.users.some((u: { id: unknown }) => u.id === caseworkerUser.id)).toBe(false);
+      expect(list.users.some((u: { login: unknown }) => u.login === 'caseworker')).toBe(false);
       expect(list.total).toBe(2);
 
       const getResponse = await testClient.get(`/users/${caseworkerUser.id}`, adminToken);

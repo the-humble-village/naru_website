@@ -23,7 +23,7 @@ app.route('/auth', authRoutes);
 
 // Helper to make requests
 const testClient = {
-  post: async (path: string, body?: any) => {
+  post: async (path: string, body?: unknown) => {
     const request = new Request(`http://localhost${path}`, {
       method: 'POST',
       headers: body ? { 'Content-Type': 'application/json' } : {},
@@ -87,12 +87,12 @@ describe('Auth Routes', () => {
       expect(result.refreshToken).toBeDefined();
 
       // Verify JWT tokens are valid
-      const accessPayload = jwt.verify(result.accessToken, appConfig.JWT_SECRET) as any;
+      const accessPayload = jwt.verify(result.accessToken, appConfig.JWT_SECRET) as jwt.JwtPayload;
       expect(accessPayload.userId).toBeDefined();
       expect(accessPayload.role).toBe('SUPERVISOR');
       expect(accessPayload.lang).toBe('es');
 
-      const refreshPayload = jwt.verify(result.refreshToken, appConfig.JWT_REFRESH_SECRET) as any;
+      const refreshPayload = jwt.verify(result.refreshToken, appConfig.JWT_REFRESH_SECRET) as jwt.JwtPayload;
       expect(refreshPayload.userId).toBeDefined();
       expect(refreshPayload.role).toBe('SUPERVISOR');
     });
@@ -188,11 +188,11 @@ describe('Auth Routes', () => {
       expect(result.refreshToken).toBeDefined();
 
       // Verify the new tokens are valid
-      const accessPayload = jwt.verify(result.accessToken, appConfig.JWT_SECRET) as any;
+      const accessPayload = jwt.verify(result.accessToken, appConfig.JWT_SECRET) as jwt.JwtPayload;
       expect(accessPayload.userId).toBe(userId);
       expect(accessPayload.role).toBe('ADMIN');
 
-      const newRefreshPayload = jwt.verify(result.refreshToken, appConfig.JWT_REFRESH_SECRET) as any;
+      const newRefreshPayload = jwt.verify(result.refreshToken, appConfig.JWT_REFRESH_SECRET) as jwt.JwtPayload;
       expect(newRefreshPayload.userId).toBe(userId);
     });
 
@@ -284,9 +284,9 @@ describe('Auth Routes', () => {
       const result = await response.json();
 
       expect(response.status).toBe(200);
-      expect((jwt.verify(result.accessToken, appConfig.JWT_SECRET) as any).tokenVersion).toBe(2);
+      expect((jwt.verify(result.accessToken, appConfig.JWT_SECRET) as jwt.JwtPayload).tokenVersion).toBe(2);
       expect(
-        (jwt.verify(result.refreshToken, appConfig.JWT_REFRESH_SECRET) as any).tokenVersion
+        (jwt.verify(result.refreshToken, appConfig.JWT_REFRESH_SECRET) as jwt.JwtPayload).tokenVersion
       ).toBe(2);
       // Internal counter — must never reach the client on the user object.
       expect(result.user.tokenVersion).toBeUndefined();
@@ -324,7 +324,7 @@ describe('Auth Routes', () => {
 
       expect(response.status).toBe(200);
       expect(result.user.tokenVersion).toBeUndefined();
-      expect((jwt.verify(result.accessToken, appConfig.JWT_SECRET) as any).tokenVersion).toBe(2);
+      expect((jwt.verify(result.accessToken, appConfig.JWT_SECRET) as jwt.JwtPayload).tokenVersion).toBe(2);
     });
   });
 });

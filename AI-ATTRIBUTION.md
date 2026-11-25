@@ -105,3 +105,8 @@ Task: Excluded soft-deleted children, visits and enrollments from the families l
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Excluded visits on soft-deleted enrollments from the dashboard's recent visits and visit counts, because deleting an enrollment does not delete its visits.
+
+## 2026-11-25: apps/backend/package.json, apps/backend/tsconfig.json, apps/backend/tsconfig.build.json (new file), apps/backend/tests/ (http, setup).ts, apps/backend/tests/middleware/soft-delete.test.ts, apps/backend/tests/storage/local.test.ts, apps/backend/tests/routes/ (admin, auth, birthing-assistants, children, dashboard, enrollments, events, families, files, health, mothers, people, photos, programs, questions, search, users, visits).test.ts, apps/web/src/pages/auth/LoginPage.tsx, apps/web/tests/components/ (PhotoUpload, ZScoreBadge).test.tsx, apps/web/tests/pages/auth/LoginPage.test.tsx, apps/web/tests/pages/families/AddFamilyPage.test.tsx, AGENTS.md, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Removed any from the tests and LoginPage and made lint type-check the backend tests, because they were not checked at all and mistakes in them went unnoticed. The user approved one-off scripts for the repeated patterns.

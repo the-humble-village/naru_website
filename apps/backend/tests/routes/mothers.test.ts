@@ -1,4 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import { withDeleted } from '@/middleware/soft-delete';
 import { describe, it, expect, beforeEach } from 'vitest';
 import mothersRoutes from '@/routes/mothers';
 import {
@@ -178,7 +179,7 @@ describe('Mothers Routes', () => {
       const res = await client.get('/mothers?unenrolled=true', caseworkerToken);
       const body = await res.json();
 
-      const names = body.items.map((m: any) => m.name).sort();
+      const names = body.items.map((m: { name: unknown }) => m.name).sort();
       expect(names).toEqual(['Exited', 'Never enrolled']);
     });
 
@@ -189,7 +190,7 @@ describe('Mothers Routes', () => {
       const res = await client.get('/mothers', caseworkerToken);
       const body = await res.json();
 
-      expect(body.items.find((m: any) => m.id === mother.id)).toBeUndefined();
+      expect(body.items.find((m: { id: unknown }) => m.id === mother.id)).toBeUndefined();
     });
   });
 
@@ -262,11 +263,10 @@ describe('Mothers Routes', () => {
       const res = await client.delete(`/mothers/${mother.id}`, supervisorToken);
       expect(res.status).toBe(200);
 
-      const row = await testDb.mother.findFirst({
+      const row = await testDb.mother.findFirst(withDeleted({
         where: { id: mother.id },
-        includeDeleted: true,
-      });
-      expect(row.deletedAt).not.toBeNull();
+      }));
+      expect(row!.deletedAt).not.toBeNull();
     });
 
     it('404s on a missing mother', async () => {

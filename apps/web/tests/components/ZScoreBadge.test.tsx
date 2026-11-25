@@ -6,52 +6,19 @@ import ZScoreBadge from '@/components/ZScoreBadge';
 
 describe('ZScoreBadge', () => {
   describe('Normal z-score values', () => {
-    it('should render severe classification for z-score <= -3', () => {
-      render(<ZScoreBadge zScore={-3.5} />);
+    it.each([
+      [-3.5, 'Severe', 'bg-red-100', 'text-red-800'],
+      [-2.5, 'Moderate', 'bg-yellow-100', 'text-yellow-900'],
+      [-1.5, 'Mild', 'bg-green-100', 'text-green-800'],
+      [0.5, 'Normal', 'bg-slate-100', 'text-slate-700'],
+      [1.5, 'Above Normal', 'bg-blue-500', 'text-white'],
+      [2.5, 'High', 'bg-purple-500', 'text-white'],
+    ] as const)('renders %s as %s', (zScore, label, background, foreground) => {
+      render(<ZScoreBadge zScore={zScore} />);
 
-      expect(screen.getByText(/Z-Score: Severe/)).toBeInTheDocument();
-      expect(screen.getByText(/\(-3\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Severe/)).toHaveClass('bg-red-100', 'text-red-800');
-    });
-
-    it('should render moderate classification for z-score between -3 and -2', () => {
-      render(<ZScoreBadge zScore={-2.5} />);
-
-      expect(screen.getByText(/Z-Score: Moderate/)).toBeInTheDocument();
-      expect(screen.getByText(/\(-2\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Moderate/)).toHaveClass('bg-yellow-100', 'text-yellow-900');
-    });
-
-    it('should render mild classification for z-score between -2 and -1', () => {
-      render(<ZScoreBadge zScore={-1.5} />);
-
-      expect(screen.getByText(/Z-Score: Mild/)).toBeInTheDocument();
-      expect(screen.getByText(/\(-1\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Mild/)).toHaveClass('bg-green-100', 'text-green-800');
-    });
-
-    it('should render normal classification for z-score between -1 and 1', () => {
-      render(<ZScoreBadge zScore={0.5} />);
-
-      expect(screen.getByText(/Z-Score: Normal/)).toBeInTheDocument();
-      expect(screen.getByText(/\(0\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Normal/)).toHaveClass('bg-slate-100', 'text-slate-700');
-    });
-
-    it('should render above normal classification for z-score between 1 and 2', () => {
-      render(<ZScoreBadge zScore={1.5} />);
-
-      expect(screen.getByText(/Z-Score: Above Normal/)).toBeInTheDocument();
-      expect(screen.getByText(/\(1\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: Above Normal/)).toHaveClass('bg-blue-500', 'text-white');
-    });
-
-    it('should render high classification for z-score > 2', () => {
-      render(<ZScoreBadge zScore={2.5} />);
-
-      expect(screen.getByText(/Z-Score: High/)).toBeInTheDocument();
-      expect(screen.getByText(/\(2\.50\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Z-Score: High/)).toHaveClass('bg-purple-500', 'text-white');
+      const badge = screen.getByText(new RegExp(`Z-Score: ${label}`));
+      expect(badge).toHaveClass(background, foreground);
+      expect(screen.getByText(new RegExp(`\\(${zScore.toFixed(2)}\\)`))).toBeInTheDocument();
     });
   });
 
@@ -76,21 +43,15 @@ describe('ZScoreBadge', () => {
       expect(screen.getByText(/\(0\.00\)/)).toBeInTheDocument();
     });
 
-    it('should handle boundary values correctly', () => {
-      render(<ZScoreBadge zScore={-3.0} />);
-      expect(screen.getByText(/Z-Score: Severe/)).toBeInTheDocument();
-
-      render(<ZScoreBadge zScore={-2.0} />);
-      expect(screen.getByText(/Z-Score: Moderate/)).toBeInTheDocument();
-
-      render(<ZScoreBadge zScore={-1.0} />);
-      expect(screen.getByText(/Z-Score: Mild/)).toBeInTheDocument();
-
-      render(<ZScoreBadge zScore={1.0} />);
-      expect(screen.getByText(/Z-Score: Normal/)).toBeInTheDocument();
-
-      render(<ZScoreBadge zScore={2.0} />);
-      expect(screen.getByText(/Z-Score: Above Normal/)).toBeInTheDocument();
+    it.each([
+      [-3, 'Severe'],
+      [-2, 'Moderate'],
+      [-1, 'Mild'],
+      [1, 'Normal'],
+      [2, 'Above Normal'],
+    ] as const)('classifies the boundary value %s as %s', (zScore, label) => {
+      render(<ZScoreBadge zScore={zScore} />);
+      expect(screen.getByText(new RegExp(`Z-Score: ${label}`))).toBeInTheDocument();
     });
   });
 

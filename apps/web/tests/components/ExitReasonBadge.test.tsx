@@ -21,21 +21,18 @@ const ALL_REASONS: ExitReason[] = [
 ];
 
 describe('ExitReasonBadge', () => {
-  it('renders a styled badge for every exit reason', () => {
-    ALL_REASONS.forEach((reason) => {
-      const { unmount } = render(<ExitReasonBadge reason={reason} />);
-      const badge = screen.getByText(`exit_reason.${reason.toLowerCase()}`);
-      expect(badge).toHaveClass(
-        'inline-flex',
-        'items-center',
-        'px-3',
-        'py-1',
-        'rounded-full',
-        'text-sm',
-        'font-medium'
-      );
-      unmount();
-    });
+  it.each(ALL_REASONS)('renders a styled badge for %s', (reason) => {
+    render(<ExitReasonBadge reason={reason} />);
+    const badge = screen.getByText(`exit_reason.${reason.toLowerCase()}`);
+    expect(badge).toHaveClass(
+      'inline-flex',
+      'items-center',
+      'px-3',
+      'py-1',
+      'rounded-full',
+      'text-sm',
+      'font-medium'
+    );
   });
 
   it('reads positive for GRADUATED', () => {
@@ -50,16 +47,14 @@ describe('ExitReasonBadge', () => {
     expect(badge.className).not.toContain('bg-red-600');
   });
 
-  it('renders the remaining reasons muted', () => {
-    (['WITHDREW', 'MOVED_AWAY', 'TRANSFERRED', 'AGED_OUT', 'LOST'] as ExitReason[]).forEach(
-      (reason) => {
-        const { unmount } = render(<ExitReasonBadge reason={reason} />);
-        expect(screen.getByText(`exit_reason.${reason.toLowerCase()}`)).toHaveClass(
-          'bg-hv-page',
-          'text-hv-gray'
-        );
-        unmount();
-      }
-    );
-  });
+  it.each<ExitReason>(['WITHDREW', 'MOVED_AWAY', 'TRANSFERRED', 'AGED_OUT', 'LOST'])(
+    'renders %s muted',
+    (reason) => {
+      render(<ExitReasonBadge reason={reason} />);
+      expect(screen.getByText(`exit_reason.${reason.toLowerCase()}`)).toHaveClass(
+        'bg-hv-page',
+        'text-hv-gray'
+      );
+    }
+  );
 });

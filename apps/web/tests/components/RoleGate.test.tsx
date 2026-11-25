@@ -69,94 +69,30 @@ describe('RoleGate', () => {
     expect(getByText('Access Denied')).toBeInTheDocument();
   });
 
-  it('should render children when CASEWORKER has CASEWORKER role', () => {
-    const mockUser = createMockUser('CASEWORKER');
-    MockedUseAuthStore.mockReturnValue(createMockAuthState(mockUser));
-
-    const { getByText } = render(
-      <RoleGate requiredRole="CASEWORKER">
-        <TestComponent />
-      </RoleGate>
-    );
-
-    expect(getByText('Protected Content')).toBeInTheDocument();
-  });
-
-  it('should render fallback when CASEWORKER tries to access SUPERVISOR role', () => {
-    const mockUser = createMockUser('CASEWORKER');
-    MockedUseAuthStore.mockReturnValue(createMockAuthState(mockUser));
+  it.each([
+    ['CASEWORKER', 'CASEWORKER', true],
+    ['CASEWORKER', 'SUPERVISOR', false],
+    ['CASEWORKER', 'ADMIN', false],
+    ['SUPERVISOR', 'CASEWORKER', true],
+    ['SUPERVISOR', 'SUPERVISOR', true],
+    ['SUPERVISOR', 'ADMIN', false],
+    ['ADMIN', 'CASEWORKER', true],
+    ['ADMIN', 'SUPERVISOR', true],
+    ['ADMIN', 'ADMIN', true],
+  ] as const)('%s where %s is required: allowed = %s', (role, requiredRole, allowed) => {
+    MockedUseAuthStore.mockReturnValue(createMockAuthState(createMockUser(role)));
 
     const { getByText, queryByText } = render(
-      <RoleGate requiredRole="SUPERVISOR" fallback={<FallbackComponent />}>
+      <RoleGate requiredRole={requiredRole} fallback={<FallbackComponent />}>
         <TestComponent />
       </RoleGate>
     );
 
-    expect(queryByText('Protected Content')).not.toBeInTheDocument();
-    expect(getByText('Access Denied')).toBeInTheDocument();
-  });
-
-  it('should render children when SUPERVISOR has CASEWORKER role', () => {
-    const mockUser = createMockUser('SUPERVISOR');
-    MockedUseAuthStore.mockReturnValue(createMockAuthState(mockUser));
-
-    const { getByText } = render(
-      <RoleGate requiredRole="CASEWORKER">
-        <TestComponent />
-      </RoleGate>
-    );
-
-    expect(getByText('Protected Content')).toBeInTheDocument();
-  });
-
-  it('should render children when SUPERVISOR has SUPERVISOR role', () => {
-    const mockUser = createMockUser('SUPERVISOR');
-    MockedUseAuthStore.mockReturnValue(createMockAuthState(mockUser));
-
-    const { getByText } = render(
-      <RoleGate requiredRole="SUPERVISOR">
-        <TestComponent />
-      </RoleGate>
-    );
-
-    expect(getByText('Protected Content')).toBeInTheDocument();
-  });
-
-  it('should render fallback when SUPERVISOR tries to access ADMIN role', () => {
-    const mockUser = createMockUser('SUPERVISOR');
-    MockedUseAuthStore.mockReturnValue(createMockAuthState(mockUser));
-
-    const { getByText, queryByText } = render(
-      <RoleGate requiredRole="ADMIN" fallback={<FallbackComponent />}>
-        <TestComponent />
-      </RoleGate>
-    );
-
-    expect(queryByText('Protected Content')).not.toBeInTheDocument();
-    expect(getByText('Access Denied')).toBeInTheDocument();
-  });
-
-  it('should render children when ADMIN has any role', () => {
-    const mockUser = createMockUser('ADMIN');
-    MockedUseAuthStore.mockReturnValue(createMockAuthState(mockUser));
-
-    const { getByText } = render(
-      <>
-        <RoleGate requiredRole="CASEWORKER">
-          <div>Admin as Caseworker</div>
-        </RoleGate>
-        <RoleGate requiredRole="SUPERVISOR">
-          <div>Admin as Supervisor</div>
-        </RoleGate>
-        <RoleGate requiredRole="ADMIN">
-          <div>Admin as Admin</div>
-        </RoleGate>
-      </>
-    );
-
-    expect(getByText('Admin as Caseworker')).toBeInTheDocument();
-    expect(getByText('Admin as Supervisor')).toBeInTheDocument();
-    expect(getByText('Admin as Admin')).toBeInTheDocument();
+    const [shown, hidden] = allowed
+      ? ['Protected Content', 'Access Denied']
+      : ['Access Denied', 'Protected Content'];
+    expect(getByText(shown)).toBeInTheDocument();
+    expect(queryByText(hidden)).not.toBeInTheDocument();
   });
 
   it('should handle multiple required roles (array)', () => {

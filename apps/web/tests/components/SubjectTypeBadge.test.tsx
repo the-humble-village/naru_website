@@ -10,33 +10,22 @@ vi.mock('@/hooks/useTranslation', () => ({
   default: () => ({ t: (key: string) => key, lang: 'en' }),
 }));
 
-const ALL_TYPES: SubjectType[] = ['MOTHER', 'CHILD', 'PERSON', 'FAMILY'];
+// A Record, so a new subject type fails the type-check until it has a row here.
+const TONES: Record<SubjectType, string> = {
+  MOTHER: 'bg-hv-terracotta',
+  CHILD: 'bg-hv-accent',
+  PERSON: 'bg-hv-sage',
+  FAMILY: 'bg-hv-green',
+};
 
 describe('SubjectTypeBadge', () => {
-  it('renders a small chip for every subject type', () => {
-    ALL_TYPES.forEach((type) => {
-      const { unmount } = render(<SubjectTypeBadge type={type} />);
+  it.each(Object.entries(TONES) as [SubjectType, string][])(
+    'renders %s as a small chip in %s',
+    (type, tone) => {
+      render(<SubjectTypeBadge type={type} />);
       const chip = screen.getByText(`subject_type.${type.toLowerCase()}`);
       expect(chip).toHaveClass('px-2', 'py-1', 'rounded-full', 'text-xs');
-      unmount();
-    });
-  });
-
-  it('gives each type its own colour', () => {
-    const tones: Record<SubjectType, string> = {
-      MOTHER: 'bg-hv-terracotta',
-      CHILD: 'bg-hv-accent',
-      PERSON: 'bg-hv-sage',
-      FAMILY: 'bg-hv-green',
-    };
-
-    ALL_TYPES.forEach((type) => {
-      const { unmount } = render(<SubjectTypeBadge type={type} />);
-      expect(screen.getByText(`subject_type.${type.toLowerCase()}`)).toHaveClass(
-        tones[type],
-        'text-white'
-      );
-      unmount();
-    });
-  });
+      expect(chip).toHaveClass(tone, 'text-white');
+    }
+  );
 });

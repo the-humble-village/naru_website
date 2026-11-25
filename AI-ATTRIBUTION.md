@@ -40,3 +40,8 @@ Task: On a new branch, move the web tests into an apps/web/tests folder that mir
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Delete the placeholder app.test.tsx, which tested no app code.
+
+## 2026-11-25: apps/web/tests/components/ZScoreBadge.test.tsx, apps/web/tests/components/RoleGate.test.tsx, apps/web/tests/components/ExitReasonBadge.test.tsx, apps/web/tests/components/SubjectTypeBadge.test.tsx, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, convert four repetitive web test files to it.each tables.

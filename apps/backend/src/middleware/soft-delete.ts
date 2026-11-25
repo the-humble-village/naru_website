@@ -1,4 +1,18 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { Prisma } from '@prisma/client';
+
+// Every read that takes a `where`. One missing from here silently returns, or
+// counts, soft-deleted rows.
+const FILTERED_READS: ReadonlySet<string> = new Set([
+  'findMany',
+  'findFirst',
+  'findFirstOrThrow',
+  'findUnique',
+  'findUniqueOrThrow',
+  'count',
+  'aggregate',
+  'groupBy',
+]);
 
 /**
  * Prisma extension that automatically filters out soft-deleted records
@@ -42,7 +56,7 @@ export const softDeleteExtension = Prisma.defineExtension((client) => {
           }
 
           // Filter out soft-deleted records for read operations
-          if (['findMany', 'findFirst', 'findUnique', 'count'].includes(operation)) {
+          if (FILTERED_READS.has(operation)) {
             const contextArgs = (args || {}) as any;
             if (contextArgs.includeDeleted) {
               const { includeDeleted, ...restArgs } = contextArgs;

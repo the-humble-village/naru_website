@@ -1,5 +1,6 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, afterEach } from 'vitest';
-import { validateAuthConfig } from '../src/config-validation';
+import { validateAuthConfig } from '@/config-validation';
 
 // appConfig reads process.env at access time, so these mutate the environment and
 // restore it rather than mocking the module.

@@ -26,7 +26,7 @@ apps/                # Deployables
 packages/            # Libraries the apps import
 └── shared/          # @naru/shared — Zod schemas, WHO z-scores, i18n (en/es)
 docs/                # Design docs, setup and deployment guides
-deployment/, nginx/  # Server config shipped by CI
+infra/              # nginx + systemd config and scripts shipped by CI; one-shot runbooks
 ```
 
 - **`@naru/shared`** is the contract between backend and web. Every entity has `*CreateSchema`, `*UpdateSchema` and `*ReadSchema`, and both apps validate against them. Rebuild after editing: `pnpm --filter @naru/shared build`.
@@ -73,7 +73,7 @@ Roles control what a user can **do**, not what they can **see**: every role sees
 ```bash
 pnpm --filter @naru/web test        # Vitest + React Testing Library (jsdom)
 pnpm --filter @naru/backend test    # Vitest against a real PostgreSQL database, naru_test
-cd apps/web && npx vitest run src/pages/__tests__/FamiliesPage.test.tsx   # one file
+cd apps/web && npx vitest run tests/pages/families/FamiliesPage.test.tsx   # one file
 ```
 
 The backend suite connects to `postgresql://$USER@127.0.0.1:5432/naru_test` unless `TEST_DATABASE_URL` is set. See [GETTING_STARTED](./docs/GETTING_STARTED.md#4-apply-database-migrations) to create and migrate it.

@@ -34,6 +34,7 @@ packages/                  # Libraries — imported, never run on their own
     health/           # zscore.ts (WHO z-score calculator), who-data.ts
     i18n/             # en.ts, es.ts — t(key, lang) function
     index.ts          # Re-exports everything
+  shared/tests/       # Vitest, mirrors shared/src
 
 apps/                      # Deployables — each one runs or ships on its own
   backend/
@@ -48,10 +49,10 @@ apps/                      # Deployables — each one runs or ships on its own
       routes/              # One Hono app per resource, mounted in app.ts
       services/            # All DB queries + business logic (one per resource)
       utils/date.ts        # toDateOnly / toDecimal for @db.Date and Decimal columns
-    tests/                 # Vitest, real test DB (naru_test)
+    tests/                 # Vitest, real test DB (naru_test), mirrors src (tests/routes/…)
 
   web/src/
-    App.tsx                # React Router v6 route definitions
+    App.tsx                # React Router v7 route definitions
     api/
       client.ts            # Axios instance, JWT interceptor, silent 401 refresh
       [resource].ts        # One file per resource: export const fooApi = { list, fetch, create, ... }
@@ -62,12 +63,14 @@ apps/                      # Deployables — each one runs or ships on its own
       RoleGate.tsx         # Conditionally renders by role
     pages/
       [Name]Page.tsx       # One per route, named + default export
-      __tests__/           # Vitest + RTL, one test file per page
     hooks/
     store/auth.ts          # Zustand: user, tokens, role, lang
+  web/tests/               # Vitest + RTL, mirrors web/src (tests/pages/mothers/…)
+    setup.ts               # Vitest setup file
 
   android/                 # Native Kotlin + Jetpack Compose — placeholder, code not in repo (frozen, see §11)
 
+infra/                     # nginx/, systemd/, scripts/ — shipped to EC2 by CI. runbooks/ — one-shot scripts, already run
 docs/                      # SCHEMA_V2, WEB_DESIGN_V2, ARCHITECTURE, GETTING_STARTED, DEPLOYMENT, INFRASTRUCTURE_PLAN
 ```
 
@@ -89,7 +92,7 @@ pnpm --filter @naru/web test     # web only
 pnpm --filter @naru/backend test # backend only
 
 # Run a single test file
-cd apps/web && npx vitest run src/pages/__tests__/SomePage.test.tsx
+cd apps/web && npx vitest run tests/pages/SomePage.test.tsx
 
 # Prisma
 cd apps/backend
@@ -113,7 +116,7 @@ DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrat
 | Language | TypeScript (strict mode, no `any`) |
 | Backend | Hono, Prisma, PostgreSQL 16 |
 | Validation | Zod (shared schemas are the single source of truth) |
-| Frontend | React 18, Vite, React Router v6, Tailwind CSS |
+| Frontend | React 18, Vite, React Router v7, Tailwind CSS |
 | Server state | TanStack Query |
 | Client state | Zustand (`useAuthStore` with localStorage persistence) |
 | Auth | JWT (access 1h + refresh 30d, silent refresh) |
@@ -170,10 +173,10 @@ Kinds with no detail table record visits purely on the shared `visit` spine (dat
 2. **Prisma model**: Add to `prisma/schema.prisma`. Run `npx prisma migrate dev`.
 3. **Service**: `apps/backend/src/services/[entity].service.ts` — all DB logic here.
 4. **Route**: `apps/backend/src/routes/[entity].ts` — HTTP layer only. Mount in `app.ts`.
-5. **Backend test**: `apps/backend/tests/[entity].test.ts`
+5. **Backend test**: `apps/backend/tests/routes/[entity].test.ts` — same path as the route under `src/`
 6. **API client**: `apps/web/src/api/[entity].ts` — export namespace object.
 7. **Page**: `apps/web/src/pages/[Name]Page.tsx` — add route in `App.tsx`.
-8. **Page test**: `apps/web/src/pages/__tests__/[Name]Page.test.tsx`
+8. **Page test**: `apps/web/tests/pages/[feature]/[Name]Page.test.tsx` — same path as the page under `src/`
 
 ## Entity Relationships
 
@@ -241,8 +244,9 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 - Throw `HTTPException` for domain errors
 - Convert `@db.Date` columns with `toDateOnly()` and `Decimal` columns with `toDecimal()` from `src/utils/date.ts`
 
-### Tests (`tests/*.test.ts`)
+### Tests (`tests/**/*.test.ts`)
 
+- `tests/` mirrors `src/`; import app code through the `@/` alias (`@/routes/mothers`). Same in `packages/shared`.
 - Vitest with a real test PostgreSQL database (`naru_test`)
 - Test auth, roles (ADMIN/SUPERVISOR/CASEWORKER), validation, 404s
 - `process.env.NODE_ENV = 'test'` set before imports
@@ -257,7 +261,7 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 - Functional components with `React.FC`
 - Named export + default export
 - Data fetching via TanStack Query hooks (`useQuery`, `useMutation`)
-- Every page should have a basic render test in `src/pages/__tests__/`
+- Every page should have a basic render test in `tests/pages/`, at the same path as the page
 
 ### Components (`src/components/`)
 
@@ -282,10 +286,11 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 - Custom palette: `hv-green`, `hv-green-hover`, `hv-accent`, `hv-crisis`, `hv-gray`, `hv-border`, `hv-card`, `hv-page`
 - Defined in `tailwind.config.ts`
 
-### Test patterns (`src/pages/__tests__/*.test.tsx`)
+### Test patterns (`tests/**/*.test.tsx`)
 
-- Mock API modules with `vi.mock('../../api/foo')`
-- Mock auth store with `vi.mock('../../store/auth')`
+- `tests/` mirrors `src/`; import app code through the `@/` alias (`@/pages/mothers/MothersPage`)
+- Mock API modules with `vi.mock('@/api/foo')`
+- Mock auth store with `vi.mock('@/store/auth')`
 - Wrap with `QueryClientProvider` (retry: false) + `MemoryRouter`
 - Use `screen.getByText()`, `waitFor()`, `fireEvent`
 
@@ -337,6 +342,10 @@ Backend requires (in `apps/backend/.env`):
 - `JWT_REFRESH_SECRET` — refresh token signing key
 - `PORT` — defaults to 3000
 
+## Keeping this file current
+
+Update `AGENTS.md` as you see fit when a change makes it wrong or incomplete. Tell me about any discrepancies you find between it and the code, including ones you fixed. If it isn't clear whether the file or the code is right, ask before changing either.
+
 ## AI attribution
 
 After each task that changes files, append an entry to `AI-ATTRIBUTION.md` in the repository root, creating the file if it does not exist. Use this format, with today's date:
@@ -345,8 +354,10 @@ After each task that changes files, append an entry to `AI-ATTRIBUTION.md` in th
 ## YYYY-MM-DD: <each file changed, with (new file) after new ones>
 Tool: <tool name>
 Model: <model name>
-Task: <the task I gave you, in one or two sentences>
+Task: <what you did and why, in one or two sentences>
 ```
+
+In `Task`, describe the change and the reason for it. Leave out process details such as "on a new branch".
 
 List every file you changed or created, including tests.
 

@@ -1,8 +1,14 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // Keep in step with tsconfig.json paths and vitest.config.ts.
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+  },
   server: {
     port: 5173,
     // Vite rejects requests whose Host header it doesn't recognise, which blocks

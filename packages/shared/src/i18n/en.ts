@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 // English translations ported from root/sys/i18n/en.php
 export const en = {
   // People directories
@@ -453,6 +454,17 @@ export const en = {
   'common.loading': 'Loading...',
   'common.unknown': 'Unknown',
   'common.add_visit': 'Add Visit',
+
+  // Form validation
+  'validation.required': 'This field is required.',
+  'validation.too_short': 'Use at least {min} characters.',
+  'validation.too_long': 'Use no more than {max} characters.',
+  'validation.number_too_small': 'Enter {min} or more.',
+  'validation.number_too_big': 'Enter {max} or less.',
+  'validation.invalid_email': 'Enter a valid email address.',
+  'validation.invalid_date': 'Enter a valid date.',
+  'validation.invalid_phone': 'A phone number may contain only digits.',
+  'validation.invalid': 'Enter a valid value.',
 
   // Error page
   'error.title': 'Something went wrong',

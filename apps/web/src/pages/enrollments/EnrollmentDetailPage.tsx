@@ -1,8 +1,8 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import React, { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { z } from 'zod';
 import {
   EnrollmentUpdate,
   EnrollmentUpdateSchema,
@@ -26,7 +26,7 @@ import {
   PhoneInput,
 } from '../../components';
 import { usePendingPhotoDeletions, useTranslation } from '../../hooks';
-import { parseZodErrors } from '../../hooks/useFieldErrors';
+import { firstFieldError } from '../../hooks/useFieldErrors';
 import { AgeReadout, ageDaysAt, fetchSubjectSummary, subjectHref } from './EnrollPage';
 
 const FIELD =
@@ -60,17 +60,6 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
-};
-
-const preflight = <T,>(schema: z.ZodType<T>, data: unknown): string | null => {
-  const result = schema.safeParse(data);
-  if (result.success) return null;
-
-  const first = Object.entries(parseZodErrors(result.error))[0];
-  if (!first) return null;
-
-  const [field, message] = first;
-  return `${field}: ${message}`;
 };
 
 const Detail: React.FC<{ label: string; children?: React.ReactNode }> = ({ label, children }) => (
@@ -273,7 +262,7 @@ export const EnrollmentDetailPage: React.FC = () => {
       };
     }
 
-    const invalid = preflight(EnrollmentUpdateSchema, payload);
+    const invalid = firstFieldError(EnrollmentUpdateSchema, payload, t);
     if (invalid) {
       setFormError(invalid);
       return;

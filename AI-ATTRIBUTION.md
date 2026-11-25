@@ -110,3 +110,8 @@ Task: Excluded visits on soft-deleted enrollments from the dashboard's recent vi
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Removed any from the tests and LoginPage and made lint type-check the backend tests, because they were not checked at all and mistakes in them went unnoticed. The user approved one-off scripts for the repeated patterns.
+
+## 2026-11-25: apps/web/src/main.tsx, apps/web/src/utils/validationMessages.ts (new file), apps/web/tests/utils/validationMessages.test.ts (new file), apps/web/src/hooks/useFieldErrors.ts, apps/web/tests/hooks/firstFieldError.test.ts (new file), apps/web/src/components/VisitForm.tsx, apps/web/src/pages/enrollments/ (EnrollPage, EnrollmentDetailPage, ExitEnrollmentPage).tsx, packages/shared/src/i18n/ (en, es).ts, packages/shared/src/schemas/ (enums, phone).ts, packages/shared/src/schemas/message.ts (new file), AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Replaced Zod's default messages in the web forms with plain English and Spanish sentences and showed form labels instead of internal field names, because a blank required field showed "Too small: expected string to have >=1 characters".

@@ -10,3 +10,8 @@ Task: Create AGENTS.md on a new branch, moving the CLAUDE.md content into it and
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Add a rule that git commits end with '[agent-assisted]'.
+
+## 2026-11-25: apps/web/vitest.config.ts, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, delete the Vitest poolOptions setting, which Vitest 4 removed, instead of restoring the two-worker cap.

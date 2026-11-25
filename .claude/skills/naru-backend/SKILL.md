@@ -368,7 +368,7 @@ app.route('/api/families/:familyId/widgets', widgetRoutes);
 
 Nested routes receive the parent ID via params — the route handler reads it from `c.req.param('familyId')` or validates with `zValidator('param', ...)`.
 
-### 6. Backend Test (`apps/backend/tests/widget.test.ts`)
+### 6. Backend Test (`apps/backend/tests/routes/widget.test.ts`)
 
 ```typescript
 // Set up environment BEFORE imports
@@ -381,9 +381,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import widgetRoutes from '../src/routes/widget';
-import { testDb, createTestUser, createTestFamily } from './setup';
-import { appConfig } from '../src/config';
+import widgetRoutes from '@/routes/widget';
+import { testDb, createTestUser, createTestFamily } from '../setup';
+import { appConfig } from '@/config';
 
 const app = new Hono();
 app.onError((err, c) => {
@@ -454,7 +454,7 @@ describe('Widget Routes', () => {
 - Response structure: `deletedAt` is never present
 - Soft delete: verify `deletedAt` is set in DB, record hidden from list endpoint
 
-Run with: `cd apps/backend && npx vitest run tests/widget.test.ts`
+Run with: `cd apps/backend && npx vitest run tests/routes/widget.test.ts`
 
 ## Architecture Invariants
 
@@ -482,11 +482,11 @@ When adding a new entity, touch these files:
 | 5 | `apps/backend/src/routes/[entity].ts` | Hono route handlers |
 | 6 | `apps/backend/src/app.ts` | Import + `app.route(...)` |
 | 7 | `apps/backend/tests/setup.ts` | Add to cleanup + create helper |
-| 8 | `apps/backend/tests/[entity].test.ts` | Route/service tests |
+| 8 | `apps/backend/tests/routes/[entity].test.ts` | Route/service tests |
 
 Then run:
 ```bash
 cd apps/backend && npx prisma migrate dev --name add_[entity]
 pnpm --filter @naru/shared build
-cd apps/backend && npx vitest run tests/[entity].test.ts
+cd apps/backend && npx vitest run tests/routes/[entity].test.ts
 ```

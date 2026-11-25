@@ -311,7 +311,7 @@ The runner pushes an artifact and triggers a script; the box pulls. Once this wo
 
 ### 2.2 Deploy script on the box
 
-Put the deploy logic in `/usr/local/bin/naru-deploy.sh`, version-controlled in `deployment/`.
+Put the deploy logic in `/usr/local/bin/naru-deploy.sh`, version-controlled in `infra/scripts/`.
 It should, in order:
 
 1. Snapshot Aurora if `prisma migrate status` reports pending migrations — automates 0.2

@@ -27,3 +27,6 @@ onlyBuiltDependencies:
 
 overrides:
   tar: ^7.5.15
+  # Prisma 6 pins vulnerable versions of these exactly. Drop both when Prisma is upgraded.
+  '@prisma/config>deepmerge-ts': ^8.0.2
+  '@prisma/config>effect': ^3.22.1

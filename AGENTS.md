@@ -102,7 +102,7 @@ npx prisma db seed               # (re)create the six program rows
 ```
 
 The backend test suite resolves its own database URL from your OS username in
-`tests/assert-test-database.ts` (`postgresql://$USER@127.0.0.1:5432/naru_test`). It ignores
+`tests/assert-test-database.ts` (`postgresql://<os-username>@127.0.0.1:5432/naru_test`). It ignores
 `.env.test` unless `TEST_DATABASE_URL` is set. To bring `naru_test` up to date:
 
 ```bash
@@ -113,7 +113,7 @@ DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrat
 
 | Layer | Tech |
 |-------|------|
-| Language | TypeScript (strict mode, no `any`) |
+| Language | TypeScript (strict mode, no `any` in new code) |
 | Backend | Hono, Prisma, PostgreSQL 16 |
 | Validation | Zod (shared schemas are the single source of truth) |
 | Frontend | React 18, Vite, React Router v7, Tailwind CSS |
@@ -126,12 +126,12 @@ DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrat
 ## Invariants
 
 - **Soft delete everything** — set `deletedAt`, never hard-delete rows
-- **Every model** has `id`, `createdAt`, `updatedAt`, `deletedAt`; syncable models also have `localId`
+- **Every main model** has `id`, `createdAt`, `updatedAt`, `deletedAt`; syncable models also have `localId`. Detail and junction tables (`VisitAnswer`, `QuestionSetItem`, `*Detail`, …) have no `deletedAt`
 - **Never expose** `deletedAt` or `passwordHash` in API responses
 - **All business logic lives in services**, not route handlers
 - **Use Prisma migrations** — never raw SQL or manual ALTER TABLE
 - **Validate all input with Zod** — schemas come from `@naru/shared`
-- **No `any` types** — use Zod inference (`z.infer<typeof Schema>`)
+- **No `any` types in new code** — use Zod inference (`z.infer<typeof Schema>`). Older code, mostly in the backend, still has some
 
 ### V2-specific invariants
 
@@ -234,7 +234,9 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 - Middleware chain: `auth` → `requireAdmin`/`requireSupervisor` → handler
 - Validation: `zValidator('json', SomeCreateSchema)` then `c.req.valid('json')`
 - Response: `c.json(result)` or `c.json(result, 201)`
-- List endpoints return `{ items, total, skip, limit }`
+- Paginated list endpoints return `{ items, total, skip, limit }`; services return `{ <plural>, total }` and the route reshapes it. `limit` defaults to 50 and caps at 100
+- Exceptions: `/families` returns `{ families, total }` and `/users` returns `{ users, total }`, both defaulting to 20; `/programs` and `/reports` return `{ items, total }` unpaginated; `/search` returns `{ results, total, query }`
+- Lookups (`/admin/:table`), `/birthing-assistants`, `/questions`, `/question-sets` and `/sites` return a plain array
 - **Resources are top-level, not nested.** `/api/children?familyId=1`, not `/api/families/1/children` — a child can exist with no family, and a nested route cannot address one.
 
 ### Service files (`src/services/*.service.ts`)
@@ -249,7 +251,7 @@ After editing shared code, rebuild before using in other packages: `pnpm --filte
 - `tests/` mirrors `src/`; import app code through the `@/` alias (`@/routes/mothers`). Same in `packages/shared`.
 - Vitest with a real test PostgreSQL database (`naru_test`)
 - Test auth, roles (ADMIN/SUPERVISOR/CASEWORKER), validation, 404s
-- `process.env.NODE_ENV = 'test'` set before imports
+- `vitest.config.ts` sets `NODE_ENV` and `DATABASE_URL` for every test; don't set them in test files
 - `cleanupDatabase()` TRUNCATEs every table before each test, **including `programs`** — so each test creates the programs it needs via `createTestProgram()` rather than relying on the seed
 - Helpers in `tests/setup.ts`: `createTestUser`, `createTestFamily`, `createTestMother`, `createTestPerson`, `createTestChild`, `createTestProgram`, `createTestEnrollment`, `createTestVisit`, `createTestCommunity`, `createTestTraining`
 - `tests/http.ts` provides `mountRoutes(basePath, routes)` and `tokenFor(user)` — use these in new suites instead of copying the per-file request boilerplate the older suites carry

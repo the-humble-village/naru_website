@@ -80,3 +80,13 @@ Task: Merged dev into the infra/ pull request and resolved the CLAUDE.md conflic
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: Grouped Dependabot's weekly minor and patch updates into one pull request, and its GitHub Actions updates into another, because separate pull requests for each package were piling up.
+
+## 2026-11-25: AGENTS.md, .claude/skills/naru-backend/SKILL.md, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Corrected statements in AGENTS.md and the backend skill that no longer matched the code, such as which models have deletedAt, how tests are set up and what list endpoints return, because following them would produce wrong code.
+
+## 2026-11-25: apps/web/src/api/families.ts, apps/web/tests/pages/UnenrolledPage.test.tsx, apps/web/tests/pages/children/ (AddChildPage, EditChildPage).test.tsx, apps/web/tests/pages/families/FamiliesPage.test.tsx, apps/web/tests/pages/mothers/ (AddMotherPage, EditMotherPage).test.tsx, apps/web/tests/pages/programs/ProgramRosterPage.test.tsx, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Removed skip and limit from the families list response type and its test fixtures, because the API does not return them.

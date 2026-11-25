@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { apiClient } from './client';
 import { FamilyRead, FamilyListItem, FamilyCreate, FamilyUpdate } from '@naru/shared';
 
@@ -17,8 +18,6 @@ export interface ListFamiliesParams {
 export interface ListFamiliesResponse {
   families: FamilyListItem[];
   total: number;
-  skip: number;
-  limit: number;
 }
 
 /**

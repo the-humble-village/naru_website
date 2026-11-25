@@ -114,8 +114,6 @@ describe('EditMotherPage', () => {
     vi.mocked(familiesApi.listFamilies).mockResolvedValue({
       families: [],
       total: 0,
-      skip: 0,
-      limit: 100,
     });
     vi.mocked(programsApi.listPrograms).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(peopleApi.listPeople).mockResolvedValue({

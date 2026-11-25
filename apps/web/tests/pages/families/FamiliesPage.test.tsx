@@ -65,8 +65,6 @@ const mockFamilies: FamilyListItem[] = [
 const mockFamiliesResponse = {
   families: mockFamilies,
   total: 2,
-  skip: 0,
-  limit: 20,
 };
 
 const queryClient = new QueryClient({
@@ -169,8 +167,6 @@ describe('FamiliesPage', () => {
       mockFamiliesApi.listFamilies.mockResolvedValue({
         families: [],
         total: 0,
-        skip: 0,
-        limit: 20,
       });
 
       renderWithProviders(<FamiliesPage />);
@@ -361,8 +357,6 @@ describe('FamiliesPage', () => {
       mockFamiliesApi.listFamilies.mockResolvedValue({
         families: [familyWithoutCommunity],
         total: 1,
-        skip: 0,
-        limit: 20,
       });
 
       renderWithProviders(<FamiliesPage />);
@@ -382,8 +376,6 @@ describe('FamiliesPage', () => {
       mockFamiliesApi.listFamilies.mockResolvedValue({
         families: [unnamedFamily],
         total: 1,
-        skip: 0,
-        limit: 20,
       });
 
       renderWithProviders(<FamiliesPage />);
@@ -417,8 +409,6 @@ describe('FamiliesPage', () => {
       mockFamiliesApi.listFamilies.mockResolvedValue({
         families: mockFamilies,
         total: 50,
-        skip: 0,
-        limit: 20,
       });
 
       renderWithProviders(<FamiliesPage />);
@@ -446,8 +436,6 @@ describe('FamiliesPage', () => {
       mockFamiliesApi.listFamilies.mockResolvedValue({
         families: mockFamilies,
         total: 50,
-        skip: 0,
-        limit: 20,
       });
 
       renderWithProviders(<FamiliesPage />);
@@ -474,8 +462,6 @@ describe('FamiliesPage', () => {
       mockFamiliesApi.listFamilies.mockResolvedValue({
         families: mockFamilies,
         total: 50,
-        skip: 0,
-        limit: 20,
       });
 
       renderWithProviders(<FamiliesPage />);

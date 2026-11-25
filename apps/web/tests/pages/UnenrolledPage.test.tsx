@@ -166,8 +166,6 @@ describe('UnenrolledPage', () => {
         },
       ],
       total: 1,
-      skip: 0,
-      limit: 25,
     });
     vi.mocked(mothersApi.listMothers).mockResolvedValue({
       items: [

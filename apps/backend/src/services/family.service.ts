@@ -102,9 +102,13 @@ export async function listFamilies(options: {
       select: {
         ...FAMILY_SELECT,
         community: { select: { siteId: true } },
+        // The soft-delete extension only rewrites the top-level where, so the
+        // nested filters are spelled out.
         enrollments: {
+          where: { deletedAt: null },
           select: {
             visits: {
+              where: { deletedAt: null },
               take: 1,
               orderBy: { visitDate: 'desc' },
               select: { visitDate: true },

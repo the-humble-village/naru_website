@@ -115,6 +115,28 @@ describe('Dashboard Routes', () => {
       expect(data.stats.visitsThisMonth).toBe(1);
     });
 
+    it('ignores deleted children, visits and enrollments in nested figures', async () => {
+      const deletedAt = new Date();
+      const family = await createTestFamily({ inCrisis: true });
+      await createTestChild({ familyId: family.id });
+      await createTestChild({ familyId: family.id, deletedAt });
+
+      const program = await createTestProgram({ name: 'PAF', kind: 'FAMILY_PAF', subjectType: 'FAMILY' });
+      const other = await createTestProgram({ name: 'PAF 2', kind: 'FAMILY_PAF', subjectType: 'FAMILY' });
+      const enrollment = await createTestEnrollment(program.id, { familyId: family.id });
+      await createTestVisit(enrollment.id, { visitDate: new Date('2026-02-01') });
+      await createTestVisit(enrollment.id, { visitDate: new Date('2026-03-01'), deletedAt });
+      const deleted = await createTestEnrollment(other.id, { familyId: family.id }, { deletedAt });
+      await createTestVisit(deleted.id, { visitDate: new Date('2026-04-01') });
+
+      const response = await testClient.get('/', accessToken);
+      const data = await response.json();
+
+      expect(data.familiesInCrisis[0].childrenCount).toBe(1);
+      expect(data.familiesInCrisis[0].lastVisitDate).toBe('2026-02-01');
+      expect(data.communityBreakdown[0].children).toBe(1);
+    });
+
     it('should return empty arrays when no data exists', async () => {
       const response = await testClient.get('/', accessToken);
       expect(response.status).toBe(200);

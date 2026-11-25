@@ -1,15 +1,12 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { UserRead } from '@naru/shared';
 
-export interface User {
-  id: number;
-  login: string;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  role: 'ADMIN' | 'SUPERVISOR' | 'CASEWORKER';
-  lang: string;
-}
+export type User = Pick<
+  UserRead,
+  'id' | 'login' | 'email' | 'firstName' | 'lastName' | 'role' | 'lang'
+>;
 
 interface AuthState {
   user: User | null;

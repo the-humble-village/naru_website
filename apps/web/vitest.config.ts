@@ -12,6 +12,5 @@ export default defineConfig({
     // UTC so date formatting is the same on every machine and in CI.
     env: { TZ: 'UTC' },
     pool: 'forks',
-    maxWorkers: 2,
   },
 });

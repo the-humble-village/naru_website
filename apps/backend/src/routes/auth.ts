@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { LoginSchema } from '@naru/shared';
@@ -14,7 +15,7 @@ const app = new Hono();
  * Authenticate user with login/password
  *
  * The limiter is mounted here rather than in app.ts so it is in the path of
- * tests/auth.test.ts, which builds its own Hono instance around these routes.
+ * tests/routes/auth.test.ts, which builds its own Hono instance around these routes.
  */
 app.post('/login', loginRateLimit, zValidator('json', LoginSchema), async (c) => {
   const data = c.req.valid('json');

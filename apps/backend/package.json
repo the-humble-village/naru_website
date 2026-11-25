@@ -3,35 +3,37 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "files": [
+    "dist",
+    "prisma"
+  ],
   "scripts": {
     "build": "tsc",
+    "lint": "tsc --noEmit",
     "test": "vitest run",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-rds": "^3.1048.0",
     "@aws-sdk/client-s3": "^3.1048.0",
     "@aws-sdk/rds-signer": "^3.1158.0",
     "@aws-sdk/s3-request-presigner": "^3.1048.0",
-    "@hono/node-server": "^1.19.14",
+    "@hono/node-server": "^2.1.11",
     "@hono/swagger-ui": "^0.6.1",
-    "@hono/zod-openapi": "^1.4.0",
-    "@hono/zod-validator": "^0.5.0",
+    "@hono/zod-openapi": "^1.6.3",
+    "@hono/zod-validator": "^0.9.1",
     "@naru/shared": "workspace:*",
     "@prisma/client": "^6.19.3",
     "bcrypt": "^5.1.1",
     "dotenv": "^18.0.9",
     "hono": "^4.13.16",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.5.0",
-    "zod": "^3.24.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/multer": "^1.4.12",
     "@types/node": "^22.19.19",
     "prisma": "^6.19.3",
     "tsx": "^4.22.0",

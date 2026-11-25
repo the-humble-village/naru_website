@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { cors } from 'hono/cors';
@@ -70,7 +71,7 @@ app.onError((err, c) => {
   if (err instanceof ZodError) {
     return c.json({
       error: 'Validation failed',
-      details: err.errors.map(e => ({
+      details: err.issues.map(e => ({
         path: e.path.join('.'),
         message: e.message,
       })),

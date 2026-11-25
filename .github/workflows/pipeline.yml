@@ -25,6 +25,10 @@ env:
   # keep the two in sync.
   IS_DEPLOY: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
+# lint, test and build run in parallel; deploy needs all three.
+#
+# Each job has its own Turborepo cache key. With a shared key the first job to
+# finish saved it and the others skipped saving, so test results never cached.
 jobs:
   lint:
     name: Lint & Format
@@ -46,19 +50,27 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ github.job }}-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            turbo-${{ runner.os }}-
+            turbo-${{ github.job }}-${{ runner.os }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The backend type-check imports @prisma/client, whose types only exist
+      # once the client is generated. No database is needed for this.
+      - name: Generate Prisma Client
+        run: |
+            cd apps/backend
+            npx prisma generate
+
+      # tsc --noEmit in every package. Vite strips types without checking
+      # them, so this is the only CI step that type-checks the web app.
       - name: Lint
         run: pnpm lint
 
   test:
     name: Run Tests
-    needs: lint
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -92,9 +104,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ github.job }}-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            turbo-${{ runner.os }}-
+            turbo-${{ github.job }}-${{ runner.os }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -122,11 +134,12 @@ jobs:
           JWT_SECRET: test-jwt-secret-for-testing-only
           JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
           NODE_ENV: test
+          # A production deploy never trusts a cached pass: run every test.
+          TURBO_FORCE: ${{ env.IS_DEPLOY }}
         run: pnpm test
 
   build:
     name: Build Project
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -145,9 +158,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ github.job }}-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            turbo-${{ runner.os }}-
+            turbo-${{ github.job }}-${{ runner.os }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -211,7 +224,9 @@ jobs:
 
   deploy:
     name: Deploy to EC2
-    needs: build
+    # All three, not just build: they no longer wait on each other, so anything
+    # left out here could fail while production is being deployed.
+    needs: [lint, test, build]
     # Must match the IS_DEPLOY expression above — job-level `if` has no access
     # to the `env` context, so it cannot reference it.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

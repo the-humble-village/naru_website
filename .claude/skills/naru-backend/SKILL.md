@@ -11,7 +11,7 @@ This skill documents how to add new database tables and wire them through the fu
 
 ### 1. Prisma Model (`apps/backend/prisma/schema.prisma`)
 
-Every model follows this template:
+Every main model follows this template:
 
 ```prisma
 model Widget {
@@ -32,7 +32,8 @@ model Widget {
 ```
 
 **Rules:**
-- Every model gets `id`, `createdAt`, `updatedAt`, `deletedAt`
+- Every main model gets `id`, `createdAt`, `updatedAt`, `deletedAt`; detail and junction tables have no `deletedAt`
+- Add every model with `deletedAt` to the list in `src/middleware/soft-delete.ts`, or its queries return deleted rows
 - Syncable models (created offline on mobile) also get `localId` (unique, optional)
 - Use `@map("snake_case")` for all field names and `@@map("table_name")` for the table
 - DB types: `@db.VarChar(n)` for bounded strings, `@db.Text` for unbounded, `@db.Json` for structured data
@@ -44,7 +45,7 @@ After editing, run:
 cd apps/backend && npx prisma migrate dev --name add_widgets
 ```
 
-**Update test setup** — add the new table to the `beforeEach` cleanup in `apps/backend/tests/setup.ts`. Insert it in the correct foreign-key order (children before parents). Also add a `createTestWidget` helper if tests need seed data.
+**Update test setup** — add a `createTestWidget` helper to `apps/backend/tests/setup.ts` if tests need seed data. `cleanupDatabase()` already truncates every table, so there is no list to update.
 
 ### 2. Shared Zod Schema (`packages/shared/src/schemas/widget.ts`)
 
@@ -61,7 +62,9 @@ export const WidgetCreateSchema = z.object({
   localId: z.string().uuid().optional(),              // Only if syncable
 });
 
-// Partial version for updates
+// Partial version for updates. Zod 4 applies .default() inside .partial(), so any
+// defaulted field must be redeclared as optional with .extend(), or an update that
+// omits it resets the stored value. See FamilyUpdateSchema.
 export const WidgetUpdateSchema = WidgetCreateSchema.partial();
 
 // What the API returns — never includes deletedAt or passwordHash
@@ -90,6 +93,7 @@ export type WidgetRead = z.infer<typeof WidgetReadSchema>;
 All database queries and business logic go here. Routes never touch Prisma directly.
 
 ```typescript
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   type WidgetCreate,
@@ -110,7 +114,7 @@ export async function listWidgets(options: {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 20));
 
-  const where: any = {};
+  const where: Prisma.WidgetWhereInput = {};
   if (options.search?.trim()) {
     where.title = { contains: options.search.trim(), mode: 'insensitive' };
   }
@@ -359,72 +363,21 @@ Add the import and route mounting:
 ```typescript
 import widgetRoutes from './routes/widget';
 
-// Top-level resource
 app.route('/api/widgets', widgetRoutes);
-
-// OR nested under a parent resource
-app.route('/api/families/:familyId/widgets', widgetRoutes);
 ```
 
-Nested routes receive the parent ID via params — the route handler reads it from `c.req.param('familyId')` or validates with `zValidator('param', ...)`.
+Resources are top-level, not nested. Filter by parent with a query param (`/api/widgets?familyId=1`).
 
 ### 6. Backend Test (`apps/backend/tests/routes/widget.test.ts`)
 
 ```typescript
-// Set up environment BEFORE imports
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only';
-process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-testing-only';
-process.env.DATABASE_URL = 'postgresql://calebr@127.0.0.1:5432/naru_test';
-
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Hono } from 'hono';
-import { HTTPException } from 'hono/http-exception';
-import jwt from 'jsonwebtoken';
 import widgetRoutes from '@/routes/widget';
 import { testDb, createTestUser, createTestFamily } from '../setup';
-import { appConfig } from '@/config';
+import { mountRoutes, tokenFor } from '../http';
 
-const app = new Hono();
-app.onError((err, c) => {
-  if (err instanceof HTTPException) {
-    return c.json({ message: err.message }, err.status);
-  }
-  return c.json({ message: 'Internal Server Error' }, 500);
-});
-app.route('/widgets', widgetRoutes);
-
-const createTokens = (userId: number, role: string, lang = 'en') =>
-  jwt.sign({ userId, role, lang }, appConfig.JWT_SECRET, { expiresIn: '15m' });
-
-const testClient = {
-  get: async (path: string, token?: string) => {
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return app.request(new Request(`http://localhost${path}`, { method: 'GET', headers }));
-  },
-  post: async (path: string, body?: any, token?: string) => {
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    if (body) headers['Content-Type'] = 'application/json';
-    return app.request(new Request(`http://localhost${path}`, {
-      method: 'POST', headers, body: body ? JSON.stringify(body) : undefined,
-    }));
-  },
-  put: async (path: string, body?: any, token?: string) => {
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    if (body) headers['Content-Type'] = 'application/json';
-    return app.request(new Request(`http://localhost${path}`, {
-      method: 'PUT', headers, body: body ? JSON.stringify(body) : undefined,
-    }));
-  },
-  delete: async (path: string, token?: string) => {
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return app.request(new Request(`http://localhost${path}`, { method: 'DELETE', headers }));
-  },
-};
+const client = mountRoutes('/widgets', widgetRoutes);
 
 describe('Widget Routes', () => {
   let caseworkerToken: string;
@@ -432,12 +385,12 @@ describe('Widget Routes', () => {
   let adminToken: string;
 
   beforeEach(async () => {
-    const cw = await createTestUser({ login: 'caseworker', role: 'CASEWORKER' });
-    const sv = await createTestUser({ login: 'supervisor', role: 'SUPERVISOR' });
-    const ad = await createTestUser({ login: 'admin', role: 'ADMIN' });
-    caseworkerToken = createTokens(cw.id, cw.role);
-    supervisorToken = createTokens(sv.id, sv.role);
-    adminToken = createTokens(ad.id, ad.role);
+    const cw = await createTestUser({ login: 'caseworker', email: 'cw@example.com', role: 'CASEWORKER' });
+    const sv = await createTestUser({ login: 'supervisor', email: 'sv@example.com', role: 'SUPERVISOR' });
+    const ad = await createTestUser({ login: 'admin', email: 'ad@example.com', role: 'ADMIN' });
+    caseworkerToken = tokenFor(cw);
+    supervisorToken = tokenFor(sv);
+    adminToken = tokenFor(ad);
   });
 
   // Test auth (401), role gates (403), CRUD (200/201), not-found (404),
@@ -458,11 +411,11 @@ Run with: `cd apps/backend && npx vitest run tests/routes/widget.test.ts`
 
 ## Architecture Invariants
 
-1. **Soft delete everything** — set `deletedAt: new Date()`, never hard-delete. The soft-delete middleware in `src/middleware/soft-delete.ts` automatically filters `findMany`/`findFirst`/`findUnique` by `deletedAt: null` and converts `delete` to `update`.
+1. **Soft delete everything** — set `deletedAt: new Date()`, never hard-delete. The soft-delete middleware in `src/middleware/soft-delete.ts` automatically adds `deletedAt: null` to every read that takes a `where` (the `FILTERED_READS` set), and converts `delete`/`deleteMany` to updates, for the models in its list. It does not filter nested relations.
 2. **Never expose `deletedAt` or `passwordHash`** in API responses — use explicit `select` in every Prisma query.
 3. **All business logic in services** — routes are thin HTTP adapters only.
 4. **Validate all input with Zod** — schemas come from `@naru/shared`, applied via `zValidator`.
-5. **No `any` types** — use `z.infer<typeof Schema>` for type inference.
+5. **No `any` types in new code** — use `z.infer<typeof Schema>` for type inference.
 6. **Date fields → ISO strings** — all `DateTime` values are converted via `.toISOString()` before returning.
 7. **localId uniqueness** — check before create and update if the entity supports offline sync.
 8. **Existence checks** — verify the record exists before update/delete; verify parent exists before creating a child entity.
@@ -481,8 +434,9 @@ When adding a new entity, touch these files:
 | 4 | `apps/backend/src/services/[entity].service.ts` | CRUD functions |
 | 5 | `apps/backend/src/routes/[entity].ts` | Hono route handlers |
 | 6 | `apps/backend/src/app.ts` | Import + `app.route(...)` |
-| 7 | `apps/backend/tests/setup.ts` | Add to cleanup + create helper |
-| 8 | `apps/backend/tests/routes/[entity].test.ts` | Route/service tests |
+| 7 | `apps/backend/src/middleware/soft-delete.ts` | Add the model to the list |
+| 8 | `apps/backend/tests/setup.ts` | Add a create helper |
+| 9 | `apps/backend/tests/routes/[entity].test.ts` | Route/service tests |
 
 Then run:
 ```bash

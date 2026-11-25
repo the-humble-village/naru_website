@@ -21,6 +21,11 @@ Tool: Claude Code
 Model: Claude Opus 5.5
 Task: On a new branch, remove the unused backend dependencies multer, @types/multer and @aws-sdk/client-rds, plus the leftover multer override.
 
+## 2026-11-25: apps/web/src/pages/__tests__/ErrorPage.test.tsx (new file), AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, add a test for ErrorPage, the only top-level page without one.
+
 ## 2026-11-25: apps/web/src/store/auth.ts, AI-ATTRIBUTION.md
 Tool: Claude Code
 Model: Claude Opus 5.5

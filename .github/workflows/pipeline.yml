@@ -134,6 +134,8 @@ jobs:
           JWT_SECRET: test-jwt-secret-for-testing-only
           JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-testing-only
           NODE_ENV: test
+          # A production deploy never trusts a cached pass: run every test.
+          TURBO_FORCE: ${{ env.IS_DEPLOY }}
         run: pnpm test
 
   build:

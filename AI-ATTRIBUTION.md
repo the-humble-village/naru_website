@@ -45,3 +45,8 @@ Task: Delete the placeholder app.test.tsx, which tested no app code.
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: On a new branch, convert four repetitive web test files to it.each tables.
+
+## 2026-11-25: .github/workflows/pipeline.yml, turbo.json, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, speed up CI by running lint, tests and build in parallel and giving each job its own Turborepo cache key. Pushes to main always run the tests fresh.

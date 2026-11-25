@@ -50,3 +50,8 @@ Task: On a new branch, convert four repetitive web test files to it.each tables.
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: On a new branch, speed up CI by running lint, tests and build in parallel and giving each job its own Turborepo cache key. Pushes to main always run the tests fresh.
+
+## 2026-11-25: apps/backend/src/middleware/soft-delete.ts, apps/backend/tests/soft-delete.test.ts (new file), AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, make the soft-delete middleware filter findFirstOrThrow, findUniqueOrThrow, aggregate and groupBy, with tests.

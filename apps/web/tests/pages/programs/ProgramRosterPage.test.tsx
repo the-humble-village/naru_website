@@ -421,7 +421,7 @@ describe('ProgramRosterPage', () => {
   it('uses family wording and ignores nutrition status on family rosters', async () => {
     vi.mocked(programsApi.fetchProgram).mockResolvedValue({ ...nutritionProgram, name: 'PAF', kind: 'FAMILY_PAF', subjectType: 'FAMILY', visitIntervalDays: null });
     vi.mocked(enrollmentsApi.listEnrollments).mockResolvedValue({ items: [{ ...enrollments[0]!, childId: null, familyId: 1, subjectName: 'Familia Morales' }], total: 1, skip: 0, limit: 100 });
-    vi.mocked(familiesApi.listFamilies).mockResolvedValue({ families: [], total: 0, skip: 0, limit: 100 });
+    vi.mocked(familiesApi.listFamilies).mockResolvedValue({ families: [], total: 0 });
     renderPage('/programs/7?status=SEVERE');
     await screen.findAllByText('Familia Morales');
     expect(screen.getByRole('link', { name: 'Enroll a family' })).toHaveAttribute('href', '/programs/7/enroll');

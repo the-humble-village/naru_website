@@ -105,8 +105,6 @@ describe('EditChildPage', () => {
     vi.mocked(familiesApi.listFamilies).mockResolvedValue({
       families: [],
       total: 0,
-      skip: 0,
-      limit: 100,
     });
   });
 

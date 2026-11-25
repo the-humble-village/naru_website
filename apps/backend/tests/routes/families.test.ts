@@ -11,6 +11,7 @@ import {
   createTestCommunity,
   createTestProgram,
   createTestEnrollment,
+  createTestVisit,
 } from '../setup';
 import { appConfig } from '@/config';
 
@@ -151,6 +152,25 @@ describe('Family Routes', () => {
       expect(family.createdAt).toBeDefined();
       expect(family.updatedAt).toBeDefined();
       expect(family.deletedAt).toBeUndefined(); // Should not be exposed
+    });
+
+    it('ignores deleted visits and deleted enrollments in lastVisitDate', async () => {
+      const family = await createTestFamily({ familyName: 'Visited Family' });
+      const program = await createTestProgram({ name: 'PAF', kind: 'FAMILY_PAF', subjectType: 'FAMILY' });
+      const other = await createTestProgram({ name: 'PAF 2', kind: 'FAMILY_PAF', subjectType: 'FAMILY' });
+      const deletedAt = new Date();
+
+      const enrollment = await createTestEnrollment(program.id, { familyId: family.id });
+      await createTestVisit(enrollment.id, { visitDate: new Date('2026-02-01') });
+      await createTestVisit(enrollment.id, { visitDate: new Date('2026-03-01'), deletedAt });
+
+      const deleted = await createTestEnrollment(other.id, { familyId: family.id }, { deletedAt });
+      await createTestVisit(deleted.id, { visitDate: new Date('2026-04-01') });
+
+      const response = await testClient.get('/families', caseworkerToken);
+      const result = await response.json();
+
+      expect(result.families[0].lastVisitDate).toBe('2026-02-01');
     });
 
     it('should filter to families with no active enrollment', async () => {

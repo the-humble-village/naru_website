@@ -1,13 +1,14 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import userRoutes from '../src/routes/users';
-import * as userService from '../src/services/user.service';
-import * as authService from '../src/services/auth.service';
-import { testDb } from './setup';
-import { appConfig } from '../src/config';
+import userRoutes from '@/routes/users';
+import * as userService from '@/services/user.service';
+import * as authService from '@/services/auth.service';
+import { testDb } from '../setup';
+import { appConfig } from '@/config';
 
 // Create test app with user routes and error handler
 const app = new Hono();

@@ -1,10 +1,11 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import healthRoutes from '../src/routes/health';
-import { testDb, createTestUser } from './setup';
-import { appConfig } from '../src/config';
+import healthRoutes from '@/routes/health';
+import { testDb, createTestUser } from '../setup';
+import { appConfig } from '@/config';
 import type { ZScoreResponse } from '@naru/shared';
 
 // Create test app with health routes and error handler

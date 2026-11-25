@@ -1,13 +1,14 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
-import programsRoutes from '../src/routes/programs';
+import programsRoutes from '@/routes/programs';
 import {
   testDb,
   createTestUser,
   createTestChild,
   createTestProgram,
   createTestEnrollment,
-} from './setup';
-import { mountRoutes, tokenFor } from './http';
+} from '../setup';
+import { mountRoutes, tokenFor } from '../http';
 
 const client = mountRoutes('/programs', programsRoutes);
 

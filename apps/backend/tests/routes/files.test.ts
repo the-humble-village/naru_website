@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -11,9 +12,9 @@ import {
   createTestProgram,
   createTestEnrollment,
   generateTokens,
-} from './setup';
-import { appConfig } from '../src/config';
-import { LocalStorage, LOCAL_STORAGE_DIR, writeLocalFile } from '../src/storage/local';
+} from '../setup';
+import { appConfig } from '@/config';
+import { LocalStorage, LOCAL_STORAGE_DIR, writeLocalFile } from '@/storage/local';
 
 // Mock the storage driver before importing routes/services so tests exercise
 // the file flow without touching S3 or the local filesystem.
@@ -24,12 +25,12 @@ const mockStorage = vi.hoisted(() => ({
   delete: vi.fn(),
 }));
 
-vi.mock('../src/storage', () => ({
+vi.mock('@/storage', () => ({
   getStorage: () => mockStorage,
 }));
 
 // Import after mocking
-import fileRoutes from '../src/routes/files';
+import fileRoutes from '@/routes/files';
 
 // Create test app with file routes and error handler
 const app = new Hono();

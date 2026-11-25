@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
-import childrenRoutes from '../src/routes/children';
+import childrenRoutes from '@/routes/children';
 import {
   testDb,
   createTestUser,
@@ -12,8 +12,8 @@ import {
   createTestMother,
   createTestProgram,
   createTestEnrollment,
-} from './setup';
-import { appConfig } from '../src/config';
+} from '../setup';
+import { appConfig } from '@/config';
 
 // Create test app with children routes and error handler
 const app = new Hono();

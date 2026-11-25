@@ -1,8 +1,9 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
 import jwt from 'jsonwebtoken';
-import app from '../src/app';
-import { createTestUser, testDb } from './setup';
-import { appConfig } from '../src/config';
+import app from '@/app';
+import { createTestUser, testDb } from '../setup';
+import { appConfig } from '@/config';
 
 // Exercises the real app so the global onError, the security headers and the auth
 // middleware are all in the path — these behaviours only compose correctly together.

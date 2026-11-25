@@ -60,3 +60,13 @@ Task: On a new branch, make the soft-delete middleware filter findFirstOrThrow, 
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: On a new branch, fix the known dependency vulnerabilities, including the moves to Zod 4, React Router 7 and @hono/node-server 2. Also add a local rule to explain long commands before running them.
+
+## 2026-11-25: apps/backend/package.json, apps/backend/src/routes/auth.ts, packages/shared/package.json, packages/shared/tsconfig.json, packages/shared/tsconfig.build.json (new file), packages/shared/vitest.config.ts (new file), AGENTS.md, .claude/skills/naru-backend/SKILL.md, AI-ATTRIBUTION.md, apps/backend/tests/config-validation.test.ts, and these moved test files: apps/backend/tests/routes/ (admin, auth, birthing-assistants, children, dashboard, enrollments, events, families, files, health, mothers, people, photos, programs, questions, reports, search, users, visits).test.ts; apps/backend/tests/middleware/ (auth, rate-limit, soft-delete).test.ts; apps/backend/tests/storage/local.test.ts; packages/shared/tests/health/zscore.test.ts; packages/shared/tests/schemas/ (phone, update-schemas).test.ts
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Moved the backend and shared tests into folders that mirror src, so every package follows the web layout, and limited the deploy bundle to the files production needs, because it was shipping tests. The user approved a one-off script for the import paths and header lines.
+
+## 2026-11-25: AGENTS.md, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: Changed the attribution rule to record what was done and why, so entries explain the change rather than the process, and added a rule to keep AGENTS.md current and report discrepancies, so it doesn't drift from the code.

@@ -1,7 +1,8 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
 import bcrypt from 'bcrypt';
-import app from '../src/app';
-import { testDb } from './setup';
+import app from '@/app';
+import { testDb } from '../setup';
 
 // Exercises the real app so app.ts's onError is in the path — a thrown 429 would
 // lose its Retry-After header there, which is why the middleware returns one.

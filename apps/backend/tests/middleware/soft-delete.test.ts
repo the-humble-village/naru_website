@@ -1,6 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
-import { testDb, createTestChild } from './setup';
+import { testDb, createTestChild } from '../setup';
 
 describe('soft-delete read filtering', () => {
   let liveId: number;

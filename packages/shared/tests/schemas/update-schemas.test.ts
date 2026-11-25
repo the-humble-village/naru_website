@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import * as schemas from '../index.js';
+import * as schemas from '@/schemas/index.js';
 
 const updateSchemas: Array<[string, z.ZodType]> = [];
 for (const [name, value] of Object.entries(schemas) as Array<[string, unknown]>) {

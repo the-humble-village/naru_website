@@ -1,5 +1,6 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
-import visitsRoutes from '../src/routes/visits';
+import visitsRoutes from '@/routes/visits';
 import {
   testDb,
   createTestUser,
@@ -12,8 +13,8 @@ import {
   createTestEnrollment,
   createTestVisit,
   createTestTraining,
-} from './setup';
-import { mountRoutes, tokenFor } from './http';
+} from '../setup';
+import { mountRoutes, tokenFor } from '../http';
 
 const client = mountRoutes('/visits', visitsRoutes);
 

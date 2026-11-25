@@ -626,7 +626,7 @@ Also still open from `SCHEMA_V2.md` §12 and relevant to the UI:
 9. ✅ Remaining admin pages (question sets, community site column, resource default unit).
 10. ✅ Events.
 
-Every page has a render test in `pages/__tests__/` per the existing convention.
+Every page has a render test in `apps/web/tests/pages/`, mirroring `src/pages/`.
 
 ### Carried forward
 

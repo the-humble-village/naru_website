@@ -20,3 +20,8 @@ Task: On a new branch, delete the Vitest poolOptions setting, which Vitest 4 rem
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: On a new branch, remove the unused backend dependencies multer, @types/multer and @aws-sdk/client-rds, plus the leftover multer override.
+
+## 2026-11-25: apps/web/src/store/auth.ts, AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, derive the auth store's User type from the shared UserRead type instead of duplicating it.

@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   KIND_VISIT_DETAIL,
@@ -52,7 +54,9 @@ const VISIT_SELECT = {
   // Explicitly exclude deletedAt
 } as const;
 
-function toVisitRead(row: any): VisitRead {
+type VisitRow = Prisma.VisitGetPayload<{ select: typeof VISIT_SELECT }>;
+
+function toVisitRead(row: VisitRow): VisitRead {
   return {
     id: row.id,
     localId: row.localId,
@@ -66,13 +70,13 @@ function toVisitRead(row: any): VisitRead {
     notes: row.notes,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    resources: row.resources.map((entry: any) => ({
+    resources: row.resources.map((entry) => ({
       resourceId: entry.resourceId,
       quantity: toDecimal(entry.quantity) ?? 0,
       unit: entry.unit,
     })),
-    trainingIds: row.trainings.map((entry: any) => entry.trainingId),
-    answers: row.answers.map((entry: any) => ({
+    trainingIds: row.trainings.map((entry) => entry.trainingId),
+    answers: row.answers.map((entry) => ({
       questionId: entry.questionId,
       valueText: entry.valueText,
       valueNum: toDecimal(entry.valueNum),
@@ -121,10 +125,11 @@ export async function listVisits(options: {
 
   // Soft-deleting an enrollment does not cascade to its visits, so the join is
   // filtered here or a deleted enrollment's visits keep showing up in reports.
-  const where: any = { enrollment: { deletedAt: null } };
+  const enrollmentWhere: Prisma.EnrollmentWhereInput = { deletedAt: null };
+  const where: Prisma.VisitWhereInput = { enrollment: enrollmentWhere };
 
   if (options.enrollmentId !== undefined) where.enrollmentId = options.enrollmentId;
-  if (options.programId !== undefined) where.enrollment.programId = options.programId;
+  if (options.programId !== undefined) enrollmentWhere.programId = options.programId;
   if (options.siteId !== undefined) where.siteId = options.siteId;
   if (options.communityId !== undefined) where.communityId = options.communityId;
   if (options.eventId !== undefined) where.eventId = options.eventId;
@@ -133,8 +138,8 @@ export async function listVisits(options: {
   // Apply name search before counting and pagination, across all subject types.
   const searchTerms = options.search?.trim().split(/\s+/).filter(Boolean) ?? [];
   if (searchTerms.length > 0) {
-    where.enrollment.AND = searchTerms.map(term => {
-      const name = { contains: term.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' };
+    enrollmentWhere.AND = searchTerms.map(term => {
+      const name = { contains: term.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' as const };
       return {
         OR: [
           { mother: { name } },
@@ -147,9 +152,10 @@ export async function listVisits(options: {
   }
 
   if (options.from !== undefined || options.to !== undefined) {
-    where.visitDate = {};
-    if (options.from !== undefined) where.visitDate.gte = new Date(options.from);
-    if (options.to !== undefined) where.visitDate.lte = new Date(options.to);
+    const visitDate: Prisma.DateTimeFilter = {};
+    if (options.from !== undefined) visitDate.gte = new Date(options.from);
+    if (options.to !== undefined) visitDate.lte = new Date(options.to);
+    where.visitDate = visitDate;
   }
 
   const [rows, total] = await Promise.all([
@@ -175,7 +181,7 @@ export async function listVisits(options: {
     prisma.visit.count({ where }),
   ]);
 
-  const visits = rows.map((row: any) => {
+  const visits = rows.map((row) => {
     const { enrollment, recordedBy, ...rest } = row;
     const { program, mother, child, person, family } = enrollment;
 
@@ -305,7 +311,7 @@ export async function updateVisit(
 
   await assertReferencesExist(data, detail);
 
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: Prisma.VisitUncheckedUpdateInput = { updatedAt: new Date() };
 
   if (data.visitDate !== undefined) updateData.visitDate = new Date(data.visitDate);
   if (data.locationType !== undefined) updateData.locationType = data.locationType;
@@ -445,9 +451,11 @@ export async function getVisitPrefill(
   };
 }
 
+type VisitDetails = Pick<VisitUpdate, 'pregnancyDetail' | 'nutritionDetail'>;
+
 type DetailBlock =
-  | { kind: 'pregnancy'; value?: any }
-  | { kind: 'nutrition'; value?: any }
+  | { kind: 'pregnancy'; value?: VisitDetails['pregnancyDetail'] }
+  | { kind: 'nutrition'; value?: VisitDetails['nutritionDetail'] }
   | { kind: null; value?: undefined };
 
 async function loadEnrollment(enrollmentId: number) {
@@ -474,7 +482,7 @@ async function loadEnrollment(enrollmentId: number) {
  */
 function assertDetailMatchesKind(
   kind: ProgramKind,
-  data: { pregnancyDetail?: any; nutritionDetail?: any }
+  data: VisitDetails
 ): DetailBlock {
   const allowed = KIND_VISIT_DETAIL[kind];
 
@@ -557,27 +565,44 @@ function assertNoDuplicates(ids: number[], label: string): void {
   }
 }
 
-async function assertRowExists(model: string, id: number, label: string): Promise<void> {
-  const row = await (prisma as any)[model].findFirst({
-    where: { id },
-    select: { id: true },
-  });
+const ROW_LOOKUP = {
+  site: (id: number) => prisma.site.findFirst({ where: { id }, select: { id: true } }),
+  community: (id: number) => prisma.community.findFirst({ where: { id }, select: { id: true } }),
+  event: (id: number) => prisma.event.findFirst({ where: { id }, select: { id: true } }),
+  examinationType: (id: number) =>
+    prisma.examinationType.findFirst({ where: { id }, select: { id: true } }),
+};
 
-  if (!row) {
+const ROWS_LOOKUP = {
+  resource: (ids: number[]) =>
+    prisma.resource.findMany({ where: { id: { in: ids } }, select: { id: true } }),
+  training: (ids: number[]) =>
+    prisma.training.findMany({ where: { id: { in: ids } }, select: { id: true } }),
+  question: (ids: number[]) =>
+    prisma.question.findMany({ where: { id: { in: ids } }, select: { id: true } }),
+};
+
+async function assertRowExists(
+  model: keyof typeof ROW_LOOKUP,
+  id: number,
+  label: string
+): Promise<void> {
+  if (!(await ROW_LOOKUP[model](id))) {
     throw new HTTPException(404, { message: `${label} not found` });
   }
 }
 
-async function assertRowsExist(model: string, ids: number[], label: string): Promise<void> {
+async function assertRowsExist(
+  model: keyof typeof ROWS_LOOKUP,
+  ids: number[],
+  label: string
+): Promise<void> {
   if (ids.length === 0) return;
 
-  const rows = await (prisma as any)[model].findMany({
-    where: { id: { in: ids } },
-    select: { id: true },
-  });
+  const rows = await ROWS_LOOKUP[model](ids);
 
   if (rows.length !== ids.length) {
-    const found = new Set(rows.map((row: any) => row.id));
+    const found = new Set(rows.map((row) => row.id));
     const missing = ids.filter((id) => !found.has(id));
 
     throw new HTTPException(404, {
@@ -613,7 +638,7 @@ function withZScores(
   measurements: { weight?: number | null; height?: number | null; armCircumference?: number | null },
   child: { birthDate: Date; sex: Sex } | null | undefined,
   visitDate: string
-): Record<string, unknown> {
+) {
   const scores: NutritionZScores = child
     ? computeNutritionZScores(
         {

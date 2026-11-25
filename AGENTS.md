@@ -131,7 +131,7 @@ DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/naru_test" npx prisma migrat
 - **All business logic lives in services**, not route handlers
 - **Use Prisma migrations** — never raw SQL or manual ALTER TABLE
 - **Validate all input with Zod** — schemas come from `@naru/shared`
-- **No `any` types in new code** — use Zod inference (`z.infer<typeof Schema>`). Older code, mostly in the backend, still has some
+- **No `any` types in new code** — use Zod inference (`z.infer<typeof Schema>`). The backend source has none; older tests still have some. Type a row with `Prisma.XGetPayload<{ select: typeof X_SELECT }>`, and use `withDeleted()` for a read that must include soft-deleted rows
 
 ### V2-specific invariants
 

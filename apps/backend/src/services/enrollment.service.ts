@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   SUBJECT_FK,
@@ -52,7 +54,9 @@ const ENROLLMENT_SELECT = {
   // Explicitly exclude deletedAt
 } as const;
 
-function toEnrollmentRead(row: any): EnrollmentRead {
+type EnrollmentRow = Prisma.EnrollmentGetPayload<{ select: typeof ENROLLMENT_SELECT }>;
+
+function toEnrollmentRead(row: EnrollmentRow): EnrollmentRead {
   return {
     id: row.id,
     localId: row.localId,
@@ -104,7 +108,7 @@ export async function listEnrollments(options: {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 50));
 
-  const where: any = {};
+  const where: Prisma.EnrollmentWhereInput = {};
 
   if (options.programId !== undefined) where.programId = options.programId;
   if (options.motherId !== undefined) where.motherId = options.motherId;
@@ -126,7 +130,7 @@ export async function listEnrollments(options: {
   // fan out across the four subject relations.
   const subjectFilter = buildSubjectLocationFilter(options.communityId, options.siteId);
   if (subjectFilter) {
-    where.AND = [...(where.AND ?? []), subjectFilter];
+    where.AND = [subjectFilter];
   }
 
   const [rows, total] = await Promise.all([
@@ -156,7 +160,7 @@ export async function listEnrollments(options: {
     prisma.enrollment.count({ where }),
   ]);
 
-  const enrollments = rows.map((row: any) => {
+  const enrollments = rows.map((row) => {
     const { program, mother, child, person, family, _count, visits, ...rest } = row;
 
     return {
@@ -165,7 +169,7 @@ export async function listEnrollments(options: {
       subjectName:
         mother?.name ?? child?.name ?? person?.name ?? family?.familyName ?? null,
       visitCount: _count.visits,
-      lastVisitDate: visits.length > 0 ? toDateOnly(visits[0].visitDate) : null,
+      lastVisitDate: toDateOnly(visits[0]?.visitDate),
     };
   });
 
@@ -288,7 +292,7 @@ export async function createEnrollment(data: EnrollmentCreate): Promise<Enrollme
     });
 
     return toEnrollmentRead(created);
-  } catch (error: any) {
+  } catch (error) {
     throw translateActiveEnrollmentConflict(error, program.subjectType as SubjectType);
   }
 }
@@ -334,7 +338,7 @@ export async function updateEnrollment(
     }
   }
 
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: Prisma.EnrollmentUncheckedUpdateInput = { updatedAt: new Date() };
 
   if (data.enrolledAt !== undefined) updateData.enrolledAt = new Date(data.enrolledAt);
   if (data.entryWeight !== undefined) updateData.entryWeight = data.entryWeight;
@@ -459,7 +463,7 @@ export async function reopenEnrollment(
     });
 
     return toEnrollmentRead(updated);
-  } catch (error: any) {
+  } catch (error) {
     throw translateActiveEnrollmentConflict(
       error,
       existing.program.subjectType as SubjectType,
@@ -487,10 +491,15 @@ export async function deleteEnrollment(enrollmentId: number, user: UserRead): Pr
   });
 }
 
+type EnrollmentDetails = Pick<
+  EnrollmentUpdate,
+  'pregnancyDetail' | 'nutritionDetail' | 'studentDetail'
+>;
+
 type DetailBlock =
-  | { kind: 'pregnancy'; value?: any }
-  | { kind: 'nutrition'; value?: any }
-  | { kind: 'student'; value?: any }
+  | { kind: 'pregnancy'; value?: EnrollmentDetails['pregnancyDetail'] }
+  | { kind: 'nutrition'; value?: EnrollmentDetails['nutritionDetail'] }
+  | { kind: 'student'; value?: EnrollmentDetails['studentDetail'] }
   | { kind: null; value?: undefined };
 
 /**
@@ -499,7 +508,7 @@ type DetailBlock =
  */
 function assertDetailMatchesKind(
   kind: ProgramKind,
-  data: { pregnancyDetail?: any; nutritionDetail?: any; studentDetail?: any }
+  data: EnrollmentDetails
 ): DetailBlock {
   const allowed = KIND_ENROLLMENT_DETAIL[kind];
 
@@ -522,20 +531,15 @@ function assertDetailMatchesKind(
   return { kind: allowed, value: data[`${allowed}Detail` as const] } as DetailBlock;
 }
 
+const SUBJECT_LOOKUP: Record<SubjectType, (id: number) => Promise<{ id: number } | null>> = {
+  MOTHER: (id) => prisma.mother.findFirst({ where: { id, deletedAt: null }, select: { id: true } }),
+  CHILD: (id) => prisma.child.findFirst({ where: { id, deletedAt: null }, select: { id: true } }),
+  PERSON: (id) => prisma.person.findFirst({ where: { id, deletedAt: null }, select: { id: true } }),
+  FAMILY: (id) => prisma.family.findFirst({ where: { id, deletedAt: null }, select: { id: true } }),
+};
+
 async function assertSubjectExists(subjectType: SubjectType, subjectId: number): Promise<void> {
-  const model = {
-    MOTHER: 'mother',
-    CHILD: 'child',
-    PERSON: 'person',
-    FAMILY: 'family',
-  }[subjectType];
-
-  const row = await (prisma as any)[model].findFirst({
-    where: { id: subjectId, deletedAt: null },
-    select: { id: true },
-  });
-
-  if (!row) {
+  if (!(await SUBJECT_LOOKUP[subjectType](subjectId))) {
     throw new HTTPException(404, {
       message: `${subjectType.charAt(0)}${subjectType.slice(1).toLowerCase()} not found`,
     });
@@ -558,10 +562,10 @@ async function assertPhotoExists(fileId: number | null | undefined): Promise<voi
 function buildSubjectLocationFilter(
   communityId: number | undefined,
   siteId: number | undefined
-): any | null {
+): Prisma.EnrollmentWhereInput | null {
   if (communityId === undefined && siteId === undefined) return null;
 
-  const match: any = {};
+  const match: { communityId?: number; community?: { siteId: number } } = {};
   if (communityId !== undefined) match.communityId = communityId;
   if (siteId !== undefined) match.community = { siteId };
 
@@ -580,11 +584,11 @@ function buildSubjectLocationFilter(
  * (SCHEMA_V2.md §7.2). Anything else is a genuine failure and is rethrown.
  */
 function translateActiveEnrollmentConflict(
-  error: any,
+  error: unknown,
   subjectType: SubjectType,
   message?: string
-): any {
-  if (error?.code === 'P2002') {
+): unknown {
+  if (error instanceof Error && 'code' in error && error.code === 'P2002') {
     return new HTTPException(409, {
       message:
         message ??

@@ -1,11 +1,12 @@
-import { PrismaClient } from '@prisma/client';
+// AI-assisted: see AI-ATTRIBUTION.md
+import { Prisma, PrismaClient } from '@prisma/client';
 import { Signer } from '@aws-sdk/rds-signer';
 import { softDeleteExtension } from './middleware/soft-delete.js';
 import { appConfig } from './config.js';
 
 // Create base client with explicit datasource for tests
 function createBasePrismaClient(databaseUrl?: string) {
-  const options: any = {};
+  const options: Prisma.PrismaClientOptions = {};
 
   if (databaseUrl) {
     options.datasources = {
@@ -20,9 +21,11 @@ function createBasePrismaClient(databaseUrl?: string) {
   return new PrismaClient(options);
 }
 
+// The client type once the soft-delete extension is applied
+export type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>;
+
 // Global Prisma client singleton instance
-// We use 'any' here because the extended client type is complex, but it still behaves like PrismaClient
-export let prisma: any = globalThis.__prisma || createBasePrismaClient().$extends(softDeleteExtension);
+export let prisma: ExtendedPrismaClient = globalThis.__prisma || createPrismaClient();
 
 // Ensure globalThis.__prisma is set for non-production environments
 if (process.env.NODE_ENV !== 'production' && !globalThis.__prisma) {
@@ -32,7 +35,7 @@ if (process.env.NODE_ENV !== 'production' && !globalThis.__prisma) {
 declare global {
   // Allow global `var` declarations
   // eslint-disable-next-line no-var
-  var __prisma: any | undefined;
+  var __prisma: ExtendedPrismaClient | undefined;
 }
 
 /**

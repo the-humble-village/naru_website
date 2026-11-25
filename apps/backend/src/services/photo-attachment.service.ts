@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   type PhotoAttachmentCreate,
@@ -22,16 +24,21 @@ const PHOTO_SELECT = {
 // photo_attachment.ownerId carries no foreign key (SCHEMA_V2.md §6.5), so this
 // map is the only thing standing between the table and a photo hung off a row
 // that does not exist — or worse, off the id of a row in a different table.
-const OWNER_MODEL: Record<PhotoOwnerType, { model: string; label: string }> = {
-  VISIT: { model: 'visit', label: 'Visit' },
-  CHILD: { model: 'child', label: 'Child' },
-  MOTHER: { model: 'mother', label: 'Mother' },
-  PERSON: { model: 'person', label: 'Person' },
-  FAMILY: { model: 'family', label: 'Family' },
-  EVENT: { model: 'event', label: 'Event' },
+const OWNER_LOOKUP: Record<
+  PhotoOwnerType,
+  { label: string; find: (id: number) => Promise<{ id: number } | null> }
+> = {
+  VISIT: { label: 'Visit', find: (id) => prisma.visit.findFirst({ where: { id }, select: { id: true } }) },
+  CHILD: { label: 'Child', find: (id) => prisma.child.findFirst({ where: { id }, select: { id: true } }) },
+  MOTHER: { label: 'Mother', find: (id) => prisma.mother.findFirst({ where: { id }, select: { id: true } }) },
+  PERSON: { label: 'Person', find: (id) => prisma.person.findFirst({ where: { id }, select: { id: true } }) },
+  FAMILY: { label: 'Family', find: (id) => prisma.family.findFirst({ where: { id }, select: { id: true } }) },
+  EVENT: { label: 'Event', find: (id) => prisma.event.findFirst({ where: { id }, select: { id: true } }) },
 };
 
-function toPhotoRead(row: any): PhotoAttachmentRead {
+type PhotoRow = Prisma.PhotoAttachmentGetPayload<{ select: typeof PHOTO_SELECT }>;
+
+function toPhotoRead(row: PhotoRow): PhotoAttachmentRead {
   return {
     id: row.id,
     fileId: row.fileId,
@@ -60,7 +67,7 @@ export async function listPhotoAttachments(options: {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 50));
 
-  const where: any = {};
+  const where: Prisma.PhotoAttachmentWhereInput = {};
   if (options.ownerType !== undefined) where.ownerType = options.ownerType;
   if (options.ownerId !== undefined) where.ownerId = options.ownerId;
   if (options.fileId !== undefined) where.fileId = options.fileId;
@@ -133,7 +140,7 @@ export async function updatePhotoAttachment(
     throw new HTTPException(404, { message: 'Photo attachment not found' });
   }
 
-  const updateData: any = {};
+  const updateData: Prisma.PhotoAttachmentUpdateInput = {};
   if (data.caption !== undefined) updateData.caption = data.caption;
   if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
 
@@ -193,7 +200,7 @@ export async function reorderPhotoAttachments(
     throw new HTTPException(400, { message: 'Duplicate photo id in reorder request' });
   }
 
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     for (const [index, id] of photoIds.entries()) {
       await tx.photoAttachment.update({ where: { id }, data: { sortOrder: index } });
     }
@@ -211,14 +218,9 @@ async function assertFileExists(fileId: number): Promise<void> {
 }
 
 async function assertOwnerExists(ownerType: PhotoOwnerType, ownerId: number): Promise<void> {
-  const { model, label } = OWNER_MODEL[ownerType];
+  const { find, label } = OWNER_LOOKUP[ownerType];
 
-  const row = await (prisma as any)[model].findFirst({
-    where: { id: ownerId },
-    select: { id: true },
-  });
-
-  if (!row) {
+  if (!(await find(ownerId))) {
     throw new HTTPException(404, { message: `${label} not found` });
   }
 }

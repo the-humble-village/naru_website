@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   type BirthingAssistantCreate,
@@ -44,17 +46,17 @@ export async function listBirthingAssistants(): Promise<BirthingAssistantRead[]>
     },
   });
 
-  return birthingAssistants.map((ba: any) => ({
+  return birthingAssistants.map((ba) => ({
     id: ba.id,
     localId: ba.localId,
     name: ba.name,
     createdAt: ba.createdAt.toISOString(),
     updatedAt: ba.updatedAt.toISOString(),
-    servedCommunities: ba.servedCommunities.map((sc: any) => ({
+    servedCommunities: ba.servedCommunities.map((sc) => ({
       id: sc.community.id,
       title: sc.community.title,
     })),
-    trainingsReceived: ba.trainingsReceived.map((tr: any) => ({
+    trainingsReceived: ba.trainingsReceived.map((tr) => ({
       id: tr.training.id,
       title: tr.training.title,
     })),
@@ -152,11 +154,11 @@ export async function createBirthingAssistant(data: BirthingAssistantCreate): Pr
     name: birthingAssistant.name,
     createdAt: birthingAssistant.createdAt.toISOString(),
     updatedAt: birthingAssistant.updatedAt.toISOString(),
-    servedCommunities: birthingAssistant.servedCommunities.map((sc: any) => ({
+    servedCommunities: birthingAssistant.servedCommunities.map((sc) => ({
       id: sc.community.id,
       title: sc.community.title,
     })),
-    trainingsReceived: birthingAssistant.trainingsReceived.map((tr: any) => ({
+    trainingsReceived: birthingAssistant.trainingsReceived.map((tr) => ({
       id: tr.training.id,
       title: tr.training.title,
     })),
@@ -208,11 +210,11 @@ export async function getBirthingAssistantById(id: number): Promise<BirthingAssi
     name: birthingAssistant.name,
     createdAt: birthingAssistant.createdAt.toISOString(),
     updatedAt: birthingAssistant.updatedAt.toISOString(),
-    servedCommunities: birthingAssistant.servedCommunities.map((sc: any) => ({
+    servedCommunities: birthingAssistant.servedCommunities.map((sc) => ({
       id: sc.community.id,
       title: sc.community.title,
     })),
-    trainingsReceived: birthingAssistant.trainingsReceived.map((tr: any) => ({
+    trainingsReceived: birthingAssistant.trainingsReceived.map((tr) => ({
       id: tr.training.id,
       title: tr.training.title,
     })),
@@ -272,7 +274,7 @@ export async function updateBirthingAssistant(id: number, data: BirthingAssistan
   }
 
   // Prepare update data
-  const updateData: any = {};
+  const updateData: Prisma.BirthingAssistantUpdateInput = {};
   if (data.name !== undefined) updateData.name = data.name;
   if (data.localId !== undefined) updateData.localId = data.localId;
 
@@ -329,11 +331,11 @@ export async function updateBirthingAssistant(id: number, data: BirthingAssistan
     name: birthingAssistant.name,
     createdAt: birthingAssistant.createdAt.toISOString(),
     updatedAt: birthingAssistant.updatedAt.toISOString(),
-    servedCommunities: birthingAssistant.servedCommunities.map((sc: any) => ({
+    servedCommunities: birthingAssistant.servedCommunities.map((sc) => ({
       id: sc.community.id,
       title: sc.community.title,
     })),
-    trainingsReceived: birthingAssistant.trainingsReceived.map((tr: any) => ({
+    trainingsReceived: birthingAssistant.trainingsReceived.map((tr) => ({
       id: tr.training.id,
       title: tr.training.title,
     })),

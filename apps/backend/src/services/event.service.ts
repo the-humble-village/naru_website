@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { Prisma } from '@prisma/client';
 import { HTTPException } from 'hono/http-exception';
 import {
   type EventCreate,
@@ -19,7 +21,9 @@ const EVENT_SELECT = {
   // Explicitly exclude deletedAt
 } as const;
 
-function toEventRead(row: any): EventWithCount {
+type EventRow = Prisma.EventGetPayload<{ select: typeof EVENT_SELECT }>;
+
+function toEventRead(row: EventRow): EventWithCount {
   return {
     id: row.id,
     name: row.name,
@@ -42,16 +46,17 @@ export async function listEvents(options: {
   const skip = Math.max(0, options.skip || 0);
   const limit = Math.min(100, Math.max(1, options.limit || 50));
 
-  const where: any = {};
+  const where: Prisma.EventWhereInput = {};
 
   if (options.search?.trim()) {
     where.name = { contains: options.search.trim(), mode: 'insensitive' };
   }
 
   if (options.from !== undefined || options.to !== undefined) {
-    where.eventDate = {};
-    if (options.from !== undefined) where.eventDate.gte = new Date(options.from);
-    if (options.to !== undefined) where.eventDate.lte = new Date(options.to);
+    const eventDate: Prisma.DateTimeFilter = {};
+    if (options.from !== undefined) eventDate.gte = new Date(options.from);
+    if (options.to !== undefined) eventDate.lte = new Date(options.to);
+    where.eventDate = eventDate;
   }
 
   const [rows, total] = await Promise.all([
@@ -108,7 +113,7 @@ export async function updateEvent(
     throw new HTTPException(404, { message: 'Event not found' });
   }
 
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: Prisma.EventUpdateInput = { updatedAt: new Date() };
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.eventDate !== undefined) updateData.eventDate = new Date(data.eventDate);

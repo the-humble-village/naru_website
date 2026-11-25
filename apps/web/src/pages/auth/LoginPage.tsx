@@ -1,6 +1,8 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Login, LoginSchema } from '@naru/shared';
+import { parseZodErrors } from '../../hooks/useFieldErrors';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../../store/auth';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -34,20 +36,9 @@ export const LoginPage: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
-    try {
-      LoginSchema.parse(formData);
-      setErrors({});
-      return true;
-    } catch (error: any) {
-      const formErrors: Record<string, string> = {};
-      error.errors?.forEach((err: any) => {
-        if (err.path?.length > 0) {
-          formErrors[err.path[0]] = err.message;
-        }
-      });
-      setErrors(formErrors);
-      return false;
-    }
+    const result = LoginSchema.safeParse(formData);
+    setErrors(result.success ? {} : parseZodErrors(result.error));
+    return result.success;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

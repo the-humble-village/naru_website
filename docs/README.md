@@ -1,6 +1,6 @@
 # Docs
 
-Project documentation. `README.md` and `CLAUDE.md` stay at the repo root, where GitHub and Claude Code look for them.
+Project documentation. `README.md`, `AGENTS.md` and `CLAUDE.md` (which just points to `AGENTS.md`) stay at the repo root, where GitHub and AI assistants look for them.
 
 | Doc | What it covers |
 |---|---|

@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -454,7 +455,7 @@ describe('Children Routes', () => {
     });
 
     it('should reject duplicate localId on update', async () => {
-      const existingLocalId = '772a0622-042d-63f6-c938-668877662222';
+      const existingLocalId = '772a0622-042d-43f6-8938-668877662222';
       await createTestChild({ name: 'Other Child', localId: existingLocalId });
 
       const response = await testClient.put(`/children/${testChild.id}`, {

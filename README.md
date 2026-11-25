@@ -43,7 +43,7 @@ deployment/, nginx/  # Server config shipped by CI
 | [WEB_DESIGN_V2](./docs/WEB_DESIGN_V2.md) | Adding or changing a page: route map, pages, components |
 | [ARCHITECTURE](./docs/ARCHITECTURE.md) | You want the system diagrams |
 | [DEPLOYMENT](./docs/DEPLOYMENT.md) | Deploying or touching the server |
-| [CLAUDE.md](./CLAUDE.md) | Conventions and invariants, written for AI assistants but just as useful for people |
+| [AGENTS.md](./AGENTS.md) | Conventions and invariants, written for AI assistants but just as useful for people |
 
 ## Environment variables
 

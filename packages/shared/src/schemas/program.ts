@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { z } from 'zod';
 import { ProgramKindEnum, SubjectTypeEnum } from './enums.js';
 
@@ -18,7 +19,11 @@ export const ProgramCreateSchema = z.object({
 export const ProgramUpdateSchema = ProgramCreateSchema.omit({
   kind: true,
   subjectType: true,
-}).partial();
+}).partial().extend({
+  // Redeclared without their defaults: see FamilyUpdateSchema.
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
 
 export const ProgramReadSchema = z.object({
   id: z.number().int().positive(),

@@ -55,3 +55,8 @@ Task: On a new branch, speed up CI by running lint, tests and build in parallel 
 Tool: Claude Code
 Model: Claude Opus 5.5
 Task: On a new branch, make the soft-delete middleware filter findFirstOrThrow, findUniqueOrThrow, aggregate and groupBy, with tests.
+
+## 2026-11-25: apps/backend/package.json, apps/web/package.json, packages/shared/package.json, pnpm-workspace.yaml, pnpm-lock.yaml, packages/shared/src/schemas/ (birthing-assistant, family, photo, program, question, report, visit).ts, packages/shared/src/schemas/__tests__/update-schemas.test.ts (new file), apps/backend/src/app.ts, apps/backend/tests/children.test.ts, apps/web/src/hooks/useFieldErrors.ts, apps/web/src/pages/auth/LoginPage.tsx, apps/web/tests/pages/auth/LoginPage.test.tsx, apps/web/tests/pages/events/AddEventPage.test.tsx, CLAUDE.local.md (not committed), AI-ATTRIBUTION.md
+Tool: Claude Code
+Model: Claude Opus 5.5
+Task: On a new branch, fix the known dependency vulnerabilities, including the moves to Zod 4, React Router 7 and @hono/node-server 2. Also add a local rule to explain long commands before running them.

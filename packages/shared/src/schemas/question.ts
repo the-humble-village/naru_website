@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { z } from 'zod';
 import { AnswerTypeEnum } from './enums.js';
 
@@ -31,7 +32,10 @@ function choicesMatchAnswerType(
 }
 
 export const QuestionCreateSchema = QuestionBaseSchema.superRefine(choicesMatchAnswerType);
-export const QuestionUpdateSchema = QuestionBaseSchema.partial().superRefine(choicesMatchAnswerType);
+// Defaulted fields are redeclared without their defaults: see FamilyUpdateSchema.
+export const QuestionUpdateSchema = QuestionBaseSchema.partial().extend({
+  sortOrder: z.number().int().optional(),
+}).superRefine(choicesMatchAnswerType);
 
 export const QuestionReadSchema = z.object({
   id: z.number().int().positive(),
@@ -51,7 +55,9 @@ export const QuestionSetCreateSchema = z.object({
   questionIds: z.array(z.number().int().positive()).default([]),
 });
 
-export const QuestionSetUpdateSchema = QuestionSetCreateSchema.partial();
+export const QuestionSetUpdateSchema = QuestionSetCreateSchema.partial().extend({
+  questionIds: z.array(z.number().int().positive()).optional(),
+});
 
 export const QuestionSetItemReadSchema = z.object({
   id: z.number().int().positive(),

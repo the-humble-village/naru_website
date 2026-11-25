@@ -1,3 +1,4 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import { z } from 'zod';
 import { PhotoOwnerTypeEnum } from './enums.js';
 
@@ -15,7 +16,10 @@ export const PhotoAttachmentCreateSchema = z.object({
 export const PhotoAttachmentUpdateSchema = PhotoAttachmentCreateSchema.pick({
   caption: true,
   sortOrder: true,
-}).partial();
+}).partial().extend({
+  // Redeclared without its default: see FamilyUpdateSchema.
+  sortOrder: z.number().int().optional(),
+});
 
 export const PhotoAttachmentReadSchema = z.object({
   id: z.number().int().positive(),
